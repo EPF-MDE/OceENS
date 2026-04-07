@@ -29,8 +29,9 @@ Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances 
 4. **Lancez le serveur Flask** :
    ```bash
    python app.py
-   ```
+   ``` 
 5. Une fois le serveur lancé (vous verrez `* Running on http://127.0.0.1:5000`), ouvrez votre navigateur web et rendez-vous à l'adresse : **http://localhost:5000**
+
 
 ## Structure des Dossiers
 
