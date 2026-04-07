@@ -6,75 +6,11 @@
 const Parametrage = {
     container: null,
 
-    // ─── Données mockées ──────────────────────────────────
-    campusList: [
-        { id: 1, nom: 'Campus Paris-Cachan' },
-        { id: 2, nom: 'Campus Troyes' },
-        { id: 3, nom: 'Campus Montpellier' }
-    ],
-
-    allFilieres: [
-        { id: 1, nom: 'Ingénierie Numérique', campus_id: 1 },
-        { id: 2, nom: 'Mécanique & Énergétique', campus_id: 1 },
-        { id: 3, nom: 'Data & IA', campus_id: 2 },
-        { id: 4, nom: 'Génie Civil', campus_id: 2 },
-        { id: 5, nom: 'Biotechnologies', campus_id: 3 }
-    ],
-
-    profsList: [
-        { id: 1, nom: 'Dupont', prenom: 'Marie' },
-        { id: 2, nom: 'Martin', prenom: 'Jean' },
-        { id: 3, nom: 'Bernard', prenom: 'Sophie' },
-        { id: 4, nom: 'Leroy', prenom: 'Thomas' },
-        { id: 5, nom: 'Moreau', prenom: 'Claire' },
-        { id: 6, nom: 'Garcia', prenom: 'Luca' }
-    ],
-
-    templatesList: [
-        { id: 1, titre: 'Template 2025' }
-    ],
-
-    mockUEsByFiliere: {
-        1: [
-            {
-                id: 101, nom: 'Algorithmique', filiere_id: 1, optionnel: false, _open: true,
-                modules: [
-                    { id: 1001, nom: 'Structures de données', ue_id: 101, modalite: 'OBLIGATOIRE', professeurs: [{ id: 1, nom: 'Dupont', prenom: 'Marie' }] },
-                    { id: 1002, nom: 'Complexité algorithmique', ue_id: 101, modalite: 'OBLIGATOIRE', professeurs: [{ id: 2, nom: 'Martin', prenom: 'Jean' }] }
-                ]
-            },
-            {
-                id: 102, nom: 'Développement Web', filiere_id: 1, optionnel: true, _open: false,
-                modules: [
-                    { id: 1003, nom: 'Frontend (HTML/CSS/JS)', ue_id: 102, modalite: 'OBLIGATOIRE', professeurs: [{ id: 3, nom: 'Bernard', prenom: 'Sophie' }] },
-                    { id: 1004, nom: 'Backend (Python/Flask)', ue_id: 102, modalite: 'CHOIX_ENSEIGNANT_INCLUSIF', professeurs: [{ id: 4, nom: 'Leroy', prenom: 'Thomas' }, { id: 5, nom: 'Moreau', prenom: 'Claire' }] }
-                ]
-            },
-            {
-                id: 103, nom: 'Réseaux & Sécurité', filiere_id: 1, optionnel: false, _open: false,
-                modules: [
-                    { id: 1005, nom: 'TCP/IP & Protocoles', ue_id: 103, modalite: 'OBLIGATOIRE', professeurs: [{ id: 6, nom: 'Garcia', prenom: 'Luca' }] }
-                ]
-            }
-        ],
-        2: [
-            {
-                id: 201, nom: 'Thermodynamique', filiere_id: 2, optionnel: false, _open: true,
-                modules: [
-                    { id: 2001, nom: 'Machines thermiques', ue_id: 201, modalite: 'OBLIGATOIRE', professeurs: [{ id: 2, nom: 'Martin', prenom: 'Jean' }] }
-                ]
-            }
-        ],
-        3: [
-            {
-                id: 301, nom: 'Machine Learning', filiere_id: 3, optionnel: false, _open: true,
-                modules: [
-                    { id: 3001, nom: 'Supervised Learning', ue_id: 301, modalite: 'OBLIGATOIRE', professeurs: [{ id: 1, nom: 'Dupont', prenom: 'Marie' }, { id: 5, nom: 'Moreau', prenom: 'Claire' }] },
-                    { id: 3002, nom: 'Deep Learning', ue_id: 301, modalite: 'CHOIX_ENSEIGNANT_EXCLUSIF', professeurs: [{ id: 3, nom: 'Bernard', prenom: 'Sophie' }] }
-                ]
-            }
-        ]
-    },
+    campusList: [],
+    allFilieres: [],
+    profsList: [],
+    templatesList: [],
+    mockUEsByFiliere: {},
 
     // ─── État courant ───────────────────────────────────
     filieresList: [],
@@ -86,9 +22,27 @@ const Parametrage = {
     nextId: 9000,
 
     // ─── Init ───────────────────────────────────────────
-    init(containerId) {
+    init(containerId, initialData = {}) {
         this.container = document.getElementById(containerId);
         if (!this.container) return;
+
+        this.templatesList = (initialData.templates || []).map(template => ({
+            id: template.id_template,
+            titre: template.nom
+        }));
+        this.campusList = initialData.campusList || [];
+        this.allFilieres = initialData.filieres || [];
+        this.profsList = initialData.profsList || [];
+        this.mockUEsByFiliere = initialData.uesByFiliere || {};
+        this.selectedCampusId = initialData.selectedCampusId || null;
+        this.selectedFiliereId = initialData.selectedFiliereId || null;
+        this.selectedTemplateId = initialData.selectedTemplateId || null;
+        this.semestreAnnee = initialData.semestreAnnee || '';
+        this.filieresList = this.selectedCampusId ? this.allFilieres.filter(f => f.campus_id === this.selectedCampusId) : [];
+        if (this.selectedFiliereId && this.mockUEsByFiliere[this.selectedFiliereId]) {
+            this.ues = JSON.parse(JSON.stringify(this.mockUEsByFiliere[this.selectedFiliereId]));
+        }
+
         this.render();
     },
 

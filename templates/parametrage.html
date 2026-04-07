@@ -199,14 +199,78 @@
     <main>
         <div class="card">
             <h2>Paramétrage du sondage</h2>
-            <div id="parametrage-container"></div>
+            <div id="parametrage-container">
+                <div class="pub-header">
+                    <div class="pub-field">
+                        <label>Modèle de questions</label>
+                        <select id="param-template">
+                            {% for template in templates %}
+                            <option value="{{ template.id_template }}" {% if selected_template_id == template.id_template %}selected{% endif %}>{{ template.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="pub-field">
+                        <label>Semestre / Année</label>
+                        <input type="text" id="param-semestre" value="{{ semestre_annee }}" placeholder="automne/2025">
+                    </div>
+                </div>
+
+                <hr style="border:0; border-top:1px solid #e0e6ec; margin:20px 0;">
+
+                <div class="param-selectors">
+                    <div class="param-field">
+                        <label>Campus</label>
+                        <div class="param-select-group">
+                            <select id="param-campus">
+                                {% for campus in campus_list %}
+                                <option value="{{ campus.id }}" {% if selected_campus_id == campus.id %}selected{% endif %}>{{ campus.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn-icon" title="Créer un nouveau campus">+</button>
+                        </div>
+                    </div>
+                    <div class="param-field">
+                        <label>Filière</label>
+                        <div class="param-select-group">
+                            <select id="param-filiere" {% if not selected_campus_id %}disabled{% endif %}>
+                                {% for filiere in filieres %}
+                                <option value="{{ filiere.id }}" {% if selected_filiere_id == filiere.id %}selected{% endif %}>{{ filiere.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn-icon" title="Créer une nouvelle filière" {% if not selected_campus_id %}style="opacity:0.5;cursor:not-allowed;" disabled{% endif %}>+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="param-ue-container">
+                    {% if not selected_filiere_id %}
+                    <p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>
+                    {% endif %}
+                </div>
+
+                <button class="btn-publish" {% if not selected_filiere_id %}disabled{% endif %}>Publier le sondage</button>
+            </div>
         </div>
     </main>
 
+    <script>
+        window.__initialData__ = {
+            templates: {{ templates | tojson }},
+            campusList: {{ campus_list | tojson }},
+            filieres: {{ filieres | tojson }},
+            semestres: {{ semestres | tojson }},
+            profsList: {{ profs | tojson }},
+            uesByFiliere: {{ ues_by_filiere | tojson }},
+            selectedTemplateId: {{ selected_template_id | tojson }},
+            selectedCampusId: {{ selected_campus_id | tojson }},
+            selectedFiliereId: {{ selected_filiere_id | tojson }},
+            semestreAnnee: {{ semestre_annee | tojson }}
+        };
+    </script>
     <script src="/static/js/parametrage.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            Parametrage.init('parametrage-container');
+            Parametrage.init('parametrage-container', window.__initialData__);
         });
     </script>
 </body>
