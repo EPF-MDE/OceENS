@@ -38,11 +38,14 @@ Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances 
    ```bash
    pip install -r requirements.txt
    ```
-4. **Lancez l'application** :
+
+4. **Ajouter la base de données**
+  Créer un dossier database/ puis y coller le fichier db_oceens.db
+5. **Lancez l'application** :
    ```bash
    python app.py
    ``` 
-5. Une fois le serveur lancé (vous verrez `* Running on http://127.0.0.1:5000`), ouvrez votre navigateur web et rendez-vous à l'adresse : **http://localhost:5000** ou faites directement CTRL + Clic sur le lien.
+6. Une fois le serveur lancé (vous verrez `* Running on http://127.0.0.1:5000`), ouvrez votre navigateur web et rendez-vous à l'adresse : **http://localhost:5000** ou faites directement CTRL + Clic sur le lien.
 
 
 ## Structure des Dossiers
