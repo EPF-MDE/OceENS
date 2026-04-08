@@ -76,3 +76,9 @@ Dans sa version finale, ce projet est destiné à accueillir un backend complet 
 - Le fichier `app.py` sera enrichi avec des routes API (`/api/campus`, `/api/sondages`, etc.).
 - Les données simulées en tête du fichier `static/js/parametrage.js` seront supprimées et remplacées par des appels AJAX (`fetch`) vers les nouvelles routes du backend.
 - Les modèles de base de données (ex: SQLite ou PostgreSQL) seront réintégrés.
+
+## Maquette des pages web
+
+Les pages HTML devront respecter les maquettes établies au préalable et validées par les clients.
+
+Maquette de la page web RP/RM : https://drive.google.com/file/d/1sGFz4WbXSTzSpdkj8Jjkrh9sa7GRI336/view?usp=drive_link
