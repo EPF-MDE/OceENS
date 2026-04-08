@@ -20,6 +20,8 @@ const Parametrage = {
     semestreAnnee: '',
     ues: [],
     nextId: 9000,
+    isLoading: false,
+    loadError: null,
 
     // ─── Init ───────────────────────────────────────────
     init(containerId, initialData = {}) {
@@ -69,6 +71,7 @@ const Parametrage = {
                     <label>Campus</label>
                     <div class="param-select-group">
                         <select id="param-campus" onchange="Parametrage.onCampusChange()">
+                            <option value="">-- Sélectionnez un campus --</option>
                             ${this.campusList.map(c => `<option value="${c.id}" ${this.selectedCampusId === c.id ? 'selected' : ''}>${c.nom}</option>`).join('')}
                         </select>
                         <button class="btn-icon" onclick="Parametrage.addCampus()" title="Créer un nouveau campus">+</button>
@@ -78,6 +81,7 @@ const Parametrage = {
                     <label>Filière</label>
                     <div class="param-select-group">
                         <select id="param-filiere" onchange="Parametrage.onFiliereChange()" ${!this.selectedCampusId ? 'disabled' : ''}>
+                            <option value="">-- Sélectionnez une filière --</option>
                             ${this.filieresList.map(f => `<option value="${f.id}" ${this.selectedFiliereId === f.id ? 'selected' : ''}>${f.nom}</option>`).join('')}
                         </select>
                         <button class="btn-icon" onclick="Parametrage.addFiliere()" title="Créer une nouvelle filière" ${!this.selectedCampusId ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>+</button>
@@ -85,24 +89,19 @@ const Parametrage = {
                 </div>
             </div>
             
-            <div id="param-ue-container">
-                ${this.selectedFiliereId ? '' : '<p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>'}
-            </div>
+            <div id="param-ue-container"></div>
 
             <button class="btn-publish" onclick="Parametrage.publish()" ${!this.selectedFiliereId ? 'disabled' : ''}>Publier le sondage</button>
         `;
 
-        if (this.selectedFiliereId) {
-            this.renderUEs();
-        }
+        this.renderUEContainer();
     },
 
     // ─── Campus change ──────────────────────────────────
-    onCampusChange() {
+    async onCampusChange() {
         const sel = document.getElementById('param-campus');
         this.selectedCampusId = sel.value ? parseInt(sel.value) : null;
         this.selectedFiliereId = null;
-        this.ues = [];
 
         if (this.selectedCampusId) {
             this.filieresList = this.allFilieres.filter(f => f.campus_id === this.selectedCampusId);
@@ -110,6 +109,83 @@ const Parametrage = {
             this.filieresList = [];
         }
         this.render();
+        await this.fetchAndUpdateData();
+    },
+
+    renderUEContainer() {
+        const container = document.getElementById('param-ue-container');
+        if (!container) return;
+
+        if (this.loadError) {
+            container.innerHTML = `<p class="param-empty">${this.esc(this.loadError)}</p>`;
+            return;
+        }
+
+        if (this.isLoading && !this.selectedFiliereId) {
+            container.innerHTML = `<p class="param-empty">Chargement des filières...</p>`;
+            return;
+        }
+
+        if (!this.selectedCampusId && !this.selectedFiliereId) {
+            container.innerHTML = `<p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>`;
+            return;
+        }
+
+        if (this.selectedCampusId && !this.selectedFiliereId) {
+            if (this.filieresList.length === 0) {
+                container.innerHTML = `<p class="param-empty">Aucune filière disponible pour ce campus.</p>`;
+                return;
+            }
+            container.innerHTML = `<p class="param-empty">Sélectionnez une filière pour configurer les cours et professeurs.</p>`;
+            return;
+        }
+
+        if (this.selectedFiliereId) {
+            this.renderUEs();
+            return;
+        }
+
+        container.innerHTML = '';
+    },
+
+    async fetchAndUpdateData() {
+        if (!window.fetch) return;
+
+        this.isLoading = true;
+        this.loadError = null;
+        this.renderUEContainer();
+
+        try {
+            const response = await fetch('/api/parametrage', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`Impossible de charger les données : ${response.status}`);
+            }
+            const data = await response.json();
+
+            this.campusList = data.campusList || this.campusList;
+            this.allFilieres = data.filieres || this.allFilieres;
+            this.profsList = data.profsList || this.profsList;
+            this.templatesList = (data.templates || []).map(template => ({
+                id: template.id_template,
+                titre: template.nom
+            }));
+            this.mockUEsByFiliere = data.uesByFiliere || this.mockUEsByFiliere;
+
+            if (this.selectedCampusId) {
+                this.filieresList = this.allFilieres.filter(f => f.campus_id === this.selectedCampusId);
+            } else {
+                this.filieresList = [];
+            }
+
+            if (this.selectedFiliereId) {
+                this.ues = JSON.parse(JSON.stringify(this.mockUEsByFiliere[this.selectedFiliereId] || []));
+            }
+        } catch (error) {
+            this.loadError = error.message || 'Une erreur est survenue pendant le chargement.';
+        } finally {
+            this.isLoading = false;
+            this.render();
+        }
     },
 
     addCampus() {
@@ -125,7 +201,7 @@ const Parametrage = {
     },
 
     // ─── Filière change ─────────────────────────────────
-    onFiliereChange() {
+    async onFiliereChange() {
         const sel = document.getElementById('param-filiere');
         this.selectedFiliereId = sel.value ? parseInt(sel.value) : null;
         if (this.selectedFiliereId) {
@@ -134,6 +210,7 @@ const Parametrage = {
             this.ues = [];
         }
         this.render();
+        await this.fetchAndUpdateData();
     },
 
     addFiliere() {
@@ -153,6 +230,13 @@ const Parametrage = {
     renderUEs() {
         const container = document.getElementById('param-ue-container');
         if (!container) return;
+
+        if (this.isLoading) {
+            container.innerHTML = `
+                <p class="param-empty">Chargement des données pour la filière...</p>
+            `;
+            return;
+        }
 
         if (this.ues.length === 0) {
             container.innerHTML = `
