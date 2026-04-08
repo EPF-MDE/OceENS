@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Dashboard Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fef2f2; min-height: 100vh; }
+    header { background: #dc2626; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    header .brand { font-weight: 700; font-size: 18px; }
+    header nav { display: flex; align-items: center; gap: 16px; font-size: 14px; }
+    header nav a { color: white; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.5); border-radius: 6px; }
+    header nav a:hover { background: rgba(255,255,255,0.15); }
+    main { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; background: #dc2626; color: white; padding: 4px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; margin-bottom: 24px; }
+    h1 { font-size: 26px; color: #111; margin-bottom: 8px; }
+    p { color: #666; margin-bottom: 32px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #dc2626; }
+    .card h3 { font-size: 15px; color: #333; margin-bottom: 6px; }
+    .card p { color: #888; font-size: 14px; margin: 0; }
+    .card .number { font-size: 32px; font-weight: 700; color: #dc2626; margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">🏢 Mon App</span>
+    <nav>
+      <span>{{ user.email }}</span>
+      <a href="/logout">Déconnexion</a>
+    </nav>
+  </header>
+  <main>
+    <div class="badge">🔴 Administrateur</div>
+    <h1>Bonjour, {{ user.name }} 👋</h1>
+    <p>Vous avez accès à toutes les fonctionnalités d'administration.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Utilisateurs</h3>
+        <div class="number">12 926</div>
+        <p>membres actifs</p>
+      </div>
+      <div class="card">
+        <h3>Votre rôle</h3>
+        <div class="number">Admin</div>
+        <p>accès complet</p>
+      </div>
+      <div class="card">
+        <h3>Email vérifié</h3>
+        <div class="number" style="font-size:18px; margin-top: 14px;">{{ user.email }}</div>
+        <p>via Microsoft SSO</p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
