@@ -80,5 +80,4 @@ Dans sa version finale, ce projet est destiné à accueillir un backend complet 
 ## Maquette des pages web
 
 Les pages HTML devront respecter les maquettes établies au préalable et validées par les clients.
-
 Maquette de la page web RP/RM : https://drive.google.com/file/d/1sGFz4WbXSTzSpdkj8Jjkrh9sa7GRI336/view?usp=drive_link
