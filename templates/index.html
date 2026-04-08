@@ -18,7 +18,7 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #ffffff;
             color: #333333;
             min-height: 100vh;
@@ -80,7 +80,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: url('/static/img/fond_accueil.png');
+            background-image: url('/static/img/image_page authentification.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -120,12 +120,12 @@
             margin-bottom: 5px;
         }
 
-        .text-orange {
-            color: #ff5a00;
+        .text-red {
+            color: #df231d;
         }
 
-        .text-blue {
-            color: #0044b3;
+        .text-purple {
+            color: #470a68;
         }
 
         .logo-subtitle {
@@ -159,26 +159,26 @@
             border: none;
         }
 
-        .hero-btn-blue {
-            background-color: #0d47a1;
+        .hero-btn-purple {
+            background-color: #470a68;
             /* Bleu foncé similaire à la maquette */
             color: #ffffff;
         }
 
-        .hero-btn-blue:hover {
-            background-color: #08306b;
+        .hero-btn-purple:hover {
+            background-color: #470a68;
             transform: translateY(-2px);
             box-shadow: 0 6px 15px rgba(13, 71, 161, 0.3);
         }
 
-        .hero-btn-orange {
-            background-color: #ff6d00;
+        .hero-btn-red {
+            background-color: #df231d;
             /* Orange similaire à la maquette */
             color: #ffffff;
         }
 
-        .hero-btn-orange:hover {
-            background-color: #e65100;
+        .hero-btn-red:hover {
+            background-color: #df231d;
             transform: translateY(-2px);
             box-shadow: 0 6px 15px rgba(255, 109, 0, 0.3);
         }
@@ -211,25 +211,24 @@
 
     <header>
         <img src="/static/img/epf_logo.png" alt="EPF Engineering School" class="header-logo">
-        <div class="header-user" aria-label="Profil utilisateur">
-            <svg viewBox="0 0 24 24">
-                <path
-                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-            </svg>
-        </div>
+        <!-- <div class="header-user" aria-label="Profil utilisateur"> -->
+        <!-- <svg viewBox="0 0 24 24">
+            <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+        </svg>
+        </div> -->
     </header>
 
     <main>
         <div class="hero-bg"></div>
         <div class="hero-content">
             <h1 class="logo-title">
-                <span class="text-orange">Océ</span><span class="text-blue">Ens</span><span
-                    class="text-orange">II</span>
+                <span class="text-red">Océ</span><span class="text-purple">Ens</span>
             </h1>
-            <p class="logo-subtitle">Plateformes d'évaluation des enseignements</p>
+            <p class="logo-subtitle" style="text-transform:none;">Plateformes d'évaluation des enseignements</p>
             <div class="hero-actions">
-                <a href="/parametrage" class="hero-btn hero-btn-blue">Créer questionnaire</a>
-                <a href="#" class="hero-btn hero-btn-orange">Visionner dashboard</a>
+                <a href="/parametrage" class="hero-btn hero-btn-purple">Créer questionnaire</a>
+                <a href="#" class="hero-btn hero-btn-red">Visionner dashboard</a>
             </div>
         </div>
     </main>
