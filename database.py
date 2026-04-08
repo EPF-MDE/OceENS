@@ -9,7 +9,7 @@ Base = declarative_base()
 class UserRole(Base):
     __tablename__ = "roles"
     email = Column(String, primary_key=True)
-    role = Column(String, default="student")
+    role = Column(String, default="etudiant")
 
 
 Base.metadata.create_all(engine)
@@ -21,5 +21,5 @@ def get_role(email: str) -> str:
     user = db.query(UserRole).filter(UserRole.email == email.lower()).first()
     db.close()
     return (
-        user.role if user else "student"
+        user.role if user else "etudiant"
     )  # une personne n'appartenant pas à la bdd sera considéré come un élève
