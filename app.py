@@ -5,12 +5,47 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+from auth import router as auth_router
 from sqlmodel import Session, SQLModel, create_engine, select
 from contextlib import asynccontextmanager
+from pydantic import BaseModel
+from models import (
+    Module,
+    Question,
+    Repondant,
+    Reponse,
+    Section,
+    Sondage,
+    Template,
+    Option,
+    User,
+)
 import uvicorn
 
-from models import Module, Question, Repondant, Reponse, Section, Sondage, Template, Option, User
-from pydantic import BaseModel
+
+def create_app():
+    app = FastAPI(title="Océens")
+
+    # ── Session middleware (obligatoire pour MSAL) ──
+    app.add_middleware(
+        SessionMiddleware,  # La classe du middleware à utiliser
+        secret_key=os.environ.get(
+            "SECRET_KEY", "changeme"
+        ),  # Clé secrète pour signer/ sécuriser le cookie
+    )
+
+    # Enregistrement des Routes (API)
+    # Inclut toutes les routes définies dans auth_router (login, callback Microsoft)
+    app.include_router(auth_router)
+
+    # Secret key n'est pas utilisé directement sans middleware dans FastAPI
+    # Si besoin de sessions, vous pouvez utiliser SessionMiddleware de starlette
+
+    # ─── Configuration Static & Templates ─────────────────
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    templates = Jinja2Templates(directory="templates")
+
 
 sqlite_file_name = "database/db_oceens.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -89,9 +124,9 @@ async def lifespan(app: FastAPI):
     print("Fermeture de la connexion...")
 
 
-app = FastAPI(lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# app = FastAPI(lifespan=lifespan)
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+# templates = Jinja2Templates(directory="templates")
 
 
 def parse_name(full_name: Optional[str], fallback_id: int) -> Dict[str, Optional[str]]:
@@ -317,7 +352,9 @@ def create_sondage(sondage: SondageFullCreate, session: SessionDep):
             next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
 
             # Générer l'URL du questionnaire
-            questionnaire_url = f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
+            questionnaire_url = (
+                f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
+            )
 
             new_sondage = Sondage(
                 id_template=sondage.id_template,
@@ -350,7 +387,9 @@ def create_sondage(sondage: SondageFullCreate, session: SessionDep):
                         prof_names = [
                             f"{p.prenom} {p.nom}" for p in module_data.professeurs
                         ]
-                        module.enseignant = ", ".join(prof_names) if prof_names else None
+                        module.enseignant = (
+                            ", ".join(prof_names) if prof_names else None
+                        )
                     else:
                         # Créer un nouveau module
                         new_module = Module(
@@ -405,16 +444,12 @@ def questionnaire_page(
     ).all()
 
     # Récupérer les modules associés au sondage
-    modules = session.exec(
-        select(Module).where(Module.id_sondage == id_sondage)
-    ).all()
+    modules = session.exec(select(Module).where(Module.id_sondage == id_sondage)).all()
 
     # Structurer les données pour le template
     sections_data = []
     for sec in sections:
-        sec_questions = [
-            q for q in questions if q.id_section == sec.id_section
-        ]
+        sec_questions = [q for q in questions if q.id_section == sec.id_section]
         sec_questions.sort(key=lambda q: q.id_question)
 
         questions_data = []
@@ -422,8 +457,7 @@ def questionnaire_page(
             q_options = [
                 o
                 for o in options
-                if o.id_section == sec.id_section
-                and o.id_question == q.id_question
+                if o.id_section == sec.id_section and o.id_question == q.id_question
             ]
             q_options.sort(key=lambda o: o.id_option)
             questions_data.append(
@@ -495,9 +529,7 @@ def submit_reponses(
         )
     ).first()
     if not sondage:
-        return JSONResponse(
-            content={"error": "Sondage introuvable"}, status_code=404
-        )
+        return JSONResponse(content={"error": "Sondage introuvable"}, status_code=404)
 
     # Transaction sécurisée — la session a déjà une transaction active via get_session()
     # Créer le répondant
@@ -509,9 +541,7 @@ def submit_reponses(
 
     # Trouver le prochain id_reponse
     existing_reponses = session.exec(select(Reponse)).all()
-    next_id_reponse = (
-        max([r.id_reponse for r in existing_reponses] + [0]) + 1
-    )
+    next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
 
     # Insérer chaque réponse
     for rep in submission.reponses:
@@ -536,5 +566,12 @@ def submit_reponses(
     }
 
 
+app = create_app()
+
+"""
+host="0.0.0.0" signifie "écoute sur toutes les interfaces réseau
+reload=False désactivé car il n'y a plus de modifications en direct
+"""
+
 if __name__ == "__main__":
-    uvicorn.run("app:app", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
