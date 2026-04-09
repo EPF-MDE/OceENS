@@ -221,3 +221,5 @@ database/
 
 
 *.db
+oceens.crt
+oceens.key
