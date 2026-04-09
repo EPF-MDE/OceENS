@@ -59,8 +59,11 @@ const Parametrage = {
                     </select>
                 </div>
                 <div class="pub-field">
-                    <label>Semestre / Année</label>
-                    <input type="text" id="param-semestre" value="${this.semestreAnnee}" onchange="Parametrage.semestreAnnee = this.value;" placeholder="automne/2025">
+                    <label>Semestre</label>
+                    <select id="param-semestre" onchange="Parametrage.semestreAnnee = this.value;">
+                        <option value="">-- Sélectionnez un semestre --</option>
+                        ${['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'].map(s => `<option value="${s}" ${this.semestreAnnee === s ? 'selected' : ''}>${s}</option>`).join('')}
+                    </select>
                 </div>
             </div>
 
@@ -74,7 +77,6 @@ const Parametrage = {
                             <option value="">-- Sélectionnez un campus --</option>
                             ${this.campusList.map(c => `<option value="${c.id}" ${this.selectedCampusId === c.id ? 'selected' : ''}>${c.nom}</option>`).join('')}
                         </select>
-                        <button class="btn-icon" onclick="Parametrage.addCampus()" title="Créer un nouveau campus">+</button>
                     </div>
                 </div>
                 <div class="param-field">
@@ -188,17 +190,7 @@ const Parametrage = {
         }
     },
 
-    addCampus() {
-        const nom = prompt('Nom du nouveau campus :');
-        if (!nom || !nom.trim()) return;
-        const newId = ++this.nextId;
-        this.campusList.push({ id: newId, nom: nom.trim() });
-        this.selectedCampusId = newId;
-        this.selectedFiliereId = null;
-        this.ues = [];
-        this.filieresList = [];
-        this.render();
-    },
+
 
     // ─── Filière change ─────────────────────────────────
     async onFiliereChange() {
@@ -477,7 +469,7 @@ const Parametrage = {
         }
         if (!this.selectedCampusId) return alert('Veuillez sélectionner un Campus.');
         if (!this.selectedFiliereId) return alert('Veuillez sélectionner une Filière.');
-        if (!this.semestreAnnee.trim()) return alert("Veuillez saisir le semestre / année.");
+        if (!this.semestreAnnee || !this.semestreAnnee.trim()) return alert("Veuillez sélectionner un semestre.");
         if (this.ues.length === 0) return alert('Le sondage doit contenir au moins une UE.');
 
         const campusNom = this.campusList.find(c => c.id === this.selectedCampusId)?.nom || '';

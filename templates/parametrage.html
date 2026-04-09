@@ -205,13 +205,19 @@
                         <label>Modèle de questions</label>
                         <select id="param-template">
                             {% for template in templates %}
-                            <option value="{{ template.id_template }}" {% if selected_template_id == template.id_template %}selected{% endif %}>{{ template.nom }}</option>
+                            <option value="{{ template.id_template }}" {% if selected_template_id==template.id_template
+                                %}selected{% endif %}>{{ template.nom }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="pub-field">
-                        <label>Semestre / Année</label>
-                        <input type="text" id="param-semestre" value="{{ semestre_annee }}" placeholder="automne/2025">
+                        <label>Semestre</label>
+                        <select id="param-semestre">
+                            <option value="">-- Sélectionnez un semestre --</option>
+                            {% for s in ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'] %}
+                            <option value="{{ s }}" {% if semestre_annee == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 
@@ -223,10 +229,11 @@
                         <div class="param-select-group">
                             <select id="param-campus">
                                 {% for campus in campus_list %}
-                                <option value="{{ campus.id }}" {% if selected_campus_id == campus.id %}selected{% endif %}>{{ campus.nom }}</option>
+                                <option value="{{ campus.id }}" {% if selected_campus_id==campus.id %}selected{% endif
+                                    %}>{{ campus.nom }}</option>
                                 {% endfor %}
                             </select>
-                            <button class="btn-icon" title="Créer un nouveau campus">+</button>
+
                         </div>
                     </div>
                     <div class="param-field">
@@ -234,21 +241,25 @@
                         <div class="param-select-group">
                             <select id="param-filiere" {% if not selected_campus_id %}disabled{% endif %}>
                                 {% for filiere in filieres %}
-                                <option value="{{ filiere.id }}" {% if selected_filiere_id == filiere.id %}selected{% endif %}>{{ filiere.nom }}</option>
+                                <option value="{{ filiere.id }}" {% if selected_filiere_id==filiere.id %}selected{%
+                                    endif %}>{{ filiere.nom }}</option>
                                 {% endfor %}
                             </select>
-                            <button class="btn-icon" title="Créer une nouvelle filière" {% if not selected_campus_id %}style="opacity:0.5;cursor:not-allowed;" disabled{% endif %}>+</button>
+                            <button class="btn-icon" title="Créer une nouvelle filière" {% if not selected_campus_id
+                                %}style="opacity:0.5;cursor:not-allowed;" disabled{% endif %}>+</button>
                         </div>
                     </div>
                 </div>
 
                 <div id="param-ue-container">
                     {% if not selected_filiere_id %}
-                    <p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>
+                    <p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et
+                        professeurs.</p>
                     {% endif %}
                 </div>
 
-                <button class="btn-publish" {% if not selected_filiere_id %}disabled{% endif %}>Publier le sondage</button>
+                <button class="btn-publish" {% if not selected_filiere_id %}disabled{% endif %}>Publier le
+                    sondage</button>
             </div>
         </div>
     </main>

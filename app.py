@@ -70,15 +70,27 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
         if sondage.semestre and sondage.semestre not in semestres:
             semestres.append(sondage.semestre)
 
-    campus_list = [{"id": index + 1, "nom": campus} for index, campus in enumerate(campus_names)]
+    # Ensure default campuses are always available
+    default_campuses = ["St-Nazaire"]
+    for dc in default_campuses:
+        if dc not in campus_names:
+            campus_names.append(dc)
+
+    campus_list = [
+        {"id": index + 1, "nom": campus} for index, campus in enumerate(campus_names)
+    ]
     campus_index = {campus["nom"]: campus["id"] for campus in campus_list}
     filieres = []
     for index, formation in enumerate(filiere_names):
-        filieres.append({
-            "id": index + 1,
-            "nom": formation,
-            "campus_id": campus_index.get(formation_to_campus.get(formation, ""), None),
-        })
+        filieres.append(
+            {
+                "id": index + 1,
+                "nom": formation,
+                "campus_id": campus_index.get(
+                    formation_to_campus.get(formation, ""), None
+                ),
+            }
+        )
 
     professors = []
     professor_index = 1
@@ -98,7 +110,9 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
 
     for user in users:
         if user.role and "Enseignant" in user.role and user.mail:
-            parsed = parse_name(user.mail.split("@")[0].replace('.', ' '), professor_index)
+            parsed = parse_name(
+                user.mail.split("@")[0].replace(".", " "), professor_index
+            )
             parsed["nom"] = parsed["nom"] or ""
             parsed["prenom"] = parsed["prenom"] or ""
             key = (parsed["prenom"].lower(), parsed["nom"].lower())
@@ -115,7 +129,9 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
             filiere_id = default_filiere_id
             ue_name = module.ue or "Sans UE"
             ues_by_filiere.setdefault(filiere_id, [])
-            ue_entry = next((ue for ue in ues_by_filiere[filiere_id] if ue["nom"] == ue_name), None)
+            ue_entry = next(
+                (ue for ue in ues_by_filiere[filiere_id] if ue["nom"] == ue_name), None
+            )
             professor = parse_name(module.enseignant, professor_index)
             if professor["prenom"] or professor["nom"]:
                 key = (professor["prenom"].lower(), professor["nom"].lower())
@@ -130,19 +146,25 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
                     "nom": ue_name,
                     "optionnel": False,
                     "_open": True,
-                    "modules": []
+                    "modules": [],
                 }
                 ues_by_filiere[filiere_id].append(ue_entry)
-            ue_entry["modules"].append({
-                "id": int(module.id_module or 0),
-                "nom": module.nom or "Module",
-                "modalite": "OBLIGATOIRE",
-                "professeurs": [{
-                    "id": professor.get("id", 0),
-                    "prenom": professor["prenom"],
-                    "nom": professor["nom"]
-                }] if professor["prenom"] or professor["nom"] else []
-            })
+            ue_entry["modules"].append(
+                {
+                    "id": int(module.id_module or 0),
+                    "nom": module.nom or "Module",
+                    "modalite": "OBLIGATOIRE",
+                    "professeurs": [
+                        {
+                            "id": professor.get("id", 0),
+                            "prenom": professor["prenom"],
+                            "nom": professor["nom"],
+                        }
+                    ]
+                    if professor["prenom"] or professor["nom"]
+                    else [],
+                }
+            )
 
     template_dicts = [template.dict() for template in templates]
 
@@ -153,11 +175,15 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
         "semestres": semestres,
         "profsList": professors,
         "uesByFiliere": ues_by_filiere,
-        "selectedTemplateId": template_dicts[0]["id_template"] if template_dicts else None,
+        "selectedTemplateId": template_dicts[0]["id_template"]
+        if template_dicts
+        else None,
         "selectedCampusId": campus_list[0]["id"] if campus_list else None,
         "selectedFiliereId": filieres[0]["id"] if filieres else None,
         "semestreAnnee": semestres[0] if semestres else "",
-        "questions": [question.dict() for question in session.exec(select(Question)).all()],
+        "questions": [
+            question.dict() for question in session.exec(select(Question)).all()
+        ],
         "options": [option.dict() for option in session.exec(select(Option)).all()],
     }
 
@@ -206,5 +232,5 @@ async def parametrage_api(session: SessionDep):
     return JSONResponse(content=build_parametrage_data(session))
 
 
-if __name__ == '__main__':
-    uvicorn.run("app:app", host="127.0.0.1", port=5000, reload=True)
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="127.0.0.1", port=8001, reload=True)
