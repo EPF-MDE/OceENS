@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from models import Module, Question, Sondage, Template, Option, User
+from pydantic import BaseModel
 
 sqlite_file_name = "database/db_oceens.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -27,6 +28,14 @@ def get_session():
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+
+class SondageCreate(BaseModel):
+    id_template: int
+    campus: str
+    formation: str
+    semestre: str
+    id_user: Optional[int] = 1  # Utilisateur par défaut
 
 
 @asynccontextmanager
@@ -232,5 +241,33 @@ async def parametrage_api(session: SessionDep):
     return JSONResponse(content=build_parametrage_data(session))
 
 
+@app.post("/api/sondage")
+async def create_sondage(sondage: SondageCreate, session: SessionDep):
+    # Trouver le prochain id_sondage pour ce template
+    existing_sondages = session.exec(select(Sondage).where(Sondage.id_template == sondage.id_template)).all()
+    next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
+
+    new_sondage = Sondage(
+        id_template=sondage.id_template,
+        id_sondage=next_id_sondage,
+        campus=sondage.campus,
+        formation=sondage.formation,
+        semestre=sondage.semestre,
+        statut=1,  # Actif par défaut
+        id_user=sondage.id_user
+    )
+
+    session.add(new_sondage)
+
+    # Associer les modules existants à ce sondage
+    modules = session.exec(select(Module).where(Module.id_template == sondage.id_template)).all()
+    for module in modules:
+        module.id_sondage = next_id_sondage
+
+    session.commit()
+
+    return {"message": "Sondage créé avec succès", "id_sondage": next_id_sondage}
+
+
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="127.0.0.1", port=8001, reload=True)
+    uvicorn.run("app:app", port=8000, reload=True)

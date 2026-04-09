@@ -476,23 +476,35 @@ const Parametrage = {
         const filiereNom = this.filieresList.find(f => f.id === this.selectedFiliereId)?.nom || '';
         const templateNom = this.templatesList.find(t => t.id === this.selectedTemplateId)?.titre || '';
 
-        this.container.innerHTML = `
-            <div style="text-align:center; padding: 40px 20px;">
-                <div style="font-size:2.5rem; margin-bottom:20px;">Sondage créé</div>
-                <p style="font-size:1rem; color:#3d5a80; margin-bottom:8px; font-weight:600;">
-                    ${this.esc(templateNom)}
-                </p>
-                <p style="font-size:0.95rem; color:#6b7f96; margin-bottom:30px;">
-                    ${this.esc(campusNom)} — ${this.esc(filiereNom)} — ${this.esc(this.semestreAnnee)}
-                </p>
-                <p style="font-size:0.85rem; color:#9aa8b8; margin-bottom:30px;">
-                    Mode visuel — la publication réelle nécessite un backend
-                </p>
-                <a href="/" style="padding:12px 28px; background:linear-gradient(135deg, #1a5276, #1f6f9f); color:white; text-decoration:none; border-radius:6px; font-weight:600;">
-                    Retour
-                </a>
-            </div>
-        `;
+        const data = {
+            id_template: this.selectedTemplateId,
+            campus: campusNom,
+            formation: filiereNom,
+            semestre: this.semestreAnnee
+        };
+
+        fetch('/api/sondage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erreur réseau');
+            }
+            return response.json();
+        })
+        .then(result => {
+            alert(result.message);
+            // Rediriger vers la page d'accueil ou afficher un message de succès
+            window.location.href = '/';
+        })
+        .catch(error => {
+            alert('Erreur lors de la création du sondage : ' + error.message);
+            console.error(error);
+        });
     },
 
     // ─── Utils ──────────────────────────────────────────
