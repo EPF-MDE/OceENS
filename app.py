@@ -76,8 +76,8 @@ if __name__ == "__main__":
     uvicorn.run(
         "app:app",
         host="0.0.0.0",
-        port=443,
-        ssl_keyfile="oceens.key",
-        ssl_certfile="oceens.crt",
+        port=8000,
+        # ssl_keyfile="oceens.key",
+        # ssl_certfile="oceens.crt",
         reload=False,
     )
