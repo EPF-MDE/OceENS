@@ -27,22 +27,48 @@
             overflow-x: hidden;
         }
 
+        /* Définition de l'animation */
+        @keyframes slide {
+            0% {
+                background-position: center top;
+            }
+
+            50% {
+                background-position: center bottom;
+            }
+
+            100% {
+                background-position: center top;
+            }
+        }
+
         /* ── Top Header ─────────────────────────────── */
         header {
-            background-color: #ffffff;
+            background-image: url('/static/img/hautpage.png');
             height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 40px;
-            border-bottom: 1px solid #e0e0e0;
-            z-index: 100;
             position: relative;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 100;
+
+            animation: slide 6s ease-in-out infinite;
+
+        }
+
+        .hero {
+            padding-top: 60px;
+
         }
 
         .header-logo {
-            height: 50px;
+            height: 70px;
             object-fit: contain;
+            position: absolute;
+            bottom: -35px;
+            left: 20px;
+            transform: none;
+
         }
 
         .header-user {
@@ -210,7 +236,7 @@
 <body>
 
     <header>
-        <img src="/static/img/epf_logo.png" alt="EPF Engineering School" class="header-logo">
+        <img src="/static/img/logo.png" alt="EPF Engineering School" class="header-logo">
         <!-- <div class="header-user" aria-label="Profil utilisateur"> -->
         <!-- <svg viewBox="0 0 24 24">
             <path
