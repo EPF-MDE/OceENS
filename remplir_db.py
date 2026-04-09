@@ -1,3 +1,8 @@
+"""
+fichier permettant de remplir la base de données avec des données d'exemple
+il n'est pas nécessaire de l'exécuter à chaque fois, mais il peut être utile pour tester l'application avec des données réalistes.
+"""
+
 from database import SessionLocal, UserRole
 
 # On ouvre une connexion à la base
