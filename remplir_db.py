@@ -1,6 +1,7 @@
 """
 fichier permettant de remplir la base de données avec des données d'exemple
 il n'est pas nécessaire de l'exécuter à chaque fois, mais il peut être utile pour tester l'application avec des données réalistes.
+utiliser les roles suivants : etudiant, professeur, admin
 """
 
 from database import SessionLocal, UserRole
@@ -11,7 +12,7 @@ db = SessionLocal()
 # --- Création d'instances (lignes) ---
 
 # Exemple 2 : Un professeur
-prof_1 = UserRole(email="julien.blondiaux@epfedu.fr", role="teacher")
+prof_1 = UserRole(email="julien.blondiaux@epfedu.fr", role="professeur")
 
 # Exemple 3 : Un administrateur
 admin_1 = UserRole(email="marie.bouafou@epfedu.fr", role="admin")
