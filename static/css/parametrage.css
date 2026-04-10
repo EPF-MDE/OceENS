@@ -251,12 +251,20 @@
     flex: 1;
     min-width: 200px;
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    flex-direction: column;
     gap: 4px;
 }
 
-.param-prof-tag {
+.param-prof-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.param-prof-item {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -267,7 +275,7 @@
     color: #333;
 }
 
-.param-prof-tag .param-remove-tag {
+.param-prof-item .param-remove-tag {
     background: none;
     border: none;
     color: #999;
@@ -277,7 +285,7 @@
     line-height: 1;
 }
 
-.param-prof-tag .param-remove-tag:hover {
+.param-prof-item .param-remove-tag:hover {
     color: #c0392b;
 }
 
