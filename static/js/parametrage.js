@@ -6,75 +6,11 @@
 const Parametrage = {
     container: null,
 
-    // ─── Données mockées ──────────────────────────────────
-    campusList: [
-        { id: 1, nom: 'Campus Paris-Cachan' },
-        { id: 2, nom: 'Campus Troyes' },
-        { id: 3, nom: 'Campus Montpellier' }
-    ],
-
-    allFilieres: [
-        { id: 1, nom: 'Ingénierie Numérique', campus_id: 1 },
-        { id: 2, nom: 'Mécanique & Énergétique', campus_id: 1 },
-        { id: 3, nom: 'Data & IA', campus_id: 2 },
-        { id: 4, nom: 'Génie Civil', campus_id: 2 },
-        { id: 5, nom: 'Biotechnologies', campus_id: 3 }
-    ],
-
-    profsList: [
-        { id: 1, nom: 'Dupont', prenom: 'Marie' },
-        { id: 2, nom: 'Martin', prenom: 'Jean' },
-        { id: 3, nom: 'Bernard', prenom: 'Sophie' },
-        { id: 4, nom: 'Leroy', prenom: 'Thomas' },
-        { id: 5, nom: 'Moreau', prenom: 'Claire' },
-        { id: 6, nom: 'Garcia', prenom: 'Luca' }
-    ],
-
-    templatesList: [
-        { id: 1, titre: 'Template 2025' }
-    ],
-
-    mockUEsByFiliere: {
-        1: [
-            {
-                id: 101, nom: 'Algorithmique', filiere_id: 1, optionnel: false, _open: true,
-                modules: [
-                    { id: 1001, nom: 'Structures de données', ue_id: 101, modalite: 'OBLIGATOIRE', professeurs: [{ id: 1, nom: 'Dupont', prenom: 'Marie' }] },
-                    { id: 1002, nom: 'Complexité algorithmique', ue_id: 101, modalite: 'OBLIGATOIRE', professeurs: [{ id: 2, nom: 'Martin', prenom: 'Jean' }] }
-                ]
-            },
-            {
-                id: 102, nom: 'Développement Web', filiere_id: 1, optionnel: true, _open: false,
-                modules: [
-                    { id: 1003, nom: 'Frontend (HTML/CSS/JS)', ue_id: 102, modalite: 'OBLIGATOIRE', professeurs: [{ id: 3, nom: 'Bernard', prenom: 'Sophie' }] },
-                    { id: 1004, nom: 'Backend (Python/Flask)', ue_id: 102, modalite: 'CHOIX_ENSEIGNANT_INCLUSIF', professeurs: [{ id: 4, nom: 'Leroy', prenom: 'Thomas' }, { id: 5, nom: 'Moreau', prenom: 'Claire' }] }
-                ]
-            },
-            {
-                id: 103, nom: 'Réseaux & Sécurité', filiere_id: 1, optionnel: false, _open: false,
-                modules: [
-                    { id: 1005, nom: 'TCP/IP & Protocoles', ue_id: 103, modalite: 'OBLIGATOIRE', professeurs: [{ id: 6, nom: 'Garcia', prenom: 'Luca' }] }
-                ]
-            }
-        ],
-        2: [
-            {
-                id: 201, nom: 'Thermodynamique', filiere_id: 2, optionnel: false, _open: true,
-                modules: [
-                    { id: 2001, nom: 'Machines thermiques', ue_id: 201, modalite: 'OBLIGATOIRE', professeurs: [{ id: 2, nom: 'Martin', prenom: 'Jean' }] }
-                ]
-            }
-        ],
-        3: [
-            {
-                id: 301, nom: 'Machine Learning', filiere_id: 3, optionnel: false, _open: true,
-                modules: [
-                    { id: 3001, nom: 'Supervised Learning', ue_id: 301, modalite: 'OBLIGATOIRE', professeurs: [{ id: 1, nom: 'Dupont', prenom: 'Marie' }, { id: 5, nom: 'Moreau', prenom: 'Claire' }] },
-                    { id: 3002, nom: 'Deep Learning', ue_id: 301, modalite: 'CHOIX_ENSEIGNANT_EXCLUSIF', professeurs: [{ id: 3, nom: 'Bernard', prenom: 'Sophie' }] }
-                ]
-            }
-        ]
-    },
+    campusList: [],
+    allFilieres: [],
+    profsList: [],
+    templatesList: [],
+    mockUEsByFiliere: {},
 
     // ─── État courant ───────────────────────────────────
     filieresList: [],
@@ -84,11 +20,31 @@ const Parametrage = {
     semestreAnnee: '',
     ues: [],
     nextId: 9000,
+    isLoading: false,
+    loadError: null,
 
     // ─── Init ───────────────────────────────────────────
-    init(containerId) {
+    init(containerId, initialData = {}) {
         this.container = document.getElementById(containerId);
         if (!this.container) return;
+
+        this.templatesList = (initialData.templates || []).map(template => ({
+            id: template.id_template,
+            titre: template.nom
+        }));
+        this.campusList = initialData.campusList || [];
+        this.allFilieres = initialData.filieres || [];
+        this.profsList = initialData.profsList || [];
+        this.mockUEsByFiliere = initialData.uesByFiliere || {};
+        this.selectedCampusId = initialData.selectedCampusId || null;
+        this.selectedFiliereId = initialData.selectedFiliereId || null;
+        this.selectedTemplateId = initialData.selectedTemplateId || null;
+        this.semestreAnnee = initialData.semestreAnnee || '';
+        this.filieresList = this.selectedCampusId ? this.allFilieres.filter(f => f.campus_id === this.selectedCampusId) : [];
+        if (this.selectedFiliereId && this.mockUEsByFiliere[this.selectedFiliereId]) {
+            this.ues = JSON.parse(JSON.stringify(this.mockUEsByFiliere[this.selectedFiliereId]));
+        }
+
         this.render();
     },
 
@@ -103,8 +59,11 @@ const Parametrage = {
                     </select>
                 </div>
                 <div class="pub-field">
-                    <label>Semestre / Année</label>
-                    <input type="text" id="param-semestre" value="${this.semestreAnnee}" onchange="Parametrage.semestreAnnee = this.value;" placeholder="automne/2025">
+                    <label>Semestre</label>
+                    <select id="param-semestre" onchange="Parametrage.semestreAnnee = this.value;">
+                        <option value="">-- Sélectionnez un semestre --</option>
+                        ${['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'].map(s => `<option value="${s}" ${this.semestreAnnee === s ? 'selected' : ''}>${s}</option>`).join('')}
+                    </select>
                 </div>
             </div>
 
@@ -115,15 +74,16 @@ const Parametrage = {
                     <label>Campus</label>
                     <div class="param-select-group">
                         <select id="param-campus" onchange="Parametrage.onCampusChange()">
+                            <option value="">-- Sélectionnez un campus --</option>
                             ${this.campusList.map(c => `<option value="${c.id}" ${this.selectedCampusId === c.id ? 'selected' : ''}>${c.nom}</option>`).join('')}
                         </select>
-                        <button class="btn-icon" onclick="Parametrage.addCampus()" title="Créer un nouveau campus">+</button>
                     </div>
                 </div>
                 <div class="param-field">
                     <label>Filière</label>
                     <div class="param-select-group">
                         <select id="param-filiere" onchange="Parametrage.onFiliereChange()" ${!this.selectedCampusId ? 'disabled' : ''}>
+                            <option value="">-- Sélectionnez une filière --</option>
                             ${this.filieresList.map(f => `<option value="${f.id}" ${this.selectedFiliereId === f.id ? 'selected' : ''}>${f.nom}</option>`).join('')}
                         </select>
                         <button class="btn-icon" onclick="Parametrage.addFiliere()" title="Créer une nouvelle filière" ${!this.selectedCampusId ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>+</button>
@@ -131,24 +91,19 @@ const Parametrage = {
                 </div>
             </div>
             
-            <div id="param-ue-container">
-                ${this.selectedFiliereId ? '' : '<p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>'}
-            </div>
+            <div id="param-ue-container"></div>
 
             <button class="btn-publish" onclick="Parametrage.publish()" ${!this.selectedFiliereId ? 'disabled' : ''}>Publier le sondage</button>
         `;
 
-        if (this.selectedFiliereId) {
-            this.renderUEs();
-        }
+        this.renderUEContainer();
     },
 
     // ─── Campus change ──────────────────────────────────
-    onCampusChange() {
+    async onCampusChange() {
         const sel = document.getElementById('param-campus');
         this.selectedCampusId = sel.value ? parseInt(sel.value) : null;
         this.selectedFiliereId = null;
-        this.ues = [];
 
         if (this.selectedCampusId) {
             this.filieresList = this.allFilieres.filter(f => f.campus_id === this.selectedCampusId);
@@ -156,22 +111,89 @@ const Parametrage = {
             this.filieresList = [];
         }
         this.render();
+        await this.fetchAndUpdateData();
     },
 
-    addCampus() {
-        const nom = prompt('Nom du nouveau campus :');
-        if (!nom || !nom.trim()) return;
-        const newId = ++this.nextId;
-        this.campusList.push({ id: newId, nom: nom.trim() });
-        this.selectedCampusId = newId;
-        this.selectedFiliereId = null;
-        this.ues = [];
-        this.filieresList = [];
-        this.render();
+    renderUEContainer() {
+        const container = document.getElementById('param-ue-container');
+        if (!container) return;
+
+        if (this.loadError) {
+            container.innerHTML = `<p class="param-empty">${this.esc(this.loadError)}</p>`;
+            return;
+        }
+
+        if (this.isLoading && !this.selectedFiliereId) {
+            container.innerHTML = `<p class="param-empty">Chargement des filières...</p>`;
+            return;
+        }
+
+        if (!this.selectedCampusId && !this.selectedFiliereId) {
+            container.innerHTML = `<p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>`;
+            return;
+        }
+
+        if (this.selectedCampusId && !this.selectedFiliereId) {
+            if (this.filieresList.length === 0) {
+                container.innerHTML = `<p class="param-empty">Aucune filière disponible pour ce campus.</p>`;
+                return;
+            }
+            container.innerHTML = `<p class="param-empty">Sélectionnez une filière pour configurer les cours et professeurs.</p>`;
+            return;
+        }
+
+        if (this.selectedFiliereId) {
+            this.renderUEs();
+            return;
+        }
+
+        container.innerHTML = '';
     },
+
+    async fetchAndUpdateData() {
+        if (!window.fetch) return;
+
+        this.isLoading = true;
+        this.loadError = null;
+        this.renderUEContainer();
+
+        try {
+            const response = await fetch('/api/parametrage', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`Impossible de charger les données : ${response.status}`);
+            }
+            const data = await response.json();
+
+            this.campusList = data.campusList || this.campusList;
+            this.allFilieres = data.filieres || this.allFilieres;
+            this.profsList = data.profsList || this.profsList;
+            this.templatesList = (data.templates || []).map(template => ({
+                id: template.id_template,
+                titre: template.nom
+            }));
+            this.mockUEsByFiliere = data.uesByFiliere || this.mockUEsByFiliere;
+
+            if (this.selectedCampusId) {
+                this.filieresList = this.allFilieres.filter(f => f.campus_id === this.selectedCampusId);
+            } else {
+                this.filieresList = [];
+            }
+
+            if (this.selectedFiliereId) {
+                this.ues = JSON.parse(JSON.stringify(this.mockUEsByFiliere[this.selectedFiliereId] || []));
+            }
+        } catch (error) {
+            this.loadError = error.message || 'Une erreur est survenue pendant le chargement.';
+        } finally {
+            this.isLoading = false;
+            this.render();
+        }
+    },
+
+
 
     // ─── Filière change ─────────────────────────────────
-    onFiliereChange() {
+    async onFiliereChange() {
         const sel = document.getElementById('param-filiere');
         this.selectedFiliereId = sel.value ? parseInt(sel.value) : null;
         if (this.selectedFiliereId) {
@@ -180,6 +202,7 @@ const Parametrage = {
             this.ues = [];
         }
         this.render();
+        await this.fetchAndUpdateData();
     },
 
     addFiliere() {
@@ -199,6 +222,13 @@ const Parametrage = {
     renderUEs() {
         const container = document.getElementById('param-ue-container');
         if (!container) return;
+
+        if (this.isLoading) {
+            container.innerHTML = `
+                <p class="param-empty">Chargement des données pour la filière...</p>
+            `;
+            return;
+        }
 
         if (this.ues.length === 0) {
             container.innerHTML = `
@@ -269,12 +299,14 @@ const Parametrage = {
                     </select>
                 </div>
                 <div class="param-module-profs">
-                    ${(mod.professeurs || []).map(p => `
-                        <span class="param-prof-tag">
-                            ${this.esc(p.prenom)} ${this.esc(p.nom)}
-                            <button class="param-remove-tag" onclick="Parametrage.removeProf(${mod.id}, ${p.id}, ${ueId})">&times;</button>
-                        </span>
-                    `).join('')}
+                    <ul class="param-prof-list">
+                        ${(mod.professeurs || []).map(p => `
+                            <li class="param-prof-item">
+                                <span class="param-prof-name">${this.esc(p.prenom)} ${this.esc(p.nom)}</span>
+                                <button class="param-remove-tag" onclick="Parametrage.removeProf(${mod.id}, ${p.id}, ${ueId})">&times;</button>
+                            </li>
+                        `).join('')}
+                    </ul>
                     <span class="param-prof-dropdown">
                         <button class="param-add-prof-btn" onclick="Parametrage.toggleProfDropdown(${mod.id})">+ Prof</button>
                         <div class="param-prof-dropdown-content" id="prof-dd-${mod.id}">
@@ -439,30 +471,57 @@ const Parametrage = {
         }
         if (!this.selectedCampusId) return alert('Veuillez sélectionner un Campus.');
         if (!this.selectedFiliereId) return alert('Veuillez sélectionner une Filière.');
-        if (!this.semestreAnnee.trim()) return alert("Veuillez saisir le semestre / année.");
+        if (!this.semestreAnnee || !this.semestreAnnee.trim()) return alert("Veuillez sélectionner un semestre.");
         if (this.ues.length === 0) return alert('Le sondage doit contenir au moins une UE.');
 
         const campusNom = this.campusList.find(c => c.id === this.selectedCampusId)?.nom || '';
         const filiereNom = this.filieresList.find(f => f.id === this.selectedFiliereId)?.nom || '';
-        const templateNom = this.templatesList.find(t => t.id === this.selectedTemplateId)?.titre || '';
 
-        this.container.innerHTML = `
-            <div style="text-align:center; padding: 40px 20px;">
-                <div style="font-size:2.5rem; margin-bottom:20px;">Sondage créé</div>
-                <p style="font-size:1rem; color:#3d5a80; margin-bottom:8px; font-weight:600;">
-                    ${this.esc(templateNom)}
-                </p>
-                <p style="font-size:0.95rem; color:#6b7f96; margin-bottom:30px;">
-                    ${this.esc(campusNom)} — ${this.esc(filiereNom)} — ${this.esc(this.semestreAnnee)}
-                </p>
-                <p style="font-size:0.85rem; color:#9aa8b8; margin-bottom:30px;">
-                    Mode visuel — la publication réelle nécessite un backend
-                </p>
-                <a href="/" style="padding:12px 28px; background:linear-gradient(135deg, #1a5276, #1f6f9f); color:white; text-decoration:none; border-radius:6px; font-weight:600;">
-                    Retour
-                </a>
-            </div>
-        `;
+        // Préparer les données avec les UEs, modules et professeurs
+        const data = {
+            id_template: this.selectedTemplateId,
+            campus: campusNom,
+            formation: filiereNom,
+            semestre: this.semestreAnnee,
+            ues: this.ues.map(ue => ({
+                id: ue.id,
+                nom: ue.nom,
+                optionnel: ue.optionnel,
+                modules: (ue.modules || []).map(mod => ({
+                    id: mod.id,
+                    nom: mod.nom,
+                    modalite: mod.modalite,
+                    professeurs: (mod.professeurs || []).map(prof => ({
+                        id: prof.id,
+                        prenom: prof.prenom,
+                        nom: prof.nom
+                    }))
+                }))
+            }))
+        };
+
+        fetch('/api/sondage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erreur réseau');
+            }
+            return response.json();
+        })
+        .then(result => {
+            alert(result.message);
+            // Rediriger vers la page d'accueil ou afficher un message de succès
+            window.location.href = '/';
+        })
+        .catch(error => {
+            alert('Erreur lors de la création du sondage : ' + error.message);
+            console.error(error);
+        });
     },
 
     // ─── Utils ──────────────────────────────────────────
