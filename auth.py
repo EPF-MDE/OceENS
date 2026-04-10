@@ -21,7 +21,9 @@ Ce module gère tout le flux OAuth 2.0 / OpenID Connect avec Microsoft :
 Flux typique :
 Utilisateur → /login → Microsoft Login → /auth/callback → Dashboard
 """
+
 from dotenv import load_dotenv
+
 load_dotenv()
 
 import uuid
@@ -31,22 +33,29 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, Response
 import os
 
+# ┌─ Domaines autorisés ──────────────────────────────────────────────────────┐
+ALLOWED_DOMAINS = os.environ.get("ALLOWED_DOMAINS", "").split(",")
+# Format : "example.com,company.fr" en variable d'environnement
+# Accepte des domaines multiples séparés par des virgules
+# └───────────────────────────────────────────────────────────────────────────┘
+
+
 router = APIRouter()
 
 # ┌─ Configuration Azure Entra ID (variables d'environnement) ──────────────┐
 # Ces informations viennent du portail Azure Entra ID
 CLIENT_ID = os.environ.get("ENTRA_CLIENT_ID")
-            # ID unique de l'application dans Azure Entra
+# ID unique de l'application dans Azure Entra
 CLIENT_SECRET = os.environ.get("ENTRA_CLIENT_SECRET")
-                # Clé secrète pour l'authentification (confidentielle)
+# Clé secrète pour l'authentification (confidentielle)
 TENANT_ID = os.environ.get("ENTRA_TENANT_ID")
-             # ID du "tenant" (organisation) dans Azure Entra
+# ID du "tenant" (organisation) dans Azure Entra
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-            # URL de base pour toutes les demandes d'authentification Microsoft
+# URL de base pour toutes les demandes d'authentification Microsoft
 REDIRECT_URI = os.environ.get("REDIRECT_URI", "https://localhost/auth/callback")
-                # URL où Microsoft redirige après authentification
+# URL où Microsoft redirige après authentification
 SCOPES = ["User.Read"]
-          # Droits demandés à l'utilisateur (accès au profil basique)
+# Droits demandés à l'utilisateur (accès au profil basique)
 # └───────────────────────────────────────────────────────────────────────────┘
 
 # ┌─ Stockage en mémoire (fallback pour développement local) ──────────────────┐
@@ -55,16 +64,16 @@ SCOPES = ["User.Read"]
 # En développement local (certificat auto-signé), les sessions sont vides,
 # donc on les stocke temporairement en mémoire comme fallback.
 _pending_states: set = set()
-    # Stockage temporaire des "states" en attente de confirmation
+# Stockage temporaire des "states" en attente de confirmation
 _user_sessions: dict = {}
-    # Stockage temporaire des sessions utilisateur : session_token → user dict
+# Stockage temporaire des sessions utilisateur : session_token → user dict
 # └───────────────────────────────────────────────────────────────────────────┘
 
 
 def _build_msal_app():
     """
     Crée et retourne une instance MSAL (Microsoft Authentication Library)
-    
+
     MSAL gère tout le flux OAuth 2.0 :
     - Génération d'URL d'authentification
     - Échange du code contre un token
@@ -73,24 +82,33 @@ def _build_msal_app():
     return msal.ConfidentialClientApplication(
         CLIENT_ID,
         authority=AUTHORITY,
-        client_credential=CLIENT_SECRET  # Authentification de l'application
+        client_credential=CLIENT_SECRET,  # Authentification de l'application
     )
 
 
+def _is_email_allowed(email: str) -> bool:
+    """Vérifie que l'email appartient à un domaine autorisé"""
+    if not email:
+        return False
+    domain = email.split("@")[1].lower()
+    return domain in [d.lower().strip() for d in ALLOWED_DOMAINS if d]
+
+
 # ┌─ Route 1/3 : Initier la connexion ────────────────────────────────────────┐
+
 
 @router.get("/login")
 async def login(request: Request):
     """
     Initié le flux de connexion OAuth 2.0 avec Microsoft
-    
+
     Mécanisme de sécurité (CSRF Protection) :
     - Génère un "state" aléatoire et unique (UUID)
     - Le stocke en session
     - Le transmet à Microsoft
     - Microsoft le renvoie inchangé
     - On vérifie qu'il correspond
-    
+
     Flux :
     1. Générer state aléatoire
     2. Stocker state en session
@@ -106,25 +124,27 @@ async def login(request: Request):
 
     # Construit l'URL de redirection vers Microsoft Login
     auth_url = _build_msal_app().get_authorization_request_url(
-        scopes=SCOPES,           # Droits demandés
-        state=state,             # Code de sécurité CSRF
-        redirect_uri=REDIRECT_URI  # Où revenir après authentification
+        scopes=SCOPES,  # Droits demandés
+        state=state,  # Code de sécurité CSRF
+        redirect_uri=REDIRECT_URI,  # Où revenir après authentification
     )
     return RedirectResponse(auth_url)
+
 
 # └───────────────────────────────────────────────────────────────────────────┘
 
 # ┌─ Route 2/3 : Callback après authentification Microsoft ─────────────────────┐
 
+
 @router.get("/auth/callback")
 async def auth_callback(request: Request):
     """
     Callback endpoint (la route où Microsoft redirige l'utilisateur après authentification)
-    
+
     Paramètres transmis par Microsoft en GET :
     - code : code d'authentification (sécurisé, valide 10 min)
     - state : le state qu'on a envoyé (vérification CSRF)
-    
+
     Étapes :
     1. Vérifier que le state est correct (CSRF check)
     2. Échanger le code contre un token d'accès
@@ -165,7 +185,7 @@ async def auth_callback(request: Request):
     if "error" in token_result:
         return Response(
             f"Erreur lors de l'authentification : {token_result.get('error_description')}",
-            status_code=400
+            status_code=400,
         )
 
     # Utilise le token pour récupérer les infos utilisateur depuis Microsoft Graph
@@ -177,7 +197,14 @@ async def auth_callback(request: Request):
 
     # Extrait l'email (mail est prioritaire, fallback sur userPrincipalName)
     email = graph.get("mail") or graph.get("userPrincipalName")
-    
+
+    #  Vérifier le domaine de l'email
+    if not _is_email_allowed(email):
+        return Response(
+            f"Accès refusé : domaine non autorisé. Domaines acceptés: {', '.join(ALLOWED_DOMAINS)}",
+            status_code=403,
+        )
+
     # Récupère le rôle de cet utilisateur depuis notre base de données
     # Par défaut : "etudiant" si l'utilisateur n'existe pas en BDD
     role = get_role(email)
@@ -198,7 +225,7 @@ async def auth_callback(request: Request):
 
     # Redirige vers le dashboard de l'utilisateur
     response = RedirectResponse(url=f"/dashboard/{role}")
-    
+
     # Code commenté : stockage du token en cookie sécurisé
     # Utilisé uniquement en développement avec certificat auto-signé
     # response.set_cookie(
@@ -210,19 +237,21 @@ async def auth_callback(request: Request):
     # )
     return response
 
+
 # └───────────────────────────────────────────────────────────────────────────┘
 
 # ┌─ Fonction utilitaire : Récupérer l'utilisateur courant ─────────────────────┐
 
+
 def get_current_user(request: Request) -> dict | None:
     """
     Récupère l'utilisateur actuellement connecté
-    
+
     Mécanisme de fallback :
     1. D'abord : session Starlette (fonctionne en production)
     2. Sinon : cookie manuel (fallback pour dev local avec cert auto-signé)
     3. Sinon : None (utilisateur non connecté)
-    
+
     Return : dict avec {"name", "email", "role"} ou None si pas connecté
     """
     # Essaie de récupérer l'utilisateur depuis la session Starlette
@@ -238,15 +267,17 @@ def get_current_user(request: Request) -> dict | None:
     # Aucune session trouvée
     return None
 
+
 # └───────────────────────────────────────────────────────────────────────────┘
 
 # ┌─ Route 3/3 : Déconnexion ──────────────────────────────────────────────────┐
+
 
 @router.get("/logout")
 async def logout(request: Request):
     """
     Déconnexion de l'utilisateur
-    
+
     Étapes :
     1. Efface la session en mémoire (dev fallback)
     2. Efface la session Starlette
@@ -269,5 +300,6 @@ async def logout(request: Request):
     # Supprime le cookie de session (dev fallback)
     response.delete_cookie("session_token")
     return response
+
 
 # └───────────────────────────────────────────────────────────────────────────┘
