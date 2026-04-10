@@ -299,12 +299,14 @@ const Parametrage = {
                     </select>
                 </div>
                 <div class="param-module-profs">
-                    ${(mod.professeurs || []).map(p => `
-                        <span class="param-prof-tag">
-                            ${this.esc(p.prenom)} ${this.esc(p.nom)}
-                            <button class="param-remove-tag" onclick="Parametrage.removeProf(${mod.id}, ${p.id}, ${ueId})">&times;</button>
-                        </span>
-                    `).join('')}
+                    <ul class="param-prof-list">
+                        ${(mod.professeurs || []).map(p => `
+                            <li class="param-prof-item">
+                                <span class="param-prof-name">${this.esc(p.prenom)} ${this.esc(p.nom)}</span>
+                                <button class="param-remove-tag" onclick="Parametrage.removeProf(${mod.id}, ${p.id}, ${ueId})">&times;</button>
+                            </li>
+                        `).join('')}
+                    </ul>
                     <span class="param-prof-dropdown">
                         <button class="param-add-prof-btn" onclick="Parametrage.toggleProfDropdown(${mod.id})">+ Prof</button>
                         <div class="param-prof-dropdown-content" id="prof-dd-${mod.id}">
@@ -474,13 +476,28 @@ const Parametrage = {
 
         const campusNom = this.campusList.find(c => c.id === this.selectedCampusId)?.nom || '';
         const filiereNom = this.filieresList.find(f => f.id === this.selectedFiliereId)?.nom || '';
-        const templateNom = this.templatesList.find(t => t.id === this.selectedTemplateId)?.titre || '';
 
+        // Préparer les données avec les UEs, modules et professeurs
         const data = {
             id_template: this.selectedTemplateId,
             campus: campusNom,
             formation: filiereNom,
-            semestre: this.semestreAnnee
+            semestre: this.semestreAnnee,
+            ues: this.ues.map(ue => ({
+                id: ue.id,
+                nom: ue.nom,
+                optionnel: ue.optionnel,
+                modules: (ue.modules || []).map(mod => ({
+                    id: mod.id,
+                    nom: mod.nom,
+                    modalite: mod.modalite,
+                    professeurs: (mod.professeurs || []).map(prof => ({
+                        id: prof.id,
+                        prenom: prof.prenom,
+                        nom: prof.nom
+                    }))
+                }))
+            }))
         };
 
         fetch('/api/sondage', {

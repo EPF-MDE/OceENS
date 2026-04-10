@@ -80,6 +80,7 @@ class Module(SQLModel, table=True):
     nom: Optional[str] = Field(default=None, sa_column=Column("Nom", String))
     enseignant: Optional[str] = Field(default=None, sa_column=Column("Enseignant", String))
     ue: Optional[str] = Field(default=None, sa_column=Column("UE", String))
+    ue_optionnelle: Optional[bool] = Field(default=False, sa_column=Column("Ue_Optionnelle", Integer))
     id_template: Optional[int] = Field(default=None, sa_column=Column("Id_Template", Integer, ForeignKey("Templates.Id_Template")))
     id_sondage: Optional[int] = Field(default=None, sa_column=Column("Id_Sondage", Integer, ForeignKey("Sondages.Id_Sondage")))
 
