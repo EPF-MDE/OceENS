@@ -1,34 +1,63 @@
-"""
-fichier permettant de remplir la base de données avec des données d'exemple
-il n'est pas nécessaire de l'exécuter à chaque fois, mais il peut être utile pour tester l'application avec des données réalistes.
-utiliser les roles suivants : etudiant, professeur, admin
+"""=============================================================================
+Script de remplissage initial de la base de données (données de test)
+=============================================================================
+
+Ce script permet de peupler la base de données SQLite avec des utilisateurs
+et leurs rôles correspondants. Utile pour :
+- Tester l'application avec des données réalistes
+- Ajouter manuellement des utilisateurs
+- Initialiser les données d'administration
+
+Utilisation :
+    python remplir_db.py
+
+Rôles disponibles :
+    - "etudiant" : Accès au dashboard étudiant (défaut)
+    - "professeur" : Accès au dashboard professeur
+    - "admin" : Accès au dashboard administrateur
+
+Note : Ce script ne doit être exécuté qu'une fois (ou adapté pour éviter
+les doublons si les emails sont unique primaire).
 """
 
 from database import SessionLocal, UserRole
 
-# On ouvre une connexion à la base
+# ┌─ Ouverture de la connexion à la base de données ───────────────────────────┐
+# SessionLocal() crée une nouvelle session/connexion à la BDD
 db = SessionLocal()
+# └───────────────────────────────────────────────────────────────────────────┘
 
-# --- Création d'instances (lignes) ---
+# ┌─ Création d'instances utilisateur ─────────────────────────────────────────┐
+# Crée les objets Python qui représentent les lignes de table
+
+# Exemple 1 : Un simple étudiant (rôle par défaut, pas besoin de le spécifier)
+# etudiant_1 = UserRole(email="jules.dupont@epfedu.fr")  # Rôle par défaut: "etudiant"
 
 # Exemple 2 : Un professeur
 prof_1 = UserRole(email="julien.blondiaux@epfedu.fr", role="professeur")
 
 # Exemple 3 : Un administrateur
 admin_1 = UserRole(email="marie.bouafou@epfedu.fr", role="admin")
+# └───────────────────────────────────────────────────────────────────────────┘
 
-# --- Ajout à la session et Sauvegarde ---
+# ┌─ Ajout à la session et validation ─────────────────────────────────────────┐
+# La session fonctionne comme un "panier" avant de payer
+# On ajoute les objets, puis on valide (commit) pour écrire dans la BDD
 
-# On ajoute les objets à la "session" (le panier avant de payer)
+# Ajoute les utilisateurs à la session
 db.add(prof_1)
 db.add(admin_1)
+# db.add(etudiant_1)  # Décommentez si vous voulez ajouter l'étudiant
 
-# On valide (commit) pour écrire réellement dans le fichier SQLite
+# Valide les changements (écrit les données dans le fichier SQLite)
 try:
     db.commit()
-    print(" Données insérées avec succès !")
+    print("✓ Données insérées avec succès !")
 except Exception as e:
-    print(f" Erreur : {e}")
-    db.rollback()  # Annule tout si ça rate
+    # En cas d'erreur (ex: email déjà existant), annule tout
+    print(f"✗ Erreur : {e}")
+    db.rollback()  # Annule la transaction en cas de problème
 finally:
-    db.close()  # Ferme proprement la connexion
+    # Ferme la connexion proprement (importante pour libérer les ressources)
+    db.close()
+# └───────────────────────────────────────────────────────────────────────────┘
