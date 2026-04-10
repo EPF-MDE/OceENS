@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from auth import router as auth_router, get_current_user
 import uvicorn
 
-VALID_ROLES = {"admin", "etudiant", "professeur", "teacher"}
+VALID_ROLES = {"admin", "etudiant", "professeur"}
 
 
 def create_app():
@@ -58,7 +58,6 @@ def create_app():
             "admin": "dashboard/admin.html",
             "etudiant": "dashboard/etudiant.html",
             "professeur": "dashboard/professeur.html",
-            "teacher": "dashboard/professeur.html",
         }
 
         return templates.TemplateResponse(
