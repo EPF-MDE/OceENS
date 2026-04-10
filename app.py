@@ -189,7 +189,9 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
             # Parser les professeurs en splittant sur ","
             prof_list = []
             if module.enseignant:
-                prof_strings = [p.strip() for p in module.enseignant.split(",") if p.strip()]
+                prof_strings = [
+                    p.strip() for p in module.enseignant.split(",") if p.strip()
+                ]
                 for prof_str in prof_strings:
                     professor = parse_name(prof_str, professor_index)
                     if professor["prenom"] or professor["nom"]:
@@ -199,17 +201,19 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
                             seen_professors.add(key)
                             professors.append(professor)
                             professor_index += 1
-                        prof_list.append({
-                            "id": professor.get("id", 0),
-                            "prenom": professor["prenom"],
-                            "nom": professor["nom"],
-                        })
+                        prof_list.append(
+                            {
+                                "id": professor.get("id", 0),
+                                "prenom": professor["prenom"],
+                                "nom": professor["nom"],
+                            }
+                        )
             ue_entry["modules"].append(
                 {
                     "id": int(module.id_module or 0),
                     "nom": module.nom or "Module",
                     "modalite": "OBLIGATOIRE",
-                    "professeurs": prof_list
+                    "professeurs": prof_list,
                 }
             )
 
@@ -247,8 +251,8 @@ async def index(request: Request):
             "dashboard_label": "Visionner dashboard",
             "create_url": "/parametrage",
             "background_image": "/static/img/fond_accueil.png",
-            "button_primary_class": "hero-btn hero-btn-blue",
-            "button_secondary_class": "hero-btn hero-btn-orange",
+            "button_primary_class": "hero-btn hero-btn-purple",
+            "button_secondary_class": "hero-btn hero-btn-red",
         },
     )
 
@@ -284,7 +288,9 @@ async def create_sondage(sondage: SondageFullCreate, session: SessionDep):
     # Utiliser une transaction pour éviter les locks
     with session.begin():
         # Trouver le prochain id_sondage pour ce template
-        existing_sondages = session.exec(select(Sondage).where(Sondage.id_template == sondage.id_template)).all()
+        existing_sondages = session.exec(
+            select(Sondage).where(Sondage.id_template == sondage.id_template)
+        ).all()
         next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
 
         new_sondage = Sondage(
@@ -294,7 +300,7 @@ async def create_sondage(sondage: SondageFullCreate, session: SessionDep):
             formation=sondage.formation,
             semestre=sondage.semestre,
             statut=1,  # Actif par défaut
-            id_user=1  # Utilisateur par défaut
+            id_user=1,  # Utilisateur par défaut
         )
 
         session.add(new_sondage)
@@ -303,25 +309,31 @@ async def create_sondage(sondage: SondageFullCreate, session: SessionDep):
         for ue in sondage.ues:
             for module_data in ue.modules:
                 # Vérifier si le module existe déjà
-                module = session.exec(select(Module).where(Module.id_module == module_data.id)).first()
+                module = session.exec(
+                    select(Module).where(Module.id_module == module_data.id)
+                ).first()
                 if module:
                     # Mettre à jour le module existant
                     module.id_sondage = next_id_sondage
                     module.ue = ue.nom
                     module.ue_optionnelle = ue.optionnel
                     # Mettre à jour les professeurs
-                    prof_names = [f"{p.prenom} {p.nom}" for p in module_data.professeurs]
+                    prof_names = [
+                        f"{p.prenom} {p.nom}" for p in module_data.professeurs
+                    ]
                     module.enseignant = ", ".join(prof_names) if prof_names else None
                 else:
                     # Créer un nouveau module
                     new_module = Module(
                         id_module=module_data.id,
                         nom=module_data.nom,
-                        enseignant=", ".join([f"{p.prenom} {p.nom}" for p in module_data.professeurs]),
+                        enseignant=", ".join(
+                            [f"{p.prenom} {p.nom}" for p in module_data.professeurs]
+                        ),
                         ue=ue.nom,
                         ue_optionnelle=ue.optionnel,
                         id_template=sondage.id_template,
-                        id_sondage=next_id_sondage
+                        id_sondage=next_id_sondage,
                     )
                     session.add(new_module)
 
