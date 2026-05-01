@@ -14,7 +14,7 @@ from pydantic import BaseModel
 sqlite_file_name = "database/db_oceens.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
-connect_args = {"check_same_thread": False}
+connect_args = {"check_same_thread": False, "timeout": 15}
 engine = create_engine(sqlite_url, connect_args=connect_args)
 
 
@@ -35,6 +35,7 @@ class SondageCreate(BaseModel):
     campus: str
     formation: str
     semestre: str
+    annee_scolaire: str
     id_user: Optional[int] = 1
 
 
@@ -63,6 +64,7 @@ class SondageFullCreate(BaseModel):
     campus: str
     formation: str
     semestre: str
+    annee_scolaire: str
     ues: List[UECreate]
 
 
@@ -97,6 +99,7 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
     campus_names = []
     filiere_names = []
     semestres = []
+    annees_scolaires = []
     formation_to_campus: Dict[str, str] = {}
     for sondage in sondages:
         if sondage.campus and sondage.campus not in campus_names:
@@ -106,6 +109,8 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
             formation_to_campus[sondage.formation] = sondage.campus or ""
         if sondage.semestre and sondage.semestre not in semestres:
             semestres.append(sondage.semestre)
+        if sondage.annee_scolaire and sondage.annee_scolaire not in annees_scolaires:
+            annees_scolaires.append(sondage.annee_scolaire)
 
     # Ensure default campuses are always available
     default_campuses = ["Paris-Cachan", "Montpellier", "Troyes", "St-Nazaire"]
@@ -224,6 +229,7 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
         "campusList": campus_list,
         "filieres": filieres,
         "semestres": semestres,
+        "anneesScolaires": annees_scolaires,
         "profsList": professors,
         "uesByFiliere": ues_by_filiere,
         "selectedTemplateId": template_dicts[0]["id_template"]
@@ -232,6 +238,7 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
         "selectedCampusId": campus_list[0]["id"] if campus_list else None,
         "selectedFiliereId": filieres[0]["id"] if filieres else None,
         "semestreAnnee": semestres[0] if semestres else "",
+        "selectedAnneeScolaire": annees_scolaires[0] if annees_scolaires else "",
         "questions": [
             question.dict() for question in session.exec(select(Question)).all()
         ],
@@ -258,7 +265,7 @@ async def index(request: Request):
 
 
 @app.get("/parametrage", response_class=HTMLResponse)
-async def parametrage(request: Request, session: SessionDep):
+def parametrage(request: Request, session: SessionDep):
     data = build_parametrage_data(session)
     return templates.TemplateResponse(
         name="parametrage.html",
@@ -268,74 +275,78 @@ async def parametrage(request: Request, session: SessionDep):
             "campus_list": data["campusList"],
             "filieres": data["filieres"],
             "semestres": data["semestres"],
+            "annees_scolaires": data["anneesScolaires"],
             "profs": data["profsList"],
             "ues_by_filiere": data["uesByFiliere"],
             "selected_template_id": data["selectedTemplateId"],
             "selected_campus_id": data["selectedCampusId"],
             "selected_filiere_id": data["selectedFiliereId"],
             "semestre_annee": data["semestreAnnee"],
+            "selected_annee_scolaire": data["selectedAnneeScolaire"],
         },
     )
 
 
 @app.get("/api/parametrage")
-async def parametrage_api(session: SessionDep):
+def parametrage_api(session: SessionDep):
     return JSONResponse(content=build_parametrage_data(session))
 
 
 @app.post("/api/sondage")
-async def create_sondage(sondage: SondageFullCreate, session: SessionDep):
+def create_sondage(sondage: SondageFullCreate, session: SessionDep):
     # Utiliser une transaction pour éviter les locks
     with session.begin():
-        # Trouver le prochain id_sondage pour ce template
-        existing_sondages = session.exec(
-            select(Sondage).where(Sondage.id_template == sondage.id_template)
-        ).all()
-        next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
-
-        new_sondage = Sondage(
-            id_template=sondage.id_template,
-            id_sondage=next_id_sondage,
-            campus=sondage.campus,
-            formation=sondage.formation,
-            semestre=sondage.semestre,
-            statut=1,  # Actif par défaut
-            id_user=1,  # Utilisateur par défaut
-        )
-
-        session.add(new_sondage)
-
-        # Traiter les UEs et modules
-        for ue in sondage.ues:
-            for module_data in ue.modules:
-                # Vérifier si le module existe déjà
-                module = session.exec(
-                    select(Module).where(Module.id_module == module_data.id)
-                ).first()
-                if module:
-                    # Mettre à jour le module existant
-                    module.id_sondage = next_id_sondage
-                    module.ue = ue.nom
-                    module.ue_optionnelle = ue.optionnel
-                    # Mettre à jour les professeurs
-                    prof_names = [
-                        f"{p.prenom} {p.nom}" for p in module_data.professeurs
-                    ]
-                    module.enseignant = ", ".join(prof_names) if prof_names else None
-                else:
-                    # Créer un nouveau module
-                    new_module = Module(
-                        id_module=module_data.id,
-                        nom=module_data.nom,
-                        enseignant=", ".join(
-                            [f"{p.prenom} {p.nom}" for p in module_data.professeurs]
-                        ),
-                        ue=ue.nom,
-                        ue_optionnelle=ue.optionnel,
-                        id_template=sondage.id_template,
-                        id_sondage=next_id_sondage,
-                    )
-                    session.add(new_module)
+        with session.no_autoflush:
+            # Trouver le prochain id_sondage pour ce template
+            existing_sondages = session.exec(
+                select(Sondage).where(Sondage.id_template == sondage.id_template)
+            ).all()
+            next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
+    
+            new_sondage = Sondage(
+                id_template=sondage.id_template,
+                id_sondage=next_id_sondage,
+                campus=sondage.campus,
+                formation=sondage.formation,
+                semestre=sondage.semestre,
+                annee_scolaire=sondage.annee_scolaire,
+                statut=1,  # Actif par défaut
+                id_user=1,  # Utilisateur par défaut
+            )
+    
+            session.add(new_sondage)
+    
+            # Traiter les UEs et modules
+            for ue in sondage.ues:
+                for module_data in ue.modules:
+                    # Vérifier si le module existe déjà
+                    module = session.exec(
+                        select(Module).where(Module.id_module == module_data.id)
+                    ).first()
+                    if module:
+                        # Mettre à jour le module existant
+                        module.id_sondage = next_id_sondage
+                        module.ue = ue.nom
+                        module.ue_optionnelle = ue.optionnel
+                        # Mettre à jour les professeurs
+                        prof_names = [
+                            f"{p.prenom} {p.nom}" for p in module_data.professeurs
+                        ]
+                        module.enseignant = ", ".join(prof_names) if prof_names else None
+                    else:
+                        # Créer un nouveau module
+                        new_module = Module(
+                            id_module=module_data.id,
+                            nom=module_data.nom,
+                            enseignant=", ".join(
+                                [f"{p.prenom} {p.nom}" for p in module_data.professeurs]
+                            ),
+                            ue=ue.nom,
+                            ue_optionnelle=ue.optionnel,
+                            id_template=sondage.id_template,
+                            id_sondage=next_id_sondage,
+                        )
+                        session.add(new_module)
 
     return {"message": "Sondage créé avec succès", "id_sondage": next_id_sondage}
 

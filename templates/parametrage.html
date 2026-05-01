@@ -219,6 +219,18 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="pub-field">
+                        <label>Année scolaire</label>
+                        <div class="param-select-group" style="display: flex; gap: 10px; width: 100%;">
+                            <select id="param-annee" style="flex: 1;">
+                                <option value="">-- Sélectionnez --</option>
+                                {% for a in annees_scolaires %}
+                                <option value="{{ a }}" {% if selected_annee_scolaire == a %}selected{% endif %}>{{ a }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn-icon" title="Ajouter une année scolaire" style="flex-shrink: 0; padding: 0 15px; background: linear-gradient(135deg, #1a5276, #1f6f9f); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">+</button>
+                        </div>
+                    </div>
                 </div>
 
                 <hr style="border:0; border-top:1px solid #e0e6ec; margin:20px 0;">
@@ -270,12 +282,14 @@
             campusList: {{ campus_list | tojson }},
             filieres: {{ filieres | tojson }},
             semestres: {{ semestres | tojson }},
+            anneesScolaires: {{ annees_scolaires | tojson }},
             profsList: {{ profs | tojson }},
             uesByFiliere: {{ ues_by_filiere | tojson }},
             selectedTemplateId: {{ selected_template_id | tojson }},
             selectedCampusId: {{ selected_campus_id | tojson }},
             selectedFiliereId: {{ selected_filiere_id | tojson }},
-            semestreAnnee: {{ semestre_annee | tojson }}
+            semestreAnnee: {{ semestre_annee | tojson }},
+            selectedAnneeScolaire: {{ selected_annee_scolaire | tojson }}
         };
     </script>
     <script src="/static/js/parametrage.js"></script>

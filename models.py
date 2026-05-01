@@ -37,6 +37,7 @@ class Sondage(SQLModel, table=True):
     semestre: Optional[str] = Field(default=None, sa_column=Column("Semestre", String))
     url: Optional[str] = Field(default=None, sa_column=Column("URL", String))
     statut: Optional[int] = Field(default=None, sa_column=Column("Statut", Integer))
+    annee_scolaire: Optional[str] = Field(default=None, sa_column=Column("Annee_scolaire", String))
     mot_de_passe: Optional[str] = Field(default=None, sa_column=Column("Mot_de_passe", String))
     id_user: Optional[int] = Field(default=None, sa_column=Column("Id_User", Integer, ForeignKey("Users.Id_User")))
 
@@ -81,6 +82,7 @@ class Module(SQLModel, table=True):
     enseignant: Optional[str] = Field(default=None, sa_column=Column("Enseignant", String))
     ue: Optional[str] = Field(default=None, sa_column=Column("UE", String))
     ue_optionnelle: Optional[bool] = Field(default=False, sa_column=Column("Ue_Optionnelle", Integer))
+    choix_enseignant: Optional[bool] = Field(default=False, sa_column=Column("Choix_enseignants", String))
     id_template: Optional[int] = Field(default=None, sa_column=Column("Id_Template", Integer, ForeignKey("Templates.Id_Template")))
     id_sondage: Optional[int] = Field(default=None, sa_column=Column("Id_Sondage", Integer, ForeignKey("Sondages.Id_Sondage")))
 
