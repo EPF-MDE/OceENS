@@ -18,6 +18,8 @@ const Parametrage = {
     selectedFiliereId: null,
     selectedTemplateId: null,
     semestreAnnee: '',
+    anneesScolaires: [],
+    selectedAnneeScolaire: '',
     ues: [],
     nextId: 9000,
     isLoading: false,
@@ -40,6 +42,8 @@ const Parametrage = {
         this.selectedFiliereId = initialData.selectedFiliereId || null;
         this.selectedTemplateId = initialData.selectedTemplateId || null;
         this.semestreAnnee = initialData.semestreAnnee || '';
+        this.anneesScolaires = initialData.anneesScolaires || [];
+        this.selectedAnneeScolaire = initialData.selectedAnneeScolaire || '';
         this.filieresList = this.selectedCampusId ? this.allFilieres.filter(f => f.campus_id === this.selectedCampusId) : [];
         if (this.selectedFiliereId && this.mockUEsByFiliere[this.selectedFiliereId]) {
             this.ues = JSON.parse(JSON.stringify(this.mockUEsByFiliere[this.selectedFiliereId]));
@@ -64,6 +68,16 @@ const Parametrage = {
                         <option value="">-- Sélectionnez un semestre --</option>
                         ${['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'].map(s => `<option value="${s}" ${this.semestreAnnee === s ? 'selected' : ''}>${s}</option>`).join('')}
                     </select>
+                </div>
+                <div class="pub-field">
+                    <label>Année scolaire</label>
+                    <div class="param-select-group" style="display: flex; gap: 10px; width: 100%;">
+                        <select id="param-annee" onchange="Parametrage.selectedAnneeScolaire = this.value;" style="flex: 1;">
+                            <option value="">-- Sélectionnez --</option>
+                            ${this.anneesScolaires.map(a => `<option value="${a}" ${this.selectedAnneeScolaire === a ? 'selected' : ''}>${a}</option>`).join('')}
+                        </select>
+                        <button class="btn-icon" onclick="Parametrage.addAnneeScolaire()" title="Ajouter une année scolaire" style="flex-shrink: 0; padding: 0 15px; background: linear-gradient(135deg, #1a5276, #1f6f9f); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">+</button>
+                    </div>
                 </div>
             </div>
 
@@ -172,6 +186,8 @@ const Parametrage = {
                 titre: template.nom
             }));
             this.mockUEsByFiliere = data.uesByFiliere || this.mockUEsByFiliere;
+            if (data.anneesScolaires) this.anneesScolaires = data.anneesScolaires;
+            if (data.selectedAnneeScolaire && !this.selectedAnneeScolaire) this.selectedAnneeScolaire = data.selectedAnneeScolaire;
 
             if (this.selectedCampusId) {
                 this.filieresList = this.allFilieres.filter(f => f.campus_id === this.selectedCampusId);
@@ -215,6 +231,17 @@ const Parametrage = {
         this.filieresList.push(newFiliere);
         this.selectedFiliereId = newId;
         this.ues = [];
+        this.render();
+    },
+
+    addAnneeScolaire() {
+        const nouvelleAnnee = prompt("Saisissez la nouvelle année scolaire (ex: 2024-2025) :");
+        if (!nouvelleAnnee || !nouvelleAnnee.trim()) return;
+        const annee = nouvelleAnnee.trim();
+        if (!this.anneesScolaires.includes(annee)) {
+            this.anneesScolaires.push(annee);
+        }
+        this.selectedAnneeScolaire = annee;
         this.render();
     },
 
@@ -472,6 +499,7 @@ const Parametrage = {
         if (!this.selectedCampusId) return alert('Veuillez sélectionner un Campus.');
         if (!this.selectedFiliereId) return alert('Veuillez sélectionner une Filière.');
         if (!this.semestreAnnee || !this.semestreAnnee.trim()) return alert("Veuillez sélectionner un semestre.");
+        if (!this.selectedAnneeScolaire || !this.selectedAnneeScolaire.trim()) return alert("Veuillez sélectionner une année scolaire.");
         if (this.ues.length === 0) return alert('Le sondage doit contenir au moins une UE.');
 
         const campusNom = this.campusList.find(c => c.id === this.selectedCampusId)?.nom || '';
@@ -483,6 +511,7 @@ const Parametrage = {
             campus: campusNom,
             formation: filiereNom,
             semestre: this.semestreAnnee,
+            annee_scolaire: this.selectedAnneeScolaire,
             ues: this.ues.map(ue => ({
                 id: ue.id,
                 nom: ue.nom,
