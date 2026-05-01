@@ -543,9 +543,9 @@ const Parametrage = {
             return response.json();
         })
         .then(result => {
-            alert(result.message);
-            // Rediriger vers la page d'accueil ou afficher un message de succès
-            window.location.href = '/';
+            alert(result.message + '\nLien du questionnaire : ' + window.location.origin + result.questionnaire_url);
+            // Rediriger vers le questionnaire généré
+            window.location.href = result.questionnaire_url;
         })
         .catch(error => {
             alert('Erreur lors de la création du sondage : ' + error.message);
