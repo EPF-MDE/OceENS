@@ -1,0 +1,480 @@
+/* ═══════════════════════════════════════════════════════
+   Questionnaire — Thème EPF (OCEENS II)
+   ═══════════════════════════════════════════════════════ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    background-color: #f0f4f8;
+    color: #2c3e50;
+    min-height: 100vh;
+}
+
+/* ── Header ──────────────────────────────── */
+header {
+    background-color: #0d47a1;
+    color: white;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-left img {
+    height: 32px;
+    object-fit: contain;
+}
+
+.header-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    opacity: 0.9;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.header-logo-oceens {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    background-color: white;
+    padding: 4px 12px;
+    border-radius: 6px;
+}
+
+/* ── Main ────────────────────────────────── */
+main {
+    margin-top: 60px;
+    padding: 0 20px 60px;
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ── Hero du questionnaire ───────────────── */
+.questionnaire-hero {
+    text-align: center;
+    padding: 40px 30px 30px;
+    margin-bottom: 10px;
+}
+
+.questionnaire-hero h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin-bottom: 8px;
+}
+
+.hero-subtitle {
+    color: #5a6f83;
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+}
+
+.hero-subtitle strong {
+    color: #2c3e50;
+}
+
+/* ── Progress Bar ────────────────────────── */
+.hero-progress {
+    width: 100%;
+    height: 6px;
+    background: #dce4ec;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(135deg, #1a5276, #2589b8);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.progress-text {
+    font-size: 0.8rem;
+    color: #8899a6;
+}
+
+/* ── Section Card ────────────────────────── */
+.section-card {
+    background: white;
+    border: 1px solid #dce4ec;
+    border-radius: 12px;
+    padding: 0;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 28px;
+    background: linear-gradient(135deg, #0d47a1, #1565c0);
+    color: white;
+}
+
+.section-header-module {
+    background: linear-gradient(135deg, #1a5276, #1f6f9f);
+}
+
+.section-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.section-header h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.module-ue-badge {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    padding: 2px 10px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+/* ── Prof Block ──────────────────────────── */
+.prof-block {
+    border-top: 2px solid #e8eef3;
+}
+
+.prof-block:first-of-type {
+    border-top: none;
+}
+
+.prof-name-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: #f5f8fb;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1a3a5c;
+    border-bottom: 1px solid #e8eef3;
+}
+
+.prof-banner-optional {
+    background: #fef9f0;
+    border-left: 3px solid #f0ad4e;
+}
+
+.prof-icon {
+    font-size: 1.1rem;
+}
+
+/* ── Question Block ──────────────────────── */
+.question-block {
+    padding: 22px 28px;
+    border-bottom: 1px solid #f0f3f6;
+}
+
+.question-block:last-child {
+    border-bottom: none;
+}
+
+.question-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #2c3e50;
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.q-number {
+    display: inline-block;
+    font-weight: 700;
+    color: #1a5276;
+    margin-right: 4px;
+}
+
+.hint {
+    font-size: 0.82rem;
+    color: #8899a6;
+    margin-bottom: 10px;
+    font-style: italic;
+}
+
+/* ── Options Grid (Radio/Checkbox) ───────── */
+.options-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.option-radio,
+.option-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid #dce4ec;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #fafbfc;
+}
+
+.option-radio:hover,
+.option-checkbox:hover {
+    border-color: #1a5276;
+    background: #f0f6fb;
+    transform: translateX(2px);
+}
+
+.option-radio input[type="radio"],
+.option-checkbox input[type="checkbox"] {
+    accent-color: #1a5276;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.option-label {
+    font-size: 0.9rem;
+    color: #3d5a80;
+    flex: 1;
+}
+
+/* Selected state */
+.option-radio:has(input:checked),
+.option-checkbox:has(input:checked) {
+    border-color: #1a5276;
+    background: linear-gradient(135deg, #e8f0fe, #f0f6fb);
+    box-shadow: 0 0 0 1px rgba(26, 82, 118, 0.15);
+}
+
+.option-radio:has(input:checked) .option-label,
+.option-checkbox:has(input:checked) .option-label {
+    color: #1a3a5c;
+    font-weight: 500;
+}
+
+/* ── Textarea ────────────────────────────── */
+.open-answer {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid #dce4ec;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    color: #2c3e50;
+    background: #fafbfc;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    min-height: 80px;
+}
+
+.open-answer:focus {
+    outline: none;
+    border-color: #1a5276;
+    box-shadow: 0 0 0 3px rgba(26, 82, 118, 0.1);
+    background: white;
+}
+
+.open-answer::placeholder {
+    color: #b0bec5;
+}
+
+/* ── Submit Section ──────────────────────── */
+.submit-section {
+    text-align: center;
+    padding: 10px 0 40px;
+}
+
+.btn-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 48px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #1a5276, #1f6f9f);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 16px rgba(26, 82, 118, 0.3);
+}
+
+.btn-submit:hover {
+    background: linear-gradient(135deg, #1f6f9f, #2589b8);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(26, 82, 118, 0.4);
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+}
+
+.btn-submit:disabled {
+    background: #c5d0db;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-submit-icon {
+    font-size: 1.3rem;
+    transition: transform 0.2s;
+}
+
+.btn-submit:hover .btn-submit-icon {
+    transform: translateX(4px);
+}
+
+/* ── Confirmation Card ───────────────────── */
+.confirmation-card {
+    text-align: center;
+    padding: 60px 40px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    max-width: 500px;
+    margin: 60px auto;
+    animation: fadeInUp 0.5s ease;
+}
+
+.confirmation-icon {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+    font-size: 2rem;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.confirmation-card h2 {
+    color: #1a3a5c;
+    margin-bottom: 10px;
+    font-size: 1.4rem;
+}
+
+.confirmation-card p {
+    color: #5a6f83;
+    margin-bottom: 28px;
+}
+
+.btn-back-home {
+    display: inline-block;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #1a5276, #1f6f9f);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-back-home:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 82, 118, 0.3);
+}
+
+/* ── Exclusive Prof Select ───────────────── */
+.exclusive-prof-select {
+    padding: 22px 28px;
+}
+
+.exclusive-prof-block {
+    border-top: 2px solid #e8eef3;
+    animation: fadeInUp 0.3s ease;
+}
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 600px) {
+    main {
+        padding: 0 12px 40px;
+    }
+
+    .questionnaire-hero {
+        padding: 30px 16px 20px;
+    }
+
+    .questionnaire-hero h1 {
+        font-size: 1.4rem;
+    }
+
+    .section-header {
+        padding: 16px 20px;
+    }
+
+    .question-block {
+        padding: 16px 20px;
+    }
+
+    .prof-name-banner {
+        padding: 12px 20px;
+    }
+
+    .option-radio,
+    .option-checkbox {
+        padding: 10px 12px;
+    }
+
+    .btn-submit {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 24px;
+    }
+}

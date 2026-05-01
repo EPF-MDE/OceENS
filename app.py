@@ -1,4 +1,5 @@
 from typing import Annotated, Dict, Optional, List
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -8,7 +9,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from contextlib import asynccontextmanager
 import uvicorn
 
-from models import Module, Question, Sondage, Template, Option, User
+from models import Module, Question, Repondant, Reponse, Section, Sondage, Template, Option, User
 from pydantic import BaseModel
 
 sqlite_file_name = "database/db_oceens.db"
@@ -66,6 +67,18 @@ class SondageFullCreate(BaseModel):
     semestre: str
     annee_scolaire: str
     ues: List[UECreate]
+
+
+class ReponseItem(BaseModel):
+    id_section: int
+    id_question: int
+    valeur: str
+    module_id: Optional[int] = None  # Pour les questions Module/Enseignant
+    enseignant: Optional[str] = None
+
+
+class QuestionnaireSubmission(BaseModel):
+    reponses: List[ReponseItem]
 
 
 @asynccontextmanager
@@ -302,7 +315,10 @@ def create_sondage(sondage: SondageFullCreate, session: SessionDep):
                 select(Sondage).where(Sondage.id_template == sondage.id_template)
             ).all()
             next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
-    
+
+            # Générer l'URL du questionnaire
+            questionnaire_url = f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
+
             new_sondage = Sondage(
                 id_template=sondage.id_template,
                 id_sondage=next_id_sondage,
@@ -310,12 +326,13 @@ def create_sondage(sondage: SondageFullCreate, session: SessionDep):
                 formation=sondage.formation,
                 semestre=sondage.semestre,
                 annee_scolaire=sondage.annee_scolaire,
+                url=questionnaire_url,
                 statut=1,  # Actif par défaut
                 id_user=1,  # Utilisateur par défaut
             )
-    
+
             session.add(new_sondage)
-    
+
             # Traiter les UEs et modules
             for ue in sondage.ues:
                 for module_data in ue.modules:
@@ -328,6 +345,7 @@ def create_sondage(sondage: SondageFullCreate, session: SessionDep):
                         module.id_sondage = next_id_sondage
                         module.ue = ue.nom
                         module.ue_optionnelle = ue.optionnel
+                        module.choix_enseignant = module_data.modalite
                         # Mettre à jour les professeurs
                         prof_names = [
                             f"{p.prenom} {p.nom}" for p in module_data.professeurs
@@ -343,12 +361,179 @@ def create_sondage(sondage: SondageFullCreate, session: SessionDep):
                             ),
                             ue=ue.nom,
                             ue_optionnelle=ue.optionnel,
+                            choix_enseignant=module_data.modalite,
                             id_template=sondage.id_template,
                             id_sondage=next_id_sondage,
                         )
                         session.add(new_module)
 
-    return {"message": "Sondage créé avec succès", "id_sondage": next_id_sondage}
+    return {
+        "message": "Sondage cree avec succes",
+        "id_sondage": next_id_sondage,
+        "questionnaire_url": questionnaire_url,
+    }
+
+
+@app.get("/questionnaire/{id_template}/{id_sondage}", response_class=HTMLResponse)
+def questionnaire_page(
+    request: Request, id_template: int, id_sondage: int, session: SessionDep
+):
+    # Récupérer le sondage
+    sondage = session.exec(
+        select(Sondage).where(
+            Sondage.id_template == id_template, Sondage.id_sondage == id_sondage
+        )
+    ).first()
+    if not sondage:
+        return HTMLResponse(content="Sondage introuvable.", status_code=404)
+
+    # Récupérer les sections du template
+    sections = session.exec(
+        select(Section)
+        .where(Section.id_template == id_template)
+        .order_by(Section.ordre)
+    ).all()
+
+    # Récupérer les questions du template
+    questions = session.exec(
+        select(Question).where(Question.id_template == id_template)
+    ).all()
+
+    # Récupérer les options du template
+    options = session.exec(
+        select(Option).where(Option.id_template == id_template)
+    ).all()
+
+    # Récupérer les modules associés au sondage
+    modules = session.exec(
+        select(Module).where(Module.id_sondage == id_sondage)
+    ).all()
+
+    # Structurer les données pour le template
+    sections_data = []
+    for sec in sections:
+        sec_questions = [
+            q for q in questions if q.id_section == sec.id_section
+        ]
+        sec_questions.sort(key=lambda q: q.id_question)
+
+        questions_data = []
+        for q in sec_questions:
+            q_options = [
+                o
+                for o in options
+                if o.id_section == sec.id_section
+                and o.id_question == q.id_question
+            ]
+            q_options.sort(key=lambda o: o.id_option)
+            questions_data.append(
+                {
+                    "id_question": q.id_question,
+                    "intitule": q.intitule,
+                    "type": q.question_type,
+                    "categorie": q.categorie,
+                    "options": [
+                        {"id_option": o.id_option, "intitule": o.intitule}
+                        for o in q_options
+                    ],
+                }
+            )
+
+        sections_data.append(
+            {
+                "id_section": sec.id_section,
+                "nom": sec.nom,
+                "questions": questions_data,
+            }
+        )
+
+    # Structurer les modules avec leurs enseignants
+    modules_data = []
+    for mod in modules:
+        profs = []
+        if mod.enseignant:
+            profs = [p.strip() for p in mod.enseignant.split(",") if p.strip()]
+        modules_data.append(
+            {
+                "id_module": mod.id_module,
+                "nom": mod.nom,
+                "ue": mod.ue,
+                "enseignants": profs,
+                "choix_enseignant": mod.choix_enseignant or "OBLIGATOIRE",
+            }
+        )
+
+    return templates.TemplateResponse(
+        name="questionnaire.html",
+        context={
+            "request": request,
+            "sondage": {
+                "id_template": sondage.id_template,
+                "id_sondage": sondage.id_sondage,
+                "campus": sondage.campus,
+                "formation": sondage.formation,
+                "semestre": sondage.semestre,
+                "annee_scolaire": sondage.annee_scolaire,
+            },
+            "sections": sections_data,
+            "modules": modules_data,
+        },
+    )
+
+
+@app.post("/api/questionnaire/{id_template}/{id_sondage}/reponses")
+def submit_reponses(
+    id_template: int,
+    id_sondage: int,
+    submission: QuestionnaireSubmission,
+    session: SessionDep,
+):
+    # Vérifier que le sondage existe
+    sondage = session.exec(
+        select(Sondage).where(
+            Sondage.id_template == id_template, Sondage.id_sondage == id_sondage
+        )
+    ).first()
+    if not sondage:
+        return JSONResponse(
+            content={"error": "Sondage introuvable"}, status_code=404
+        )
+
+    # Transaction sécurisée — la session a déjà une transaction active via get_session()
+    # Créer le répondant
+    new_repondant = Repondant(
+        date_soumission=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+    session.add(new_repondant)
+    session.flush()  # Pour obtenir l'id_repondant auto-généré
+
+    # Trouver le prochain id_reponse
+    existing_reponses = session.exec(select(Reponse)).all()
+    next_id_reponse = (
+        max([r.id_reponse for r in existing_reponses] + [0]) + 1
+    )
+
+    # Insérer chaque réponse
+    for rep in submission.reponses:
+        new_reponse = Reponse(
+            id_template=id_template,
+            id_sondage=id_sondage,
+            id_repondant=new_repondant.id_repondant,
+            id_template_1=id_template,
+            id_section=rep.id_section,
+            id_question=rep.id_question,
+            id_reponse=next_id_reponse,
+            valeur=rep.valeur,
+        )
+        session.add(new_reponse)
+        next_id_reponse += 1
+
+    session.commit()
+
+    return {
+        "message": "Reponses enregistrees avec succes",
+        "id_repondant": new_repondant.id_repondant,
+    }
 
 
 if __name__ == "__main__":
