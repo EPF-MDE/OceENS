@@ -1,4 +1,5 @@
 from typing import Annotated, Dict, Optional, List
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -8,13 +9,13 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from contextlib import asynccontextmanager
 import uvicorn
 
-from models import Module, Question, Sondage, Template, Option, User
+from models import Module, Question, Repondant, Reponse, Section, Sondage, Template, Option, User
 from pydantic import BaseModel
 
 sqlite_file_name = "database/db_oceens.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
-connect_args = {"check_same_thread": False}
+connect_args = {"check_same_thread": False, "timeout": 15}
 engine = create_engine(sqlite_url, connect_args=connect_args)
 
 
@@ -35,6 +36,7 @@ class SondageCreate(BaseModel):
     campus: str
     formation: str
     semestre: str
+    annee_scolaire: str
     id_user: Optional[int] = 1
 
 
@@ -63,7 +65,20 @@ class SondageFullCreate(BaseModel):
     campus: str
     formation: str
     semestre: str
+    annee_scolaire: str
     ues: List[UECreate]
+
+
+class ReponseItem(BaseModel):
+    id_section: int
+    id_question: int
+    valeur: str
+    module_id: Optional[int] = None  # Pour les questions Module/Enseignant
+    enseignant: Optional[str] = None
+
+
+class QuestionnaireSubmission(BaseModel):
+    reponses: List[ReponseItem]
 
 
 @asynccontextmanager
@@ -97,6 +112,7 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
     campus_names = []
     filiere_names = []
     semestres = []
+    annees_scolaires = []
     formation_to_campus: Dict[str, str] = {}
     for sondage in sondages:
         if sondage.campus and sondage.campus not in campus_names:
@@ -106,6 +122,8 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
             formation_to_campus[sondage.formation] = sondage.campus or ""
         if sondage.semestre and sondage.semestre not in semestres:
             semestres.append(sondage.semestre)
+        if sondage.annee_scolaire and sondage.annee_scolaire not in annees_scolaires:
+            annees_scolaires.append(sondage.annee_scolaire)
 
     # Ensure default campuses are always available
     default_campuses = ["Paris-Cachan", "Montpellier", "Troyes", "St-Nazaire"]
@@ -224,6 +242,7 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
         "campusList": campus_list,
         "filieres": filieres,
         "semestres": semestres,
+        "anneesScolaires": annees_scolaires,
         "profsList": professors,
         "uesByFiliere": ues_by_filiere,
         "selectedTemplateId": template_dicts[0]["id_template"]
@@ -232,6 +251,7 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
         "selectedCampusId": campus_list[0]["id"] if campus_list else None,
         "selectedFiliereId": filieres[0]["id"] if filieres else None,
         "semestreAnnee": semestres[0] if semestres else "",
+        "selectedAnneeScolaire": annees_scolaires[0] if annees_scolaires else "",
         "questions": [
             question.dict() for question in session.exec(select(Question)).all()
         ],
@@ -258,7 +278,7 @@ async def index(request: Request):
 
 
 @app.get("/parametrage", response_class=HTMLResponse)
-async def parametrage(request: Request, session: SessionDep):
+def parametrage(request: Request, session: SessionDep):
     data = build_parametrage_data(session)
     return templates.TemplateResponse(
         name="parametrage.html",
@@ -268,76 +288,252 @@ async def parametrage(request: Request, session: SessionDep):
             "campus_list": data["campusList"],
             "filieres": data["filieres"],
             "semestres": data["semestres"],
+            "annees_scolaires": data["anneesScolaires"],
             "profs": data["profsList"],
             "ues_by_filiere": data["uesByFiliere"],
             "selected_template_id": data["selectedTemplateId"],
             "selected_campus_id": data["selectedCampusId"],
             "selected_filiere_id": data["selectedFiliereId"],
             "semestre_annee": data["semestreAnnee"],
+            "selected_annee_scolaire": data["selectedAnneeScolaire"],
         },
     )
 
 
 @app.get("/api/parametrage")
-async def parametrage_api(session: SessionDep):
+def parametrage_api(session: SessionDep):
     return JSONResponse(content=build_parametrage_data(session))
 
 
 @app.post("/api/sondage")
-async def create_sondage(sondage: SondageFullCreate, session: SessionDep):
+def create_sondage(sondage: SondageFullCreate, session: SessionDep):
     # Utiliser une transaction pour éviter les locks
     with session.begin():
-        # Trouver le prochain id_sondage pour ce template
-        existing_sondages = session.exec(
-            select(Sondage).where(Sondage.id_template == sondage.id_template)
-        ).all()
-        next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
+        with session.no_autoflush:
+            # Trouver le prochain id_sondage pour ce template
+            existing_sondages = session.exec(
+                select(Sondage).where(Sondage.id_template == sondage.id_template)
+            ).all()
+            next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
 
-        new_sondage = Sondage(
-            id_template=sondage.id_template,
-            id_sondage=next_id_sondage,
-            campus=sondage.campus,
-            formation=sondage.formation,
-            semestre=sondage.semestre,
-            statut=1,  # Actif par défaut
-            id_user=1,  # Utilisateur par défaut
+            # Générer l'URL du questionnaire
+            questionnaire_url = f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
+
+            new_sondage = Sondage(
+                id_template=sondage.id_template,
+                id_sondage=next_id_sondage,
+                campus=sondage.campus,
+                formation=sondage.formation,
+                semestre=sondage.semestre,
+                annee_scolaire=sondage.annee_scolaire,
+                url=questionnaire_url,
+                statut=1,  # Actif par défaut
+                id_user=1,  # Utilisateur par défaut
+            )
+
+            session.add(new_sondage)
+
+            # Traiter les UEs et modules
+            for ue in sondage.ues:
+                for module_data in ue.modules:
+                    # Vérifier si le module existe déjà
+                    module = session.exec(
+                        select(Module).where(Module.id_module == module_data.id)
+                    ).first()
+                    if module:
+                        # Mettre à jour le module existant
+                        module.id_sondage = next_id_sondage
+                        module.ue = ue.nom
+                        module.ue_optionnelle = ue.optionnel
+                        module.choix_enseignant = module_data.modalite
+                        # Mettre à jour les professeurs
+                        prof_names = [
+                            f"{p.prenom} {p.nom}" for p in module_data.professeurs
+                        ]
+                        module.enseignant = ", ".join(prof_names) if prof_names else None
+                    else:
+                        # Créer un nouveau module
+                        new_module = Module(
+                            id_module=module_data.id,
+                            nom=module_data.nom,
+                            enseignant=", ".join(
+                                [f"{p.prenom} {p.nom}" for p in module_data.professeurs]
+                            ),
+                            ue=ue.nom,
+                            ue_optionnelle=ue.optionnel,
+                            choix_enseignant=module_data.modalite,
+                            id_template=sondage.id_template,
+                            id_sondage=next_id_sondage,
+                        )
+                        session.add(new_module)
+
+    return {
+        "message": "Sondage cree avec succes",
+        "id_sondage": next_id_sondage,
+        "questionnaire_url": questionnaire_url,
+    }
+
+
+@app.get("/questionnaire/{id_template}/{id_sondage}", response_class=HTMLResponse)
+def questionnaire_page(
+    request: Request, id_template: int, id_sondage: int, session: SessionDep
+):
+    # Récupérer le sondage
+    sondage = session.exec(
+        select(Sondage).where(
+            Sondage.id_template == id_template, Sondage.id_sondage == id_sondage
+        )
+    ).first()
+    if not sondage:
+        return HTMLResponse(content="Sondage introuvable.", status_code=404)
+
+    # Récupérer les sections du template
+    sections = session.exec(
+        select(Section)
+        .where(Section.id_template == id_template)
+        .order_by(Section.ordre)
+    ).all()
+
+    # Récupérer les questions du template
+    questions = session.exec(
+        select(Question).where(Question.id_template == id_template)
+    ).all()
+
+    # Récupérer les options du template
+    options = session.exec(
+        select(Option).where(Option.id_template == id_template)
+    ).all()
+
+    # Récupérer les modules associés au sondage
+    modules = session.exec(
+        select(Module).where(Module.id_sondage == id_sondage)
+    ).all()
+
+    # Structurer les données pour le template
+    sections_data = []
+    for sec in sections:
+        sec_questions = [
+            q for q in questions if q.id_section == sec.id_section
+        ]
+        sec_questions.sort(key=lambda q: q.id_question)
+
+        questions_data = []
+        for q in sec_questions:
+            q_options = [
+                o
+                for o in options
+                if o.id_section == sec.id_section
+                and o.id_question == q.id_question
+            ]
+            q_options.sort(key=lambda o: o.id_option)
+            questions_data.append(
+                {
+                    "id_question": q.id_question,
+                    "intitule": q.intitule,
+                    "type": q.question_type,
+                    "categorie": q.categorie,
+                    "options": [
+                        {"id_option": o.id_option, "intitule": o.intitule}
+                        for o in q_options
+                    ],
+                }
+            )
+
+        sections_data.append(
+            {
+                "id_section": sec.id_section,
+                "nom": sec.nom,
+                "questions": questions_data,
+            }
         )
 
-        session.add(new_sondage)
+    # Structurer les modules avec leurs enseignants
+    modules_data = []
+    for mod in modules:
+        profs = []
+        if mod.enseignant:
+            profs = [p.strip() for p in mod.enseignant.split(",") if p.strip()]
+        modules_data.append(
+            {
+                "id_module": mod.id_module,
+                "nom": mod.nom,
+                "ue": mod.ue,
+                "enseignants": profs,
+                "choix_enseignant": mod.choix_enseignant or "OBLIGATOIRE",
+            }
+        )
 
-        # Traiter les UEs et modules
-        for ue in sondage.ues:
-            for module_data in ue.modules:
-                # Vérifier si le module existe déjà
-                module = session.exec(
-                    select(Module).where(Module.id_module == module_data.id)
-                ).first()
-                if module:
-                    # Mettre à jour le module existant
-                    module.id_sondage = next_id_sondage
-                    module.ue = ue.nom
-                    module.ue_optionnelle = ue.optionnel
-                    # Mettre à jour les professeurs
-                    prof_names = [
-                        f"{p.prenom} {p.nom}" for p in module_data.professeurs
-                    ]
-                    module.enseignant = ", ".join(prof_names) if prof_names else None
-                else:
-                    # Créer un nouveau module
-                    new_module = Module(
-                        id_module=module_data.id,
-                        nom=module_data.nom,
-                        enseignant=", ".join(
-                            [f"{p.prenom} {p.nom}" for p in module_data.professeurs]
-                        ),
-                        ue=ue.nom,
-                        ue_optionnelle=ue.optionnel,
-                        id_template=sondage.id_template,
-                        id_sondage=next_id_sondage,
-                    )
-                    session.add(new_module)
+    return templates.TemplateResponse(
+        name="questionnaire.html",
+        context={
+            "request": request,
+            "sondage": {
+                "id_template": sondage.id_template,
+                "id_sondage": sondage.id_sondage,
+                "campus": sondage.campus,
+                "formation": sondage.formation,
+                "semestre": sondage.semestre,
+                "annee_scolaire": sondage.annee_scolaire,
+            },
+            "sections": sections_data,
+            "modules": modules_data,
+        },
+    )
 
-    return {"message": "Sondage créé avec succès", "id_sondage": next_id_sondage}
+
+@app.post("/api/questionnaire/{id_template}/{id_sondage}/reponses")
+def submit_reponses(
+    id_template: int,
+    id_sondage: int,
+    submission: QuestionnaireSubmission,
+    session: SessionDep,
+):
+    # Vérifier que le sondage existe
+    sondage = session.exec(
+        select(Sondage).where(
+            Sondage.id_template == id_template, Sondage.id_sondage == id_sondage
+        )
+    ).first()
+    if not sondage:
+        return JSONResponse(
+            content={"error": "Sondage introuvable"}, status_code=404
+        )
+
+    # Transaction sécurisée — la session a déjà une transaction active via get_session()
+    # Créer le répondant
+    new_repondant = Repondant(
+        date_soumission=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+    session.add(new_repondant)
+    session.flush()  # Pour obtenir l'id_repondant auto-généré
+
+    # Trouver le prochain id_reponse
+    existing_reponses = session.exec(select(Reponse)).all()
+    next_id_reponse = (
+        max([r.id_reponse for r in existing_reponses] + [0]) + 1
+    )
+
+    # Insérer chaque réponse
+    for rep in submission.reponses:
+        new_reponse = Reponse(
+            id_template=id_template,
+            id_sondage=id_sondage,
+            id_repondant=new_repondant.id_repondant,
+            id_template_1=id_template,
+            id_section=rep.id_section,
+            id_question=rep.id_question,
+            id_reponse=next_id_reponse,
+            valeur=rep.valeur,
+        )
+        session.add(new_reponse)
+        next_id_reponse += 1
+
+    session.commit()
+
+    return {
+        "message": "Reponses enregistrees avec succes",
+        "id_repondant": new_repondant.id_repondant,
+    }
 
 
 if __name__ == "__main__":
