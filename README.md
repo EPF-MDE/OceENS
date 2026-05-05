@@ -3,16 +3,21 @@
 Plateforme d'évaluation des enseignements conçue pour l'école d'ingénieurs EPF.
 
 ## Aperçu
-L'application **OcéEns II** est actuellement structurée comme un **frontend autonome**. Elle permet aux utilisateurs (notamment à l'administration/scolarité) de préparer la création de sondages pour différentes filières de l'EPF.
-
+L'application **OcéEns II** est structurée autour d’un frontend et d’un backend intégrés.
+Elle permet aux utilisateurs, notamment à l’administration et à la scolarité, de créer et gérer des sondages pour différentes filières de l’EPF.
 Visuellement, l'application est habillée de la charte graphique de l'EPF.
 
 ## Architecture
-Le projet utilise pour l'instant un serveur léger local **FastAPI / Uvicorn** chargé de la distribution des fichiers HTML, CSS, JS et PY. L'application est en préparation pour l'intégration future d'une vraie base de données et d'une API backend.
-
+Le projet repose sur un serveur local basé sur FastAPI et Uvicorn, qui gère à la fois le rendu des pages HTML et les endpoints API.
+Une base de données SQLite est utilisée via SQLModel pour stocker et manipuler les données.
+L’architecture est conçue pour évoluer vers une base de données plus robuste et un déploiement en production.
 ### Pages de l'application :
 1. **Page d'accueil** (`/`) : Hub principal avec l'image de fond et la charte graphique OcéEns II (titre bicolore, boutons arrondis). Permet d'accéder au module de paramétrage. Cette page sera modifiée ultérieurement pour mieux faire correspondre les couleurs de l'EPF ainsi que les attentes client.
 2. **Page de paramétrage** (`/parametrage`) : Interface de création de sondage. L'utilisateur peut y sélectionner l'année, le campus, la filière, puis configurer les Unités d'Enseignement (UE), ajouter des modules et y affecter des professeurs.
+3. **Page questionnaire** (`/questionnaire/{id_template}/{id_sondage}`) : Interface utilisateur permettant de répondre au sondage. Elle affiche dynamiquement les sections et les questions en fonction du template sélectionné.
+Les questions peuvent être de différents types (choix unique, choix multiple, question ouverte) et s’adaptent au contexte (campus, formation, module, enseignant).
+La page gère également des cas dynamiques, notamment pour les modules et enseignants (choix obligatoire, inclusif ou exclusif).
+Un système de progression visuelle guide l’utilisateur, et les réponses sont envoyées au backend pour être enregistrées en base de données.
 
 ## Installation et Démarrage Local
 
@@ -43,9 +48,9 @@ Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances 
   Créer un dossier database/ puis y coller le fichier db_oceens.db
 5. **Lancez l'application** :
    ```bash
-   python app.py
+   fastapi dev
    ``` 
-6. Une fois le serveur lancé (vous verrez `* Running on http://127.0.0.1:5000`), ouvrez votre navigateur web et rendez-vous à l'adresse : **http://localhost:5000** ou faites directement CTRL + Clic sur le lien.
+6. Une fois le serveur lancé (vous verrez `* Running on http://127.0.0.1:8000`), ouvrez votre navigateur web et rendez-vous à l'adresse : **http://localhost:8000** ou faites directement CTRL + Clic sur le lien.
 
 
 ## Structure des Dossiers
@@ -54,6 +59,7 @@ Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances 
 test_web_app/
 │
 ├── app.py                   # Point d'entrée Flask (démarrage du serveur et rendu des pages)
+├── models.py                # Modélisation de la base de données (tables, relations, structure des données avec SQLModel)
 ├── requirements.txt         # Fichier contenant les dépendances Python (uniquement Flask)
 ├── README.md                # Documentation du projet (ce fichier)
 │
@@ -62,16 +68,21 @@ test_web_app/
 │
 ├── static/                  # Dossier des fichiers statiques
 │   ├── css/
-│   │   └── parametrage.css  # Styles CSS de la page de paramétrage
+│   │   └── parametrage.css  # Styles CSS de la page de paramétrage  
+│   │   └── questionnaire.css # Styles CSS de la page de questionnaire              
 │   ├── img/                 # Images et logos de l'application
 │   │   ├── epf_logo.png     # Logo officiel de l'EPF
-│   │   └── fond_accueil.png # Image de fond de la page d'accueil
+│   │   └── hautpage.png     # Image en haut de la page d’accueil
+│   |   └── logo.png         # Logo officiel de l'EPF
 │   └── js/
 │       └── parametrage.js   # Script JS gérant l'interface de paramétrage (avec données simulées)
+│       └── questionnaire.js # Script JS gérant l'interface de questionnaire (avec données simulées)
 │
 └── templates/               # Dossier des vues HTML servies par Flask
     ├── index.html           # Structure HTML de la page d'accueil
     └── parametrage.html     # Structure HTML de la page de création de sondage
+    └── questionnaire.html   # Structure HTML de la page de questionnaire
+    
 ```
 
 ## Évolutions futures
