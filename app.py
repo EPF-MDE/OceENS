@@ -1,152 +1,618 @@
-"""=============================================================================
-OceENS - Application principale FastAPI
+"""
 =============================================================================
-
-Ce module initialise et configure l'application web FastAPI avec :
-- La gestion des sessions utilisateur (SessionMiddleware)
-- L'authentification via le routeur auth (Azure Entra ID / Microsoft)
-- Le rendu de templates HTML (Jinja2)
-- La distribution de fichiers statiques (CSS, JS, images)
-- Les routes pour les dashboards selon les rôles d'utilisateurs
-
-Structure :
-- app.py (ce fichier) : Configuration et routes principales
-- auth.py : Authentification MSAL et routes /login, /logout, /auth/callback
-- database.py : Gestion de la base de données SQLite et des rôles
-- remplir_db.py : Script pour initialiser les données de test
+OceENS - Application principale FastAPI (version fusionnée)
+=============================================================================
+Combine :
+- L'authentification Azure Entra ID (auth.py)
+- La gestion des sessions (SessionMiddleware)
+- Les routes du module app (1).py (sondages, questionnaires, API)
+- Les dashboards par rôle
 """
 
 from dotenv import load_dotenv
+
 load_dotenv()  # Charge les variables d'environnement depuis .env
 
 import os
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from typing import Annotated, Dict, List, Optional
+from datetime import datetime
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
-from auth import router as auth_router, get_current_user
+from sqlmodel import Session, SQLModel, create_engine, select
 import uvicorn
 
-# ┌─ Configuration ────────────────────────────────────────────────────────┐
-# Les trois rôles utilisateurs reconnus par l'application
+# ┌─ Importation des modèles et du module d'authentification ─────────────┐
+from models import (
+    Module,
+    Question,
+    Repondant,
+    Reponse,
+    Section,
+    Sondage,
+    Template,
+    Option,
+    User,
+)
+from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
+from auth import router as auth_router, get_current_user
+
 VALID_ROLES = {"admin", "etudiant", "professeur"}
+# └────────────────────────────────────────────────────────────────────────┘
 
 
-# └───────────────────────────────────────────────────────────────────┘
+# ┌─ Configuration de la base de données ──────────────────────────────────┐
+sqlite_file_name = "database/db_oceens.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+
+connect_args = {"check_same_thread": False, "timeout": 15}
+engine = create_engine(sqlite_url, connect_args=connect_args)
+
+
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
+def get_session():
+    with Session(engine) as session:
+        yield session
+
+
+SessionDep = Annotated[Session, Depends(get_session)]
+# └────────────────────────────────────────────────────────────────────────┘
+
+
+# ┌─ Modèles Pydantic pour les données entrantes ────────────────────────┐
+class SondageCreate(BaseModel):
+    id_template: int
+    campus: str
+    formation: str
+    semestre: str
+    annee_scolaire: str
+    id_user: Optional[int] = 1
+
+
+class ProfesseurBase(BaseModel):
+    id: int
+    prenom: str
+    nom: str
+
+
+class ModuleCreate(BaseModel):
+    id: int
+    nom: str
+    modalite: str
+    professeurs: List[ProfesseurBase]
+
+
+class UECreate(BaseModel):
+    id: int
+    nom: str
+    optionnel: bool
+    modules: List[ModuleCreate]
+
+
+class SondageFullCreate(BaseModel):
+    id_template: int
+    campus: str
+    formation: str
+    semestre: str
+    annee_scolaire: str
+    ues: List[UECreate]
+
+
+class ReponseItem(BaseModel):
+    id_section: int
+    id_question: int
+    valeur: str
+    module_id: Optional[int] = None
+    enseignant: Optional[str] = None
+
+
+class QuestionnaireSubmission(BaseModel):
+    reponses: List[ReponseItem]
+
+
+# └────────────────────────────────────────────────────────────────────────┘
+
+
+# ┌─ Fonctions utilitaires ──────────────────────────────────────────────┐
+def parse_name(full_name: Optional[str], fallback_id: int) -> Dict[str, Optional[str]]:
+    if not full_name:
+        return {"id": fallback_id, "prenom": None, "nom": None}
+    parts = full_name.strip().split()
+    if len(parts) == 1:
+        return {"id": fallback_id, "prenom": parts[0], "nom": ""}
+    return {"id": fallback_id, "prenom": parts[0], "nom": " ".join(parts[1:])}
+
+
+def build_parametrage_data(session: Session) -> Dict[str, object]:
+    templates = session.exec(select(Template)).all()
+    sondages = session.exec(select(Sondage)).all()
+    modules = session.exec(select(Module)).all()
+    users = session.exec(select(User)).all()
+
+    campus_names = []
+    filiere_names = []
+    semestres = []
+    annees_scolaires = []
+    formation_to_campus: Dict[str, str] = {}
+    for sondage in sondages:
+        if sondage.campus and sondage.campus not in campus_names:
+            campus_names.append(sondage.campus)
+        if sondage.formation and sondage.formation not in filiere_names:
+            filiere_names.append(sondage.formation)
+            formation_to_campus[sondage.formation] = sondage.campus or ""
+        if sondage.semestre and sondage.semestre not in semestres:
+            semestres.append(sondage.semestre)
+        if sondage.annee_scolaire and sondage.annee_scolaire not in annees_scolaires:
+            annees_scolaires.append(sondage.annee_scolaire)
+
+    default_campuses = ["Paris-Cachan", "Montpellier", "Troyes", "St-Nazaire"]
+    for dc in default_campuses:
+        if dc not in campus_names:
+            campus_names.append(dc)
+
+    campus_list = [
+        {"id": index + 1, "nom": campus} for index, campus in enumerate(campus_names)
+    ]
+    campus_index = {campus["nom"]: campus["id"] for campus in campus_list}
+    filieres = []
+    for index, formation in enumerate(filiere_names):
+        filieres.append(
+            {
+                "id": index + 1,
+                "nom": formation,
+                "campus_id": campus_index.get(
+                    formation_to_campus.get(formation, ""), None
+                ),
+            }
+        )
+
+    professors = []
+    professor_index = 1
+    seen_professors = set()
+    for module in modules:
+        if not module.enseignant:
+            continue
+        professor = parse_name(module.enseignant, professor_index)
+        if not professor["prenom"] and not professor["nom"]:
+            continue
+        key = (professor["prenom"].lower(), professor["nom"].lower())
+        if key not in seen_professors:
+            professor["id"] = professor_index
+            seen_professors.add(key)
+            professors.append(professor)
+            professor_index += 1
+
+    for user in users:
+        if user.role and "Enseignant" in user.role and user.mail:
+            parsed = parse_name(
+                user.mail.split("@")[0].replace(".", " "), professor_index
+            )
+            parsed["nom"] = parsed["nom"] or ""
+            parsed["prenom"] = parsed["prenom"] or ""
+            key = (parsed["prenom"].lower(), parsed["nom"].lower())
+            if key and key not in seen_professors:
+                parsed["id"] = professor_index
+                seen_professors.add(key)
+                professors.append(parsed)
+                professor_index += 1
+
+    ues_by_filiere = {}
+    if modules and filieres:
+        default_filiere_id = filieres[0]["id"]
+        for module in modules:
+            filiere_id = default_filiere_id
+            ue_name = module.ue or "Sans UE"
+            ues_by_filiere.setdefault(filiere_id, [])
+            ue_entry = next(
+                (ue for ue in ues_by_filiere[filiere_id] if ue["nom"] == ue_name), None
+            )
+            professor = parse_name(module.enseignant, professor_index)
+            if professor["prenom"] or professor["nom"]:
+                key = (professor["prenom"].lower(), professor["nom"].lower())
+                if key not in seen_professors:
+                    professor["id"] = professor_index
+                    seen_professors.add(key)
+                    professors.append(professor)
+                    professor_index += 1
+            if ue_entry is None:
+                ue_entry = {
+                    "id": len(ues_by_filiere[filiere_id]) + 1,
+                    "nom": ue_name,
+                    "optionnel": module.ue_optionnelle or False,
+                    "_open": True,
+                    "modules": [],
+                }
+                ues_by_filiere[filiere_id].append(ue_entry)
+            prof_list = []
+            if module.enseignant:
+                prof_strings = [
+                    p.strip() for p in module.enseignant.split(",") if p.strip()
+                ]
+                for prof_str in prof_strings:
+                    professor = parse_name(prof_str, professor_index)
+                    if professor["prenom"] or professor["nom"]:
+                        key = (professor["prenom"].lower(), professor["nom"].lower())
+                        if key not in seen_professors:
+                            professor["id"] = professor_index
+                            seen_professors.add(key)
+                            professors.append(professor)
+                            professor_index += 1
+                        prof_list.append(
+                            {
+                                "id": professor.get("id", 0),
+                                "prenom": professor["prenom"],
+                                "nom": professor["nom"],
+                            }
+                        )
+            ue_entry["modules"].append(
+                {
+                    "id": int(module.id_module or 0),
+                    "nom": module.nom or "Module",
+                    "modalite": "OBLIGATOIRE",
+                    "professeurs": prof_list,
+                }
+            )
+
+    template_dicts = [template.dict() for template in templates]
+
+    return {
+        "templates": template_dicts,
+        "campusList": campus_list,
+        "filieres": filieres,
+        "semestres": semestres,
+        "anneesScolaires": annees_scolaires,
+        "profsList": professors,
+        "uesByFiliere": ues_by_filiere,
+        "selectedTemplateId": template_dicts[0]["id_template"]
+        if template_dicts
+        else None,
+        "selectedCampusId": campus_list[0]["id"] if campus_list else None,
+        "selectedFiliereId": filieres[0]["id"] if filieres else None,
+        "semestreAnnee": semestres[0] if semestres else "",
+        "selectedAnneeScolaire": annees_scolaires[0] if annees_scolaires else "",
+        "questions": [
+            question.dict() for question in session.exec(select(Question)).all()
+        ],
+        "options": [option.dict() for option in session.exec(select(Option)).all()],
+    }
+
+
+# └────────────────────────────────────────────────────────────────────────┘
+
+
+# ┌─ Gestion du cycle de vie (lifespan) ──────────────────────────────────┐
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Initialisation de la base de données...")
+    create_db_and_tables()
+    yield
+    print("Fermeture de la connexion...")
+
+
+# └────────────────────────────────────────────────────────────────────────┘
+
 
 def create_app():
     """
-    Crée et configure l'instance FastAPI
-    
-    Configuration :
-    - SessionMiddleware : Gère l'authentification et les sessions utilisateur
-    - Routeur d'authentification : Endpoints /login, /logout, /auth/callback
-    - Fichiers statiques : CSS, JS, images depuis le dossier /static
-    - Templates Jinja2 : Moteur de rendu HTML depuis /templates
+    Crée et configure l'application FastAPI fusionnée.
     """
     app = FastAPI(
         title="OceENS",
-        description="Système de gestion et de connexion pour étudiants, professeurs et admins"
+        description="Système de gestion et de connexion pour étudiants, professeurs et admins",
+        lifespan=lifespan,
     )
 
-    # ┌─ Middleware de gestion des sessions ────────────────────────────┐
-    # Chaque utilisateur connecté a une session stockée (cookies sécurisés)
-    # SECRET_KEY : Clé pour signer les sessions (doit être sécurisée en prod)
+    # SessionMiddleware (authentification)
     app.add_middleware(
         SessionMiddleware,
         secret_key=os.environ.get("SECRET_KEY", "changeme"),
-        https_only=True,        # Enforce HTTPS (important en production)
-        same_site="lax",        # Protection contre les attaques CSRF
+        https_only=True,
+        same_site="lax",
     )
-    # └────────────────────────────────────────────────────────────────┘
 
-    # Importe les routes d'authentification (login, logout, callback)
+    # Routeur d'authentification (login/logout/callback Azure Entra ID)
     app.include_router(auth_router)
 
-    # Configuration des fichiers statiques (CSS, JavaScript, images)
+    # Fichiers statiques et templates (montés une seule fois)
     app.mount("/static", StaticFiles(directory="static"), name="static")
-    
-    # Configuration du moteur de templates HTML
     templates = Jinja2Templates(directory="templates")
 
-    # ┌─ Route : Page d'accueil ───────────────────────────────────────┐
+    # ┌─ Route : Page d'accueil (version app.py conservée) ──────────────┐
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request):
         """
-        Route racine de l'application (page d'accueil)
-        
-        Logique :
-        1. Récupère l'utilisateur connecté (s'il existe)
-        2. Si connecté + rôle valide → redirige vers son dashboard
-        3. Sinon → affiche index.html (page de login)
+        Page d'accueil. Si l'utilisateur est déjà connecté avec un rôle
+        valide, redirection vers son dashboard. Sinon, affichage du login.
         """
         user = get_current_user(request)
         if user and user.get("role") in VALID_ROLES:
-            # Utilisateur authentifié avec un rôle valide
             return RedirectResponse(url=f"/dashboard/{user['role']}")
-        # Utilisateur non authentifié → page de login
         return templates.TemplateResponse(request=request, name="index.html")
 
     # └────────────────────────────────────────────────────────────────┘
 
-    # ┌─ Route : Page de paramétrage ──────────────────────────────────┐
+    # ┌─ Route : Paramétrage (version du main conservée) ────────────────┐
     @app.get("/parametrage", response_class=HTMLResponse)
-    async def parametrage(request: Request):
-        """
-        Route de paramétrage (configuration de l'application)
-        Affiche simplement le template parametrage.html
-        """
-        return templates.TemplateResponse(request=request, name="parametrage.html")
+    def parametrage(request: Request, session: SessionDep):
+        data = build_parametrage_data(session)
+        return templates.TemplateResponse(
+            name="parametrage.html",
+            context={
+                "request": request,
+                "templates": data["templates"],
+                "campus_list": data["campusList"],
+                "filieres": data["filieres"],
+                "semestres": data["semestres"],
+                "annees_scolaires": data["anneesScolaires"],
+                "profs": data["profsList"],
+                "ues_by_filiere": data["uesByFiliere"],
+                "selected_template_id": data["selectedTemplateId"],
+                "selected_campus_id": data["selectedCampusId"],
+                "selected_filiere_id": data["selectedFiliereId"],
+                "semestre_annee": data["semestreAnnee"],
+                "selected_annee_scolaire": data["selectedAnneeScolaire"],
+            },
+        )
 
     # └────────────────────────────────────────────────────────────────┘
 
-    # ┌─ Route : Dashboards personnalisés par rôle ────────────────────┐
+    # ┌─ API : Données de paramétrage ───────────────────────────────────┐
+    @app.get("/api/parametrage")
+    def parametrage_api(session: SessionDep):
+        return JSONResponse(content=build_parametrage_data(session))
+
+    # └────────────────────────────────────────────────────────────────┘
+
+    # ┌─ API : Création d'un sondage ────────────────────────────────────┐
+    @app.post("/api/sondage")
+    def create_sondage(sondage: SondageFullCreate, session: SessionDep):
+        with session.begin():
+            with session.no_autoflush:
+                existing_sondages = session.exec(
+                    select(Sondage).where(Sondage.id_template == sondage.id_template)
+                ).all()
+                next_id_sondage = (
+                    max([s.id_sondage for s in existing_sondages] + [0]) + 1
+                )
+
+                questionnaire_url = (
+                    f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
+                )
+
+                new_sondage = Sondage(
+                    id_template=sondage.id_template,
+                    id_sondage=next_id_sondage,
+                    campus=sondage.campus,
+                    formation=sondage.formation,
+                    semestre=sondage.semestre,
+                    annee_scolaire=sondage.annee_scolaire,
+                    url=questionnaire_url,
+                    statut=1,
+                    id_user=1,
+                )
+                session.add(new_sondage)
+
+                for ue in sondage.ues:
+                    for module_data in ue.modules:
+                        module = session.exec(
+                            select(Module).where(Module.id_module == module_data.id)
+                        ).first()
+                        if module:
+                            module.id_sondage = next_id_sondage
+                            module.ue = ue.nom
+                            module.ue_optionnelle = ue.optionnel
+                            module.choix_enseignant = module_data.modalite
+                            prof_names = [
+                                f"{p.prenom} {p.nom}" for p in module_data.professeurs
+                            ]
+                            module.enseignant = (
+                                ", ".join(prof_names) if prof_names else None
+                            )
+                        else:
+                            new_module = Module(
+                                id_module=module_data.id,
+                                nom=module_data.nom,
+                                enseignant=", ".join(
+                                    [
+                                        f"{p.prenom} {p.nom}"
+                                        for p in module_data.professeurs
+                                    ]
+                                ),
+                                ue=ue.nom,
+                                ue_optionnelle=ue.optionnel,
+                                choix_enseignant=module_data.modalite,
+                                id_template=sondage.id_template,
+                                id_sondage=next_id_sondage,
+                            )
+                            session.add(new_module)
+
+        return {
+            "message": "Sondage cree avec succes",
+            "id_sondage": next_id_sondage,
+            "questionnaire_url": questionnaire_url,
+        }
+
+    # └────────────────────────────────────────────────────────────────┘
+
+    # ┌─ Page questionnaire ─────────────────────────────────────────────┐
+    @app.get("/questionnaire/{id_template}/{id_sondage}", response_class=HTMLResponse)
+    def questionnaire_page(
+        request: Request, id_template: int, id_sondage: int, session: SessionDep
+    ):
+        sondage = session.exec(
+            select(Sondage).where(
+                Sondage.id_template == id_template,
+                Sondage.id_sondage == id_sondage,
+            )
+        ).first()
+        if not sondage:
+            return HTMLResponse(content="Sondage introuvable.", status_code=404)
+
+        sections = session.exec(
+            select(Section)
+            .where(Section.id_template == id_template)
+            .order_by(Section.ordre)
+        ).all()
+        questions = session.exec(
+            select(Question).where(Question.id_template == id_template)
+        ).all()
+        options = session.exec(
+            select(Option).where(Option.id_template == id_template)
+        ).all()
+        modules = session.exec(
+            select(Module).where(Module.id_sondage == id_sondage)
+        ).all()
+
+        sections_data = []
+        for sec in sections:
+            sec_questions = [q for q in questions if q.id_section == sec.id_section]
+            sec_questions.sort(key=lambda q: q.id_question)
+            questions_data = []
+            for q in sec_questions:
+                q_options = [
+                    o
+                    for o in options
+                    if o.id_section == sec.id_section and o.id_question == q.id_question
+                ]
+                q_options.sort(key=lambda o: o.id_option)
+                questions_data.append(
+                    {
+                        "id_question": q.id_question,
+                        "intitule": q.intitule,
+                        "type": q.question_type,
+                        "categorie": q.categorie,
+                        "options": [
+                            {"id_option": o.id_option, "intitule": o.intitule}
+                            for o in q_options
+                        ],
+                    }
+                )
+            sections_data.append(
+                {
+                    "id_section": sec.id_section,
+                    "nom": sec.nom,
+                    "questions": questions_data,
+                }
+            )
+
+        modules_data = []
+        for mod in modules:
+            profs = []
+            if mod.enseignant:
+                profs = [p.strip() for p in mod.enseignant.split(",") if p.strip()]
+            modules_data.append(
+                {
+                    "id_module": mod.id_module,
+                    "nom": mod.nom,
+                    "ue": mod.ue,
+                    "enseignants": profs,
+                    "choix_enseignant": mod.choix_enseignant or "OBLIGATOIRE",
+                }
+            )
+
+        return templates.TemplateResponse(
+            name="questionnaire.html",
+            context={
+                "request": request,
+                "sondage": {
+                    "id_template": sondage.id_template,
+                    "id_sondage": sondage.id_sondage,
+                    "campus": sondage.campus,
+                    "formation": sondage.formation,
+                    "semestre": sondage.semestre,
+                    "annee_scolaire": sondage.annee_scolaire,
+                },
+                "sections": sections_data,
+                "modules": modules_data,
+            },
+        )
+
+    # └────────────────────────────────────────────────────────────────┘
+
+    # ┌─ API : Soumission des réponses du questionnaire ─────────────────┐
+    @app.post("/api/questionnaire/{id_template}/{id_sondage}/reponses")
+    def submit_reponses(
+        id_template: int,
+        id_sondage: int,
+        submission: QuestionnaireSubmission,
+        session: SessionDep,
+    ):
+        sondage = session.exec(
+            select(Sondage).where(
+                Sondage.id_template == id_template,
+                Sondage.id_sondage == id_sondage,
+            )
+        ).first()
+        if not sondage:
+            return JSONResponse(
+                content={"error": "Sondage introuvable"}, status_code=404
+            )
+
+        new_repondant = Repondant(
+            date_soumission=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        session.add(new_repondant)
+        session.flush()
+
+        existing_reponses = session.exec(select(Reponse)).all()
+        next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
+
+        for rep in submission.reponses:
+            new_reponse = Reponse(
+                id_template=id_template,
+                id_sondage=id_sondage,
+                id_repondant=new_repondant.id_repondant,
+                id_template_1=id_template,
+                id_section=rep.id_section,
+                id_question=rep.id_question,
+                id_reponse=next_id_reponse,
+                valeur=rep.valeur,
+            )
+            session.add(new_reponse)
+            next_id_reponse += 1
+
+        session.commit()
+
+        return {
+            "message": "Reponses enregistrees avec succes",
+            "id_repondant": new_repondant.id_repondant,
+        }
+
+    # └────────────────────────────────────────────────────────────────┘
+
+    # ┌─ Route : Dashboards par rôle ────────────────────────────────────┐
     @app.get("/dashboard/{role}", response_class=HTMLResponse)
     async def dashboard(request: Request, role: str):
         """
-        Route du tableau de bord principal (dashboard)
-        
-        Sécurité :
-        1. Vérifier que l'utilisateur est connecté
-        2. Vérifier que le rôle demandé existe
-        3. Vérifier que l'utilisateur a le droit d'accéder à ce rôle
-           (empêche un étudiant d'accéder au dashboard admin)
-        
-        Affiche le template correspondant au rôle :
-        - admin → dashboard/admin.html
-        - etudiant → dashboard/etudiant.html
-        - professeur → dashboard/professeur.html
+        Vérifications de sécurité : l'utilisateur doit être connecté,
+        le rôle doit exister, et l'utilisateur ne peut voir que son
+        propre tableau de bord.
         """
-        
-        # Récupère l'utilisateur de la session
         user = get_current_user(request)
-
-        # Vérification 1 : Utilisateur connecté ?
         if not user:
             return RedirectResponse(url="/")
-
-        # Vérification 2 : Rôle valide dans l'URL ?
         if role not in VALID_ROLES:
             return RedirectResponse(url="/")
-
-        # Vérification 3 : L'utilisateur essaie-t-il d'accéder à un rôle qui n'est pas le sien ?
-        # Cela empêche un étudiant d'accéder au dashboard professeur en tapant l'URL
         if user.get("role") != role:
             return RedirectResponse(url=f"/dashboard/{user['role']}")
 
-        # Mappage des rôles vers les templates HTML
         template_map = {
             "admin": "dashboard/admin.html",
             "etudiant": "dashboard/etudiant.html",
             "professeur": "dashboard/professeur.html",
         }
 
-        # Affiche le template avec les données de l'utilisateur
         return templates.TemplateResponse(
             request=request,
             name=template_map[role],
-            context={"user": user},  # Passe l'utilisateur au template (accès à {{user}})
+            context={"user": user},
         )
 
     # └────────────────────────────────────────────────────────────────┘
@@ -154,28 +620,15 @@ def create_app():
     return app
 
 
-# Crée l'instance FastAPI unique qui sera servie
+# ┌─ Instance applicative globale ───────────────────────────────────────┐
 app = create_app()
+# └──────────────────────────────────────────────────────────────────────┘
 
 
 if __name__ == "__main__":
-    """
-    Point d'entrée principal - Lance le serveur de développement
-    
-    Configuration :
-    - host="0.0.0.0" : Écoute sur toutes les interfaces réseau
-    - port=8000 : Port d'écoute (HTTP ou HTTPS selon config)
-    - reload=False : Pas de rechargement automatique (à True en dev)
-    
-    Certificats SSL (commentés) :
-    - En production : utiliser des certificats Let's Encrypt
-    - En local : générer avec OpenSSL ou utiliser mkcert
-    """
     uvicorn.run(
         "app:app",
         host="0.0.0.0",
         port=8000,
         reload=False,
-        # ssl_keyfile="oceens.key",      # Clé privée SSL
-        # ssl_certfile="oceens.crt",    # Certificat SSL
     )
