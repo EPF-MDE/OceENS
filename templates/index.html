@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCEENS II - Plateforme d'évaluation</title>
-    <meta name="description" content="OCEENS II — Plateforme de sondages et évaluation des enseignements">
+    <title>{{ page_title }}</title>
+    <meta name="description" content="OcéEns II — Plateforme de sondages et évaluation des enseignements">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
@@ -253,10 +253,10 @@
             <h1 class="logo-title">
                 <span class="text-red">Océ</span><span class="text-purple">Ens</span>
             </h1>
-            <p class="logo-subtitle" style="text-transform:none;">Plateforme d'évaluation des enseignements</p>
+            <p class="logo-subtitle" style="text-transform:none;">{{ page_subtitle }}</p>
             <div class="hero-actions">
-                <a href="/parametrage" class="hero-btn hero-btn-purple">Créer questionnaire</a>
-                <a href="#" class="hero-btn hero-btn-red">Visionner dashboard</a>
+                <a href="{{ create_url }}" class="{{ button_primary_class }}">{{ create_label }}</a>
+                <a href="#" class="{{ button_secondary_class }}">{{ dashboard_label }}</a>
             </div>
         </div>
     </main>
