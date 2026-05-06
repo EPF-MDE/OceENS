@@ -1,166 +1,239 @@
 <!DOCTYPE html>
 <html lang="fr">
- 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OcéEns II — Connexion</title>
-    <meta name="description" content="OcéEns II — Plateforme de sondages et évaluation des enseignements">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-    <style>
-        /* Conservation de tout votre style original */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
- 
-        body {
-            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #ffffff;
-            color: #333333;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-        }
- 
-        @keyframes slide {
-            0% { background-position: center top; }
-            50% { background-position: center bottom; }
-            100% { background-position: center top; }
-        }
- 
-        header {
-            background-image: url('/static/img/hautpage.png');
-            height: 100px;
-            position: relative;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            z-index: 100;
-            animation: slide 6s ease-in-out infinite;
-        }
- 
-        .header-logo {
-            height: 70px;
-            object-fit: contain;
-            position: absolute;
-            bottom: -40px;
-            left: 20px;
-        }
- 
-        main {
-            flex: 1;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding-top: 10px;
-        }
- 
-        .hero-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-        }
- 
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            text-align: center;
-            background: transparent;
-            padding: 20px;
-            max-width: 90%;
-        }
- 
-        .logo-title {
-            font-size: 5.5rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            margin-bottom: 5px;
-        }
- 
-        .text-red { color: #df231d; }
-        .text-purple { color: #470a68; }
- 
-        .logo-subtitle {
-            font-size: 1.15rem;
-            font-weight: 500;
-            color: #111111;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 70px;
-        }
- 
-        .hero-actions {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
- 
-        .hero-btn {
-            display: inline-block;
-            padding: 16px 40px;
-            font-family: 'Inter', sans-serif;
-            width: 200px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 50px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-            border: none;
-        }
- 
-        .hero-btn-purple {
-            background-color: #470a68;
-            color: #ffffff;
-        }
- 
-        .hero-btn-purple:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(71, 10, 104, 0.3);
-        }
- 
-        @media (max-width: 768px) {
-            .logo-title { font-size: 4rem; }
-            .logo-subtitle { font-size: 0.9rem; }
-            .hero-btn { width: 100%; }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OcéEns – Plateforme d'évaluation des enseignements</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:    #D42B2B;
+      --navy:   #1E2340;
+      --purple: #4A3060;
+      --grey:   #6B7280;
+      --white:  #FFFFFF;
+    }
+
+    /* ── Background : warm blurred office ── */
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: 'DM Sans', sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      /* Warm office atmosphere via layered radial gradients */
+      background:
+        radial-gradient(ellipse 80% 60% at 70% 30%,  rgba(255,220,150,0.55) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 80% at 20% 80%,  rgba(200,215,240,0.4)  0%, transparent 60%),
+        radial-gradient(ellipse 100% 100% at 50% 50%, rgba(240,235,225,1)    0%, rgba(210,220,235,1) 100%);
+      filter: blur(0px);
+    }
+
+    /* Bokeh spots */
+    .bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle 120px at 72% 18%, rgba(255,240,180,0.7) 0%, transparent 70%),
+        radial-gradient(circle  80px at 85% 55%, rgba(255,255,255,0.6) 0%, transparent 70%),
+        radial-gradient(circle  60px at 15% 40%, rgba(255,255,255,0.5) 0%, transparent 70%),
+        radial-gradient(circle  90px at 55% 75%, rgba(220,230,255,0.4) 0%, transparent 70%),
+        radial-gradient(circle  50px at 30% 15%, rgba(255,245,200,0.5) 0%, transparent 70%);
+      filter: blur(22px);
+    }
+
+    /* Soft frosted-glass overlay */
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      backdrop-filter: blur(28px) brightness(1.05);
+      -webkit-backdrop-filter: blur(28px) brightness(1.05);
+      background: rgba(255,255,255,0.18);
+    }
+
+    /* ── Layout ── */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 28px 40px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    /* EPP logo mark – recreated in SVG */
+    .logo svg { width: 44px; height: 44px; flex-shrink: 0; }
+
+    .logo-text { line-height: 1.15; }
+    .logo-text .school-name {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: var(--navy);
+      text-transform: uppercase;
+    }
+    .logo-text .tagline {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      font-size: 0.62rem;
+      color: var(--red);
+      letter-spacing: 0.04em;
+      font-style: italic;
+    }
+
+    /* ── Hero centre ── */
+    main {
+      flex: 1;
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0 24px 80px;
+    }
+
+    .brand {
+      margin-bottom: 18px;
+      animation: fadeUp 0.8s cubic-bezier(.22,.68,0,1.2) both;
+    }
+
+    .brand h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(4.5rem, 10vw, 7.5rem);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+
+    .brand h1 .oce  { color: var(--red); }
+    .brand h1 .ens  { color: var(--navy); }
+
+    .subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1rem, 2.2vw, 1.3rem);
+      color: var(--grey);
+      letter-spacing: 0.02em;
+      margin-bottom: 52px;
+      animation: fadeUp 0.8s 0.15s cubic-bezier(.22,.68,0,1.2) both;
+    }
+
+    .btn-connect {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 52px;
+      background: var(--purple);
+      color: var(--white);
+      text-decoration: none;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      box-shadow: 0 4px 24px rgba(74,48,96,0.25);
+      animation: fadeUp 0.8s 0.28s cubic-bezier(.22,.68,0,1.2) both;
+    }
+
+    .btn-connect:hover {
+      background: #3a2450;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(74,48,96,0.35);
+    }
+
+    .btn-connect:active { transform: translateY(0); }
+
+    /* Microsoft icon */
+    .btn-connect svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    /* ── Footer ── */
+    footer {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 20px;
+      font-size: 0.72rem;
+      color: rgba(30,35,64,0.35);
+      letter-spacing: 0.03em;
+    }
+  </style>
 </head>
- 
 <body>
- 
-    <header>
-        <img src="/static/img/logo.png" alt="EPF Engineering School" class="header-logo">
-    </header>
- 
-    <main>
-        <div class="hero-bg"></div>
-        <div class="hero-content">
-            <h1 class="logo-title">
-                <span class="text-red">Océ</span><span class="text-purple">Ens</span>
-            </h1>
-            <p class="logo-subtitle" style="text-transform:none;">Plateforme de sondages et évaluation</p>
-            
-            <div class="hero-actions">
-                <!-- Le bouton pointe maintenant vers /login avec le style violet défini -->
-                <a href="/login" class="hero-btn hero-btn-purple">Se connecter</a>
-            </div>
-        </div>
-    </main>
- 
+
+  <div class="bg"></div>
+
+  <!-- ── Header / Logo EPP ── -->
+  <header>
+    <a href="/" class="logo">
+      <!-- EPP logo mark (simplified SVG recreation) -->
+      <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Outer circle -->
+        <circle cx="22" cy="22" r="20" stroke="#D42B2B" stroke-width="2.2"/>
+        <!-- Inner circle -->
+        <circle cx="22" cy="22" r="12" stroke="#D42B2B" stroke-width="1.5"/>
+        <!-- epp letters -->
+        <text x="22" y="26.5" text-anchor="middle"
+              font-family="DM Sans, sans-serif" font-size="10" font-weight="700"
+              fill="#1E2340" letter-spacing="0.5">epp</text>
+      </svg>
+      <div class="logo-text">
+        <div class="school-name">Engineering School</div>
+        <div class="tagline">Creating the future together</div>
+      </div>
+    </a>
+  </header>
+
+  <!-- ── Hero ── -->
+  <main>
+    <div class="brand">
+      <h1><span class="oce">Océ</span><span class="ens">Ens</span></h1>
+    </div>
+
+    <p class="subtitle">plateforme d'évaluation des enseignements</p>
+
+    <a href="/login" class="btn-connect">
+      <!-- Microsoft logo -->
+      <svg viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1"  y="1"  width="9" height="9" fill="#F25022"/>
+        <rect x="11" y="1"  width="9" height="9" fill="#7FBA00"/>
+        <rect x="1"  y="11" width="9" height="9" fill="#00A4EF"/>
+        <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+      </svg>
+      Se connecter
+    </a>
+  </main>
+
+  <footer>© 2025 EPP Engineering School — OcéEns</footer>
+
 </body>
- 
 </html>
