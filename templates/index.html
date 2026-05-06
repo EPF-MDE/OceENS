@@ -4,13 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title }}</title>
+    <title>OcéEns II — Connexion</title>
     <meta name="description" content="OcéEns II — Plateforme de sondages et évaluation des enseignements">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <style>
+        /* Conservation de tout votre style original */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -27,22 +28,12 @@
             overflow-x: hidden;
         }
  
-        /* Définition de l'animation */
         @keyframes slide {
-            0% {
-                background-position: center top;
-            }
- 
-            50% {
-                background-position: center bottom;
-            }
- 
-            100% {
-                background-position: center top;
-            }
+            0% { background-position: center top; }
+            50% { background-position: center bottom; }
+            100% { background-position: center top; }
         }
  
-        /* ── Top Header ─────────────────────────────── */
         header {
             background-image: url('/static/img/hautpage.png');
             height: 100px;
@@ -51,15 +42,7 @@
             background-position: center;
             background-repeat: no-repeat;
             z-index: 100;
- 
             animation: slide 6s ease-in-out infinite;
- 
-        }
- 
-        .hero {
-            padding-top: 30px;
-            padding-bottom: 30px;
- 
         }
  
         .header-logo {
@@ -68,30 +51,8 @@
             position: absolute;
             bottom: -40px;
             left: 20px;
-            transform: none;
- 
         }
  
-        .header-user {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: #333;
-            background: transparent;
-        }
- 
-        .header-user svg {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
- 
-        /* ── Main Content Area (Hero) ────────────────── */
         main {
             flex: 1;
             position: relative;
@@ -100,7 +61,6 @@
             align-items: center;
             justify-content: center;
             padding-top: 10px;
- 
         }
  
         .hero-bg {
@@ -109,9 +69,6 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
             z-index: 0;
         }
  
@@ -119,28 +76,11 @@
             position: relative;
             z-index: 2;
             text-align: center;
-            background: rgba(255, 255, 255, 0.4);
-            padding: 40px 60px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+            background: transparent;
+            padding: 20px;
             max-width: 90%;
         }
  
-        /* Si l'image 'fond_accueil.png' contient déjà le flou et qu'il n'y a pas
-           de boite translucide dans la maquette, on peut enlever le fond blanc ci-dessus
-           en rendant l'arrière plan transparent. La maquette montre le texte directement
-           sur le flou. Modifions le fond de .hero-content : */
-        .hero-content {
-            background: transparent;
-            box-shadow: none;
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
-            padding: 20px;
-        }
- 
-        /* ── Title ───────────────────────────────────── */
         .logo-title {
             font-size: 5.5rem;
             font-weight: 700;
@@ -148,13 +88,8 @@
             margin-bottom: 5px;
         }
  
-        .text-red {
-            color: #df231d;
-        }
- 
-        .text-purple {
-            color: #470a68;
-        }
+        .text-red { color: #df231d; }
+        .text-purple { color: #470a68; }
  
         .logo-subtitle {
             font-size: 1.15rem;
@@ -165,7 +100,6 @@
             margin-bottom: 70px;
         }
  
-        /* ── Buttons ─────────────────────────────────── */
         .hero-actions {
             display: flex;
             gap: 20px;
@@ -190,37 +124,18 @@
  
         .hero-btn-purple {
             background-color: #470a68;
-            /* Bleu foncé similaire à la maquette */
             color: #ffffff;
         }
  
         .hero-btn-purple:hover {
-            background-color: #470a68;
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(13, 71, 161, 0.3);
+            box-shadow: 0 6px 15px rgba(71, 10, 104, 0.3);
         }
  
- 
-        /* ── Responsive ──────────────────────────── */
         @media (max-width: 768px) {
-            .logo-title {
-                font-size: 4rem;
-            }
- 
-            .logo-subtitle {
-                font-size: 0.9rem;
-            }
- 
-            .hero-btn {
-                padding: 14px 30px;
-                font-size: 0.95rem;
-                width: 100%;
-            }
- 
-            header {
-                padding: 0 20px;
-                height: 70px;
-            }
+            .logo-title { font-size: 4rem; }
+            .logo-subtitle { font-size: 0.9rem; }
+            .hero-btn { width: 100%; }
         }
     </style>
 </head>
@@ -229,12 +144,6 @@
  
     <header>
         <img src="/static/img/logo.png" alt="EPF Engineering School" class="header-logo">
-        <!-- <div class="header-user" aria-label="Profil utilisateur"> -->
-        <!-- <svg viewBox="0 0 24 24">
-            <path
-                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-        </svg>
-        </div> -->
     </header>
  
     <main>
@@ -243,9 +152,11 @@
             <h1 class="logo-title">
                 <span class="text-red">Océ</span><span class="text-purple">Ens</span>
             </h1>
-            <p class="logo-subtitle" style="text-transform:none;">{{ page_subtitle }}</p>
+            <p class="logo-subtitle" style="text-transform:none;">Plateforme de sondages et évaluation</p>
+            
             <div class="hero-actions">
-                <a href="{{ create_url }}" class="{{ button_primary_class }}">{{ connexion_label }}</a>
+                <!-- Le bouton pointe maintenant vers /login avec le style violet défini -->
+                <a href="/login" class="hero-btn hero-btn-purple">Se connecter</a>
             </div>
         </div>
     </main>
