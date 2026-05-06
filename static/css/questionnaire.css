@@ -137,7 +137,6 @@ main {
         opacity: 0;
         transform: translateY(12px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -262,7 +261,6 @@ main {
 .module-inside-ue .section-header-module h2 {
     font-size: 1.05rem;
 }
-
 
 /* ── Prof Block ──────────────────────────── */
 .prof-block {
@@ -461,7 +459,7 @@ main {
     z-index: 1;
 }
 
-.nps-option input[type="radio"]:checked+.nps-label {
+.nps-option input[type="radio"]:checked + .nps-label {
     background: linear-gradient(135deg, #470a68, #5c1a7a);
     color: white;
     border-color: #470a68;
@@ -478,7 +476,6 @@ main {
     color: #8899a6;
     padding: 0 4px;
 }
-
 
 /* ── Submit Section ──────────────────────── */
 .submit-section {
@@ -592,7 +589,6 @@ main {
     border-top: 2px solid #e8eef3;
     animation: fadeInUp 0.3s ease;
 }
-
 
 /* ── Dynamic question visibility ─────────── */
 .question-block.q-hidden {
