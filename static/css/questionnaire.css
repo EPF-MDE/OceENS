@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════
    Questionnaire — Thème EPF (OCEENS II)
+   Charte graphique : Violet #470a68, Rouge #df231d
    ═══════════════════════════════════════════════════════ */
 
 * {
@@ -17,7 +18,7 @@ body {
 
 /* ── Header ──────────────────────────────── */
 header {
-    background-color: #0d47a1;
+    background-color: #470a68;
     color: white;
     height: 60px;
     display: flex;
@@ -82,7 +83,7 @@ main {
 .questionnaire-hero h1 {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #1a3a5c;
+    color: #470a68;
     margin-bottom: 8px;
 }
 
@@ -109,7 +110,7 @@ main {
 .progress-bar {
     height: 100%;
     width: 0%;
-    background: linear-gradient(135deg, #1a5276, #2589b8);
+    background: linear-gradient(135deg, #470a68, #7b2fa0);
     border-radius: 3px;
     transition: width 0.4s ease;
 }
@@ -136,6 +137,7 @@ main {
         opacity: 0;
         transform: translateY(12px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -147,12 +149,12 @@ main {
     align-items: center;
     gap: 14px;
     padding: 20px 28px;
-    background: linear-gradient(135deg, #0d47a1, #1565c0);
+    background: linear-gradient(135deg, #470a68, #5c1a7a);
     color: white;
 }
 
 .section-header-module {
-    background: linear-gradient(135deg, #1a5276, #1f6f9f);
+    background: linear-gradient(135deg, #470a68, #5c1a7a);
 }
 
 .section-number {
@@ -184,6 +186,84 @@ main {
     font-weight: 500;
 }
 
+/* ── UE Group Card ──────────────────────── */
+.ue-group-card {
+    background: white;
+    border: 1px solid #dce4ec;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    animation: fadeInUp 0.4s ease;
+}
+
+.ue-group-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 28px;
+    background: linear-gradient(135deg, #470a68, #6b2d8b);
+    color: white;
+}
+
+.ue-group-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.ue-badge-optional {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 10px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+/* ── UE Filter Question ─────────────────── */
+.ue-filter-block {
+    padding: 22px 28px;
+    background: #faf5ff;
+    border-bottom: 2px solid #e8d5f5;
+}
+
+.ue-filter-block .question-label {
+    color: #470a68;
+    font-weight: 600;
+}
+
+.ue-filter-block .options-grid {
+    flex-direction: row;
+    gap: 12px;
+}
+
+.ue-filter-block .option-radio {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+    min-width: 100px;
+}
+
+.ue-conditional-content {
+    animation: fadeInUp 0.3s ease;
+}
+
+/* ── Module inside UE ────────────────────── */
+.module-inside-ue {
+    border-top: 2px solid #e8eef3;
+}
+
+.module-inside-ue .section-header-module {
+    background: linear-gradient(135deg, #5c1a7a, #7b2fa0);
+    padding: 16px 28px;
+}
+
+.module-inside-ue .section-header-module h2 {
+    font-size: 1.05rem;
+}
+
+
 /* ── Prof Block ──────────────────────────── */
 .prof-block {
     border-top: 2px solid #e8eef3;
@@ -201,7 +281,7 @@ main {
     background: #f5f8fb;
     font-weight: 600;
     font-size: 0.95rem;
-    color: #1a3a5c;
+    color: #470a68;
     border-bottom: 1px solid #e8eef3;
 }
 
@@ -235,7 +315,7 @@ main {
 .q-number {
     display: inline-block;
     font-weight: 700;
-    color: #1a5276;
+    color: #470a68;
     margin-right: 4px;
 }
 
@@ -268,14 +348,14 @@ main {
 
 .option-radio:hover,
 .option-checkbox:hover {
-    border-color: #1a5276;
-    background: #f0f6fb;
+    border-color: #470a68;
+    background: #faf5ff;
     transform: translateX(2px);
 }
 
 .option-radio input[type="radio"],
 .option-checkbox input[type="checkbox"] {
-    accent-color: #1a5276;
+    accent-color: #470a68;
     width: 18px;
     height: 18px;
     flex-shrink: 0;
@@ -291,14 +371,14 @@ main {
 /* Selected state */
 .option-radio:has(input:checked),
 .option-checkbox:has(input:checked) {
-    border-color: #1a5276;
-    background: linear-gradient(135deg, #e8f0fe, #f0f6fb);
-    box-shadow: 0 0 0 1px rgba(26, 82, 118, 0.15);
+    border-color: #470a68;
+    background: linear-gradient(135deg, #f3e8ff, #faf5ff);
+    box-shadow: 0 0 0 1px rgba(71, 10, 104, 0.15);
 }
 
 .option-radio:has(input:checked) .option-label,
 .option-checkbox:has(input:checked) .option-label {
-    color: #1a3a5c;
+    color: #470a68;
     font-weight: 500;
 }
 
@@ -319,14 +399,86 @@ main {
 
 .open-answer:focus {
     outline: none;
-    border-color: #1a5276;
-    box-shadow: 0 0 0 3px rgba(26, 82, 118, 0.1);
+    border-color: #470a68;
+    box-shadow: 0 0 0 3px rgba(71, 10, 104, 0.1);
     background: white;
 }
 
 .open-answer::placeholder {
     color: #b0bec5;
 }
+
+/* ── NPS Scale ───────────────────────────── */
+.nps-scale {
+    display: flex;
+    gap: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.nps-option {
+    position: relative;
+    flex: 1;
+    min-width: 48px;
+    max-width: 64px;
+}
+
+.nps-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.nps-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 52px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #5a6f83;
+    background: #f5f7fa;
+    border: 1px solid #dce4ec;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.nps-option:first-child .nps-label {
+    border-radius: 10px 0 0 10px;
+}
+
+.nps-option:last-child .nps-label {
+    border-radius: 0 10px 10px 0;
+}
+
+.nps-label:hover {
+    background: #faf5ff;
+    border-color: #470a68;
+    color: #470a68;
+    z-index: 1;
+}
+
+.nps-option input[type="radio"]:checked+.nps-label {
+    background: linear-gradient(135deg, #470a68, #5c1a7a);
+    color: white;
+    border-color: #470a68;
+    box-shadow: 0 2px 8px rgba(71, 10, 104, 0.3);
+    z-index: 2;
+    transform: scale(1.08);
+}
+
+.nps-anchors {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: #8899a6;
+    padding: 0 4px;
+}
+
 
 /* ── Submit Section ──────────────────────── */
 .submit-section {
@@ -341,20 +493,20 @@ main {
     padding: 16px 48px;
     font-size: 1.1rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #1a5276, #1f6f9f);
+    background: linear-gradient(135deg, #470a68, #5c1a7a);
     color: white;
     border: none;
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
     letter-spacing: 0.3px;
-    box-shadow: 0 4px 16px rgba(26, 82, 118, 0.3);
+    box-shadow: 0 4px 16px rgba(71, 10, 104, 0.3);
 }
 
 .btn-submit:hover {
-    background: linear-gradient(135deg, #1f6f9f, #2589b8);
+    background: linear-gradient(135deg, #5c1a7a, #7b2fa0);
     transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(26, 82, 118, 0.4);
+    box-shadow: 0 6px 24px rgba(71, 10, 104, 0.4);
 }
 
 .btn-submit:active {
@@ -405,7 +557,7 @@ main {
 }
 
 .confirmation-card h2 {
-    color: #1a3a5c;
+    color: #470a68;
     margin-bottom: 10px;
     font-size: 1.4rem;
 }
@@ -418,7 +570,7 @@ main {
 .btn-back-home {
     display: inline-block;
     padding: 12px 32px;
-    background: linear-gradient(135deg, #1a5276, #1f6f9f);
+    background: linear-gradient(135deg, #470a68, #5c1a7a);
     color: white;
     text-decoration: none;
     border-radius: 8px;
@@ -428,7 +580,7 @@ main {
 
 .btn-back-home:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(26, 82, 118, 0.3);
+    box-shadow: 0 4px 12px rgba(71, 10, 104, 0.3);
 }
 
 /* ── Exclusive Prof Select ───────────────── */
@@ -438,6 +590,17 @@ main {
 
 .exclusive-prof-block {
     border-top: 2px solid #e8eef3;
+    animation: fadeInUp 0.3s ease;
+}
+
+
+/* ── Dynamic question visibility ─────────── */
+.question-block.q-hidden {
+    display: none !important;
+}
+
+.question-block.q-visible {
+    display: block !important;
     animation: fadeInUp 0.3s ease;
 }
 
@@ -476,5 +639,18 @@ main {
         width: 100%;
         justify-content: center;
         padding: 14px 24px;
+    }
+
+    .nps-option {
+        min-width: 36px;
+    }
+
+    .nps-label {
+        height: 44px;
+        font-size: 0.95rem;
+    }
+
+    .ue-filter-block .options-grid {
+        flex-direction: column;
     }
 }

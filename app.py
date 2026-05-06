@@ -513,10 +513,23 @@ def create_app():
                     "id_module": mod.id_module,
                     "nom": mod.nom,
                     "ue": mod.ue,
+                    "ue_optionnelle": bool(mod.ue_optionnelle),
                     "enseignants": profs,
                     "choix_enseignant": mod.choix_enseignant or "OBLIGATOIRE",
                 }
             )
+        # Grouper les modules par UE pour la logique conditionnelle
+        ues_data = {}
+        for mod_data in modules_data:
+            ue_name = mod_data["ue"] or "Sans UE"
+            if ue_name not in ues_data:
+                ues_data[ue_name] = {
+                    "nom": ue_name,
+                    "optionnelle": mod_data["ue_optionnelle"],
+                    "modules": [],
+                }
+            ues_data[ue_name]["modules"].append(mod_data)
+        ues_list = list(ues_data.values())
 
         return templates.TemplateResponse(
             request=request,
@@ -533,6 +546,7 @@ def create_app():
                 },
                 "sections": sections_data,
                 "modules": modules_data,
+                "ues": ues_list,
             },
         )
 
