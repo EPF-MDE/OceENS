@@ -519,6 +519,7 @@ def create_app():
             )
 
         return templates.TemplateResponse(
+            request=request,
             name="questionnaire.html",
             context={
                 "request": request,
