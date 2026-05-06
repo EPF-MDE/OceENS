@@ -343,6 +343,7 @@ def create_app():
     def parametrage(request: Request, session: SessionDep):
         data = build_parametrage_data(session)
         return templates.TemplateResponse(
+            request=request,  # modification liée à versions récentes de FastAPI/Starlette
             name="parametrage.html",
             context={
                 "request": request,
