@@ -218,3 +218,8 @@ __marimo__/
 
 # Database
 database/
+
+
+*.db
+oceens.crt
+oceens.key

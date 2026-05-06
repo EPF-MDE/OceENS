@@ -1,17 +1,51 @@
-from typing import Annotated, Dict, Optional, List
+"""
+=============================================================================
+OceENS - Application principale FastAPI (version fusionnée)
+=============================================================================
+Combine :
+- L'authentification Azure Entra ID (auth.py)
+- La gestion des sessions (SessionMiddleware)
+- Les routes du module app (1).py (sondages, questionnaires, API)
+- Les dashboards par rôle
+"""
+
+from dotenv import load_dotenv
+
+load_dotenv()  # Charge les variables d'environnement depuis .env
+
+import os
+from typing import Annotated, Dict, List, Optional
 from datetime import datetime
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, SQLModel, create_engine, select
-from contextlib import asynccontextmanager
 import uvicorn
 
-from models import Module, Question, Repondant, Reponse, Section, Sondage, Template, Option, User
+# ┌─ Importation des modèles et du module d'authentification ─────────────┐
+from models import (
+    Module,
+    Question,
+    Repondant,
+    Reponse,
+    Section,
+    Sondage,
+    Template,
+    Option,
+    User,
+)
 from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
+from auth import router as auth_router, get_current_user
 
+VALID_ROLES = {"admin", "etudiant", "professeur"}
+# └────────────────────────────────────────────────────────────────────────┘
+
+
+# ┌─ Configuration de la base de données ──────────────────────────────────┐
 sqlite_file_name = "database/db_oceens.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
@@ -29,8 +63,10 @@ def get_session():
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
+# └────────────────────────────────────────────────────────────────────────┘
 
 
+# ┌─ Modèles Pydantic pour les données entrantes ────────────────────────┐
 class SondageCreate(BaseModel):
     id_template: int
     campus: str
@@ -73,7 +109,7 @@ class ReponseItem(BaseModel):
     id_section: int
     id_question: int
     valeur: str
-    module_id: Optional[int] = None  # Pour les questions Module/Enseignant
+    module_id: Optional[int] = None
     enseignant: Optional[str] = None
 
 
@@ -81,19 +117,10 @@ class QuestionnaireSubmission(BaseModel):
     reponses: List[ReponseItem]
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("Initialisation de la base de données...")
-    create_db_and_tables()
-    yield
-    print("Fermeture de la connexion...")
+# └────────────────────────────────────────────────────────────────────────┘
 
 
-app = FastAPI(lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-
+# ┌─ Fonctions utilitaires ──────────────────────────────────────────────┐
 def parse_name(full_name: Optional[str], fallback_id: int) -> Dict[str, Optional[str]]:
     if not full_name:
         return {"id": fallback_id, "prenom": None, "nom": None}
@@ -125,7 +152,6 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
         if sondage.annee_scolaire and sondage.annee_scolaire not in annees_scolaires:
             annees_scolaires.append(sondage.annee_scolaire)
 
-    # Ensure default campuses are always available
     default_campuses = ["Paris-Cachan", "Montpellier", "Troyes", "St-Nazaire"]
     for dc in default_campuses:
         if dc not in campus_names:
@@ -204,7 +230,6 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
                     "modules": [],
                 }
                 ues_by_filiere[filiere_id].append(ue_entry)
-            # Parser les professeurs en splittant sur ","
             prof_list = []
             if module.enseignant:
                 prof_strings = [
@@ -259,282 +284,353 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
     }
 
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return templates.TemplateResponse(
-        name="index.html",
-        context={
-            "request": request,
-            "page_title": "OCEENS II - Plateforme d'évaluation",
-            "page_subtitle": "Plateformes d'évaluation des enseignements",
-            "create_label": "Créer questionnaire",
-            "dashboard_label": "Visionner dashboard",
-            "create_url": "/parametrage",
-            "background_image": "/static/img/fond_accueil.png",
-            "button_primary_class": "hero-btn hero-btn-purple",
-            "button_secondary_class": "hero-btn hero-btn-red",
-        },
+# └────────────────────────────────────────────────────────────────────────┘
+
+
+# ┌─ Gestion du cycle de vie (lifespan) ──────────────────────────────────┐
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Initialisation de la base de données...")
+    create_db_and_tables()
+    yield
+    print("Fermeture de la connexion...")
+
+
+# └────────────────────────────────────────────────────────────────────────┘
+
+
+def create_app():
+    """
+    Crée et configure l'application FastAPI fusionnée.
+    """
+    app = FastAPI(
+        title="OceENS",
+        description="Système de gestion et de connexion pour étudiants, professeurs et admins",
+        lifespan=lifespan,
     )
 
-
-@app.get("/parametrage", response_class=HTMLResponse)
-def parametrage(request: Request, session: SessionDep):
-    data = build_parametrage_data(session)
-    return templates.TemplateResponse(
-        name="parametrage.html",
-        context={
-            "request": request,
-            "templates": data["templates"],
-            "campus_list": data["campusList"],
-            "filieres": data["filieres"],
-            "semestres": data["semestres"],
-            "annees_scolaires": data["anneesScolaires"],
-            "profs": data["profsList"],
-            "ues_by_filiere": data["uesByFiliere"],
-            "selected_template_id": data["selectedTemplateId"],
-            "selected_campus_id": data["selectedCampusId"],
-            "selected_filiere_id": data["selectedFiliereId"],
-            "semestre_annee": data["semestreAnnee"],
-            "selected_annee_scolaire": data["selectedAnneeScolaire"],
-        },
+    # SessionMiddleware (authentification)
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=os.environ.get("SECRET_KEY", "changeme"),
+        https_only=True,
+        same_site="lax",
     )
 
+    # Routeur d'authentification (login/logout/callback Azure Entra ID)
+    app.include_router(auth_router)
 
-@app.get("/api/parametrage")
-def parametrage_api(session: SessionDep):
-    return JSONResponse(content=build_parametrage_data(session))
+    # Fichiers statiques et templates (montés une seule fois)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    templates = Jinja2Templates(directory="templates")
 
+    # ┌─ Route : Page d'accueil (version app.py conservée) ──────────────┐
+    @app.get("/", response_class=HTMLResponse)
+    async def index(request: Request):
+        """
+        Page d'accueil. Si l'utilisateur est déjà connecté avec un rôle
+        valide, redirection vers son dashboard. Sinon, affichage du login.
+        """
+        user = get_current_user(request)
+        if user and user.get("role") in VALID_ROLES:
+            return RedirectResponse(url=f"/dashboard/{user['role']}")
+        return templates.TemplateResponse(request=request, name="index.html")
 
-@app.post("/api/sondage")
-def create_sondage(sondage: SondageFullCreate, session: SessionDep):
-    # Utiliser une transaction pour éviter les locks
-    with session.begin():
-        with session.no_autoflush:
-            # Trouver le prochain id_sondage pour ce template
-            existing_sondages = session.exec(
-                select(Sondage).where(Sondage.id_template == sondage.id_template)
-            ).all()
-            next_id_sondage = max([s.id_sondage for s in existing_sondages] + [0]) + 1
+    # └────────────────────────────────────────────────────────────────┘
 
-            # Générer l'URL du questionnaire
-            questionnaire_url = f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
-
-            new_sondage = Sondage(
-                id_template=sondage.id_template,
-                id_sondage=next_id_sondage,
-                campus=sondage.campus,
-                formation=sondage.formation,
-                semestre=sondage.semestre,
-                annee_scolaire=sondage.annee_scolaire,
-                url=questionnaire_url,
-                statut=1,  # Actif par défaut
-                id_user=1,  # Utilisateur par défaut
-            )
-
-            session.add(new_sondage)
-
-            # Traiter les UEs et modules
-            for ue in sondage.ues:
-                for module_data in ue.modules:
-                    # Vérifier si le module existe déjà
-                    module = session.exec(
-                        select(Module).where(Module.id_module == module_data.id)
-                    ).first()
-                    if module:
-                        # Mettre à jour le module existant
-                        module.id_sondage = next_id_sondage
-                        module.ue = ue.nom
-                        module.ue_optionnelle = ue.optionnel
-                        module.choix_enseignant = module_data.modalite
-                        # Mettre à jour les professeurs
-                        prof_names = [
-                            f"{p.prenom} {p.nom}" for p in module_data.professeurs
-                        ]
-                        module.enseignant = ", ".join(prof_names) if prof_names else None
-                    else:
-                        # Créer un nouveau module
-                        new_module = Module(
-                            id_module=module_data.id,
-                            nom=module_data.nom,
-                            enseignant=", ".join(
-                                [f"{p.prenom} {p.nom}" for p in module_data.professeurs]
-                            ),
-                            ue=ue.nom,
-                            ue_optionnelle=ue.optionnel,
-                            choix_enseignant=module_data.modalite,
-                            id_template=sondage.id_template,
-                            id_sondage=next_id_sondage,
-                        )
-                        session.add(new_module)
-
-    return {
-        "message": "Sondage cree avec succes",
-        "id_sondage": next_id_sondage,
-        "questionnaire_url": questionnaire_url,
-    }
-
-
-@app.get("/questionnaire/{id_template}/{id_sondage}", response_class=HTMLResponse)
-def questionnaire_page(
-    request: Request, id_template: int, id_sondage: int, session: SessionDep
-):
-    # Récupérer le sondage
-    sondage = session.exec(
-        select(Sondage).where(
-            Sondage.id_template == id_template, Sondage.id_sondage == id_sondage
+    # ┌─ Route : Paramétrage (version du main conservée) ────────────────┐
+    @app.get("/parametrage", response_class=HTMLResponse)
+    def parametrage(request: Request, session: SessionDep):
+        data = build_parametrage_data(session)
+        return templates.TemplateResponse(
+            request=request,  # modification liée à versions récentes de FastAPI/Starlette
+            name="parametrage.html",
+            context={
+                "request": request,
+                "templates": data["templates"],
+                "campus_list": data["campusList"],
+                "filieres": data["filieres"],
+                "semestres": data["semestres"],
+                "annees_scolaires": data["anneesScolaires"],
+                "profs": data["profsList"],
+                "ues_by_filiere": data["uesByFiliere"],
+                "selected_template_id": data["selectedTemplateId"],
+                "selected_campus_id": data["selectedCampusId"],
+                "selected_filiere_id": data["selectedFiliereId"],
+                "semestre_annee": data["semestreAnnee"],
+                "selected_annee_scolaire": data["selectedAnneeScolaire"],
+            },
         )
-    ).first()
-    if not sondage:
-        return HTMLResponse(content="Sondage introuvable.", status_code=404)
 
-    # Récupérer les sections du template
-    sections = session.exec(
-        select(Section)
-        .where(Section.id_template == id_template)
-        .order_by(Section.ordre)
-    ).all()
+    # └────────────────────────────────────────────────────────────────┘
 
-    # Récupérer les questions du template
-    questions = session.exec(
-        select(Question).where(Question.id_template == id_template)
-    ).all()
+    # ┌─ API : Données de paramétrage ───────────────────────────────────┐
+    @app.get("/api/parametrage")
+    def parametrage_api(session: SessionDep):
+        return JSONResponse(content=build_parametrage_data(session))
 
-    # Récupérer les options du template
-    options = session.exec(
-        select(Option).where(Option.id_template == id_template)
-    ).all()
+    # └────────────────────────────────────────────────────────────────┘
 
-    # Récupérer les modules associés au sondage
-    modules = session.exec(
-        select(Module).where(Module.id_sondage == id_sondage)
-    ).all()
+    # ┌─ API : Création d'un sondage ────────────────────────────────────┐
+    @app.post("/api/sondage")
+    def create_sondage(sondage: SondageFullCreate, session: SessionDep):
+        with session.begin():
+            with session.no_autoflush:
+                existing_sondages = session.exec(
+                    select(Sondage).where(Sondage.id_template == sondage.id_template)
+                ).all()
+                next_id_sondage = (
+                    max([s.id_sondage for s in existing_sondages] + [0]) + 1
+                )
 
-    # Structurer les données pour le template
-    sections_data = []
-    for sec in sections:
-        sec_questions = [
-            q for q in questions if q.id_section == sec.id_section
-        ]
-        sec_questions.sort(key=lambda q: q.id_question)
+                questionnaire_url = (
+                    f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
+                )
 
-        questions_data = []
-        for q in sec_questions:
-            q_options = [
-                o
-                for o in options
-                if o.id_section == sec.id_section
-                and o.id_question == q.id_question
-            ]
-            q_options.sort(key=lambda o: o.id_option)
-            questions_data.append(
+                new_sondage = Sondage(
+                    id_template=sondage.id_template,
+                    id_sondage=next_id_sondage,
+                    campus=sondage.campus,
+                    formation=sondage.formation,
+                    semestre=sondage.semestre,
+                    annee_scolaire=sondage.annee_scolaire,
+                    url=questionnaire_url,
+                    statut=1,
+                    id_user=1,
+                )
+                session.add(new_sondage)
+
+                for ue in sondage.ues:
+                    for module_data in ue.modules:
+                        module = session.exec(
+                            select(Module).where(Module.id_module == module_data.id)
+                        ).first()
+                        if module:
+                            module.id_sondage = next_id_sondage
+                            module.ue = ue.nom
+                            module.ue_optionnelle = ue.optionnel
+                            module.choix_enseignant = module_data.modalite
+                            prof_names = [
+                                f"{p.prenom} {p.nom}" for p in module_data.professeurs
+                            ]
+                            module.enseignant = (
+                                ", ".join(prof_names) if prof_names else None
+                            )
+                        else:
+                            new_module = Module(
+                                id_module=module_data.id,
+                                nom=module_data.nom,
+                                enseignant=", ".join(
+                                    [
+                                        f"{p.prenom} {p.nom}"
+                                        for p in module_data.professeurs
+                                    ]
+                                ),
+                                ue=ue.nom,
+                                ue_optionnelle=ue.optionnel,
+                                choix_enseignant=module_data.modalite,
+                                id_template=sondage.id_template,
+                                id_sondage=next_id_sondage,
+                            )
+                            session.add(new_module)
+
+        return {
+            "message": "Sondage cree avec succes",
+            "id_sondage": next_id_sondage,
+            "questionnaire_url": questionnaire_url,
+        }
+
+    # └────────────────────────────────────────────────────────────────┘
+
+    # ┌─ Page questionnaire ─────────────────────────────────────────────┐
+    @app.get("/questionnaire/{id_template}/{id_sondage}", response_class=HTMLResponse)
+    def questionnaire_page(
+        request: Request, id_template: int, id_sondage: int, session: SessionDep
+    ):
+        sondage = session.exec(
+            select(Sondage).where(
+                Sondage.id_template == id_template,
+                Sondage.id_sondage == id_sondage,
+            )
+        ).first()
+        if not sondage:
+            return HTMLResponse(content="Sondage introuvable.", status_code=404)
+
+        sections = session.exec(
+            select(Section)
+            .where(Section.id_template == id_template)
+            .order_by(Section.ordre)
+        ).all()
+        questions = session.exec(
+            select(Question).where(Question.id_template == id_template)
+        ).all()
+        options = session.exec(
+            select(Option).where(Option.id_template == id_template)
+        ).all()
+        modules = session.exec(
+            select(Module).where(Module.id_sondage == id_sondage)
+        ).all()
+
+        sections_data = []
+        for sec in sections:
+            sec_questions = [q for q in questions if q.id_section == sec.id_section]
+            sec_questions.sort(key=lambda q: q.id_question)
+            questions_data = []
+            for q in sec_questions:
+                q_options = [
+                    o
+                    for o in options
+                    if o.id_section == sec.id_section and o.id_question == q.id_question
+                ]
+                q_options.sort(key=lambda o: o.id_option)
+                questions_data.append(
+                    {
+                        "id_question": q.id_question,
+                        "intitule": q.intitule,
+                        "type": q.question_type,
+                        "categorie": q.categorie,
+                        "options": [
+                            {"id_option": o.id_option, "intitule": o.intitule}
+                            for o in q_options
+                        ],
+                    }
+                )
+            sections_data.append(
                 {
-                    "id_question": q.id_question,
-                    "intitule": q.intitule,
-                    "type": q.question_type,
-                    "categorie": q.categorie,
-                    "options": [
-                        {"id_option": o.id_option, "intitule": o.intitule}
-                        for o in q_options
-                    ],
+                    "id_section": sec.id_section,
+                    "nom": sec.nom,
+                    "questions": questions_data,
                 }
             )
 
-        sections_data.append(
-            {
-                "id_section": sec.id_section,
-                "nom": sec.nom,
-                "questions": questions_data,
-            }
-        )
+        modules_data = []
+        for mod in modules:
+            profs = []
+            if mod.enseignant:
+                profs = [p.strip() for p in mod.enseignant.split(",") if p.strip()]
+            modules_data.append(
+                {
+                    "id_module": mod.id_module,
+                    "nom": mod.nom,
+                    "ue": mod.ue,
+                    "enseignants": profs,
+                    "choix_enseignant": mod.choix_enseignant or "OBLIGATOIRE",
+                }
+            )
 
-    # Structurer les modules avec leurs enseignants
-    modules_data = []
-    for mod in modules:
-        profs = []
-        if mod.enseignant:
-            profs = [p.strip() for p in mod.enseignant.split(",") if p.strip()]
-        modules_data.append(
-            {
-                "id_module": mod.id_module,
-                "nom": mod.nom,
-                "ue": mod.ue,
-                "enseignants": profs,
-                "choix_enseignant": mod.choix_enseignant or "OBLIGATOIRE",
-            }
-        )
-
-    return templates.TemplateResponse(
-        name="questionnaire.html",
-        context={
-            "request": request,
-            "sondage": {
-                "id_template": sondage.id_template,
-                "id_sondage": sondage.id_sondage,
-                "campus": sondage.campus,
-                "formation": sondage.formation,
-                "semestre": sondage.semestre,
-                "annee_scolaire": sondage.annee_scolaire,
+        return templates.TemplateResponse(
+            request=request,
+            name="questionnaire.html",
+            context={
+                "request": request,
+                "sondage": {
+                    "id_template": sondage.id_template,
+                    "id_sondage": sondage.id_sondage,
+                    "campus": sondage.campus,
+                    "formation": sondage.formation,
+                    "semestre": sondage.semestre,
+                    "annee_scolaire": sondage.annee_scolaire,
+                },
+                "sections": sections_data,
+                "modules": modules_data,
             },
-            "sections": sections_data,
-            "modules": modules_data,
-        },
-    )
-
-
-@app.post("/api/questionnaire/{id_template}/{id_sondage}/reponses")
-def submit_reponses(
-    id_template: int,
-    id_sondage: int,
-    submission: QuestionnaireSubmission,
-    session: SessionDep,
-):
-    # Vérifier que le sondage existe
-    sondage = session.exec(
-        select(Sondage).where(
-            Sondage.id_template == id_template, Sondage.id_sondage == id_sondage
-        )
-    ).first()
-    if not sondage:
-        return JSONResponse(
-            content={"error": "Sondage introuvable"}, status_code=404
         )
 
-    # Transaction sécurisée — la session a déjà une transaction active via get_session()
-    # Créer le répondant
-    new_repondant = Repondant(
-        date_soumission=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
-    session.add(new_repondant)
-    session.flush()  # Pour obtenir l'id_repondant auto-généré
+    # └────────────────────────────────────────────────────────────────┘
 
-    # Trouver le prochain id_reponse
-    existing_reponses = session.exec(select(Reponse)).all()
-    next_id_reponse = (
-        max([r.id_reponse for r in existing_reponses] + [0]) + 1
-    )
+    # ┌─ API : Soumission des réponses du questionnaire ─────────────────┐
+    @app.post("/api/questionnaire/{id_template}/{id_sondage}/reponses")
+    def submit_reponses(
+        id_template: int,
+        id_sondage: int,
+        submission: QuestionnaireSubmission,
+        session: SessionDep,
+    ):
+        sondage = session.exec(
+            select(Sondage).where(
+                Sondage.id_template == id_template,
+                Sondage.id_sondage == id_sondage,
+            )
+        ).first()
+        if not sondage:
+            return JSONResponse(
+                content={"error": "Sondage introuvable"}, status_code=404
+            )
 
-    # Insérer chaque réponse
-    for rep in submission.reponses:
-        new_reponse = Reponse(
-            id_template=id_template,
-            id_sondage=id_sondage,
-            id_repondant=new_repondant.id_repondant,
-            id_template_1=id_template,
-            id_section=rep.id_section,
-            id_question=rep.id_question,
-            id_reponse=next_id_reponse,
-            valeur=rep.valeur,
+        new_repondant = Repondant(
+            date_soumission=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
-        session.add(new_reponse)
-        next_id_reponse += 1
+        session.add(new_repondant)
+        session.flush()
 
-    session.commit()
+        existing_reponses = session.exec(select(Reponse)).all()
+        next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
 
-    return {
-        "message": "Reponses enregistrees avec succes",
-        "id_repondant": new_repondant.id_repondant,
-    }
+        for rep in submission.reponses:
+            new_reponse = Reponse(
+                id_template=id_template,
+                id_sondage=id_sondage,
+                id_repondant=new_repondant.id_repondant,
+                id_template_1=id_template,
+                id_section=rep.id_section,
+                id_question=rep.id_question,
+                id_reponse=next_id_reponse,
+                valeur=rep.valeur,
+            )
+            session.add(new_reponse)
+            next_id_reponse += 1
+
+        session.commit()
+
+        return {
+            "message": "Reponses enregistrees avec succes",
+            "id_repondant": new_repondant.id_repondant,
+        }
+
+    # └────────────────────────────────────────────────────────────────┘
+
+    # ┌─ Route : Dashboards par rôle ────────────────────────────────────┐
+    @app.get("/dashboard/{role}", response_class=HTMLResponse)
+    async def dashboard(request: Request, role: str):
+        """
+        Vérifications de sécurité : l'utilisateur doit être connecté,
+        le rôle doit exister, et l'utilisateur ne peut voir que son
+        propre tableau de bord.
+        """
+        user = get_current_user(request)
+        if not user:
+            return RedirectResponse(url="/")
+        if role not in VALID_ROLES:
+            return RedirectResponse(url="/")
+        if user.get("role") != role:
+            return RedirectResponse(url=f"/dashboard/{user['role']}")
+
+        template_map = {
+            "admin": "dashboard/admin.html",
+            "etudiant": "dashboard/etudiant.html",
+            "professeur": "dashboard/professeur.html",
+        }
+
+        return templates.TemplateResponse(
+            request=request,
+            name=template_map[role],
+            context={"user": user},
+        )
+
+    # └────────────────────────────────────────────────────────────────┘
+
+    return app
+
+
+# ┌─ Instance applicative globale ───────────────────────────────────────┐
+app = create_app()
+# └──────────────────────────────────────────────────────────────────────┘
 
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", port=8000, reload=True)
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+    )
