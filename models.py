@@ -166,8 +166,8 @@ class Module(SQLModel, table=True):
     ue_optionnelle: Optional[bool] = Field(
         default=False, sa_column=Column("Ue_Optionnelle", Integer)
     )
-    choix_enseignant: Optional[str] = Field(
-        default=None, sa_column=Column("Choix_enseignants", String)
+    choix_enseignant: Optional[bool] = Field(
+        default=False, sa_column=Column("Choix_enseignants", Integer)
     )
     id_template: Optional[int] = Field(
         default=None,

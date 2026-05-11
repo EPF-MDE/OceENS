@@ -304,12 +304,6 @@ const Parametrage = {
 
     // ─── Render un Module ───────────────────────────────
     renderModule(mod, ueId) {
-        const MODALITES = [
-            { value: 'OBLIGATOIRE', label: 'Obligatoire' },
-            { value: 'CHOIX_ENSEIGNANT_INCLUSIF', label: 'Choix ens. inclusif' },
-            { value: 'CHOIX_ENSEIGNANT_EXCLUSIF', label: 'Choix ens. exclusif' }
-        ];
-
         const assignedIds = (mod.professeurs || []).map(p => p.id);
         const availableProfs = this.profsList.filter(p => !assignedIds.includes(p.id));
 
@@ -321,9 +315,11 @@ const Parametrage = {
                            onkeydown="if(event.key==='Enter'){this.blur();}">
                 </div>
                 <div class="param-module-modalite">
-                    <select onchange="Parametrage.changeModalite(${mod.id}, this.value, ${ueId})">
-                        ${MODALITES.map(m => `<option value="${m.value}" ${mod.modalite === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}
-                    </select>
+                    <label class="param-checkbox-label">
+                        <input type="checkbox" ${mod.choix_enseignant_exclusif ? 'checked' : ''}
+                               onchange="Parametrage.toggleChoixEnseignant(${mod.id}, this.checked, ${ueId})">
+                        <span>1 seul enseignant parmi la liste</span>
+                    </label>
                 </div>
                 <div class="param-module-profs">
                     <ul class="param-prof-list">
@@ -409,7 +405,7 @@ const Parametrage = {
             id: newId,
             nom: 'Nouveau module',
             ue_id: ueId,
-            modalite: 'OBLIGATOIRE',
+            choix_enseignant_exclusif: false,
             professeurs: []
         });
         ue._open = true;
@@ -424,11 +420,11 @@ const Parametrage = {
         if (mod) mod.nom = newName.trim();
     },
 
-    changeModalite(modId, modalite, ueId) {
+    toggleChoixEnseignant(modId, checked, ueId) {
         const ue = this.ues.find(u => u.id === ueId);
         if (!ue) return;
         const mod = (ue.modules || []).find(m => m.id === modId);
-        if (mod) mod.modalite = modalite;
+        if (mod) mod.choix_enseignant_exclusif = checked;
     },
 
     removeModule(modId, ueId) {
@@ -519,7 +515,7 @@ const Parametrage = {
                 modules: (ue.modules || []).map(mod => ({
                     id: mod.id,
                     nom: mod.nom,
-                    modalite: mod.modalite,
+                    choix_enseignant_exclusif: mod.choix_enseignant_exclusif || false,
                     professeurs: (mod.professeurs || []).map(prof => ({
                         id: prof.id,
                         prenom: prof.prenom,

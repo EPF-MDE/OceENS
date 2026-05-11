@@ -85,7 +85,7 @@ class ProfesseurBase(BaseModel):
 class ModuleCreate(BaseModel):
     id: int
     nom: str
-    modalite: str
+    choix_enseignant_exclusif: bool = False
     professeurs: List[ProfesseurBase]
 
 
@@ -255,7 +255,7 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
                 {
                     "id": int(module.id_module or 0),
                     "nom": module.nom or "Module",
-                    "modalite": "OBLIGATOIRE",
+                    "choix_enseignant_exclusif": bool(module.choix_enseignant),
                     "professeurs": prof_list,
                 }
             )
@@ -409,7 +409,7 @@ def create_app():
                             module.id_sondage = next_id_sondage
                             module.ue = ue.nom
                             module.ue_optionnelle = ue.optionnel
-                            module.choix_enseignant = module_data.modalite
+                            module.choix_enseignant = module_data.choix_enseignant_exclusif
                             prof_names = [
                                 f"{p.prenom} {p.nom}" for p in module_data.professeurs
                             ]
@@ -428,7 +428,7 @@ def create_app():
                                 ),
                                 ue=ue.nom,
                                 ue_optionnelle=ue.optionnel,
-                                choix_enseignant=module_data.modalite,
+                                choix_enseignant=module_data.choix_enseignant_exclusif,
                                 id_template=sondage.id_template,
                                 id_sondage=next_id_sondage,
                             )
@@ -515,7 +515,7 @@ def create_app():
                     "ue": mod.ue,
                     "ue_optionnelle": bool(mod.ue_optionnelle),
                     "enseignants": profs,
-                    "choix_enseignant": mod.choix_enseignant or "OBLIGATOIRE",
+                    "choix_enseignant": bool(mod.choix_enseignant),
                 }
             )
         # Grouper les modules par UE pour la logique conditionnelle

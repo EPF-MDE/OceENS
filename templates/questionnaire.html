@@ -58,7 +58,8 @@
                     data-section-id="{{ section.id_section }}"
                     data-q-index="{{ loop.index0 }}"
                     data-q-total="{{ section.questions|length }}"
-                    data-q-role="{% if loop.first %}first{% elif loop.last %}last{% else %}middle{% endif %}">
+                    data-q-role="{% if loop.first %}first{% elif loop.last %}last{% else %}middle{% endif %}"
+                    {% if loop.last %}data-optional="true"{% endif %}>
                     <div class="question-label">
                         <span class="q-number">{{ loop.index }}.</span>
                         {{ question.intitule | replace("[CAMPUS]", sondage.campus) | replace("[FORMATION]", sondage.formation) }}
@@ -153,7 +154,7 @@
                         </div>
                     </div>
 
-                    {% if module.choix_enseignant == "OBLIGATOIRE" %}
+                    {% if not module.choix_enseignant %}
                         {% for prof in module.enseignants %}
                         <div class="prof-block" data-prof="{{ prof }}" data-satisfaction-group="mod-{{ module.id_module }}-{{ prof | replace(' ', '_') }}">
                             <div class="prof-name-banner">
@@ -171,7 +172,8 @@
                                 data-prof="{{ prof }}"
                                 data-q-index="{{ loop.index0 }}"
                                 data-q-total="{{ section.questions|length }}"
-                                data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}">
+                                data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}"
+                                {% if loop.last %}data-optional="true"{% endif %}>
                                 <div class="question-label">
                                     <span class="q-number">{{ question.id_question - 1 }}.</span>
                                     {{ question.intitule | replace("[MODULE]", module.nom) | replace("[ENSEIGNANT]", prof) }}
@@ -228,7 +230,8 @@
                         </div>
                         {% endfor %}
 
-                    {% elif module.choix_enseignant == "CHOIX_ENSEIGNANT_INCLUSIF" %}
+                    {% else %}
+                    {# ── Mode inclusif (choix_enseignant == false) : question filtre par prof ── #}
                         {% for prof in module.enseignants %}
                         <div class="prof-block prof-block-optional" data-prof="{{ prof }}">
                             <div class="prof-name-banner prof-banner-optional">
@@ -281,7 +284,8 @@
                                     data-prof="{{ prof }}"
                                     data-q-index="{{ loop.index0 }}"
                                     data-q-total="{{ section.questions|length }}"
-                                    data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}">
+                                    data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}"
+                                    {% if loop.last %}data-optional="true"{% endif %}>
                                     <div class="question-label">
                                         <span class="q-number">{{ question.id_question }}.</span>
                                         {{ question.intitule | replace("[MODULE]", module.nom) | replace("[ENSEIGNANT]", prof) }}
@@ -339,7 +343,10 @@
                         </div>
                         {% endfor %}
 
-                    {% elif module.choix_enseignant == "CHOIX_ENSEIGNANT_EXCLUSIF" %}
+                    {% endif %}
+
+                    {# ── Mode exclusif (choix_enseignant == true) : 1 seul enseignant ── #}
+                    {% if module.choix_enseignant %}
                         <div class="question-block exclusive-prof-select" data-module-id="{{ module.id_module }}">
                             <div class="question-label">
                                 <span class="q-number">1.</span>
@@ -380,7 +387,8 @@
                                 data-prof="{{ prof }}"
                                 data-q-index="{{ loop.index0 }}"
                                 data-q-total="{{ section.questions|length }}"
-                                data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}">
+                                data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}"
+                                {% if loop.last %}data-optional="true"{% endif %}>
                                 <div class="question-label">
                                     <span class="q-number">{{ question.id_question }}.</span>
                                     {{ question.intitule | replace("[MODULE]", module.nom) | replace("[ENSEIGNANT]", prof) }}
@@ -474,6 +482,13 @@
             </div>
             {% endif %}
             {% endfor %}
+
+            <!-- Validation errors -->
+            <div id="validation-errors" class="validation-errors" style="display: none;">
+                <div class="validation-errors-icon">⚠️</div>
+                <p class="validation-errors-text">Veuillez répondre à toutes les questions obligatoires avant d'envoyer. / Please answer all mandatory questions before submitting.</p>
+                <p class="validation-errors-count" id="validation-errors-count"></p>
+            </div>
 
             <!-- Bouton de soumission -->
             <div class="submit-section">

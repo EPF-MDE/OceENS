@@ -229,21 +229,42 @@
 
 .param-module-modalite {
     min-width: 160px;
+    display: flex;
+    align-items: center;
 }
 
-.param-module-modalite select {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+.param-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 0.85rem;
-    color: #333;
+    color: #555;
+    cursor: pointer;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
     background: white;
+    transition: all 0.2s;
+    white-space: nowrap;
 }
 
-.param-module-modalite select:focus {
-    outline: none;
+.param-checkbox-label:hover {
     border-color: #470a68;
+    background: #faf5ff;
+}
+
+.param-checkbox-label input[type="checkbox"] {
+    accent-color: #470a68;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.param-checkbox-label:has(input:checked) {
+    border-color: #470a68;
+    background: #f3e8ff;
+    color: #470a68;
+    font-weight: 500;
 }
 
 /* --- Tags Professeurs --- */

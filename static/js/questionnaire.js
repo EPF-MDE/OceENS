@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════
 //  Questionnaire — Module JS
-//  Logique conditionnelle, collecte, soumission
+//  Logique conditionnelle, collecte, validation, soumission
 // ═══════════════════════════════════════════════════════
 
 const Questionnaire = {
@@ -13,6 +13,7 @@ const Questionnaire = {
         this.setupCheckboxLimits();
         this.setupProgressTracking();
         this.setupSequentialReveal();
+        this.setupLiveValidationClear();
         this.updateProgress();
     },
 
@@ -65,11 +66,29 @@ const Questionnaire = {
         });
     },
 
+    // ─── Retirer la surbrillance d'erreur quand l'utilisateur répond ──
+    setupLiveValidationClear() {
+        document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+            input.addEventListener('change', () => {
+                const block = input.closest('.question-block');
+                if (block) block.classList.remove('missing-answer');
+            });
+        });
+        document.querySelectorAll('textarea.open-answer').forEach(ta => {
+            ta.addEventListener('input', () => {
+                if (ta.value.trim().length > 0) {
+                    const block = ta.closest('.question-block');
+                    if (block) block.classList.remove('missing-answer');
+                }
+            });
+        });
+    },
+
     updateProgress() {
         const allBlocks = document.querySelectorAll('.question-block');
         const visibleBlocks = [];
         allBlocks.forEach(b => {
-            if (!b.classList.contains('q-hidden') && !b.closest('[style*="display: none"]')) {
+            if (!b.classList.contains('q-hidden') && !this.isInsideHiddenContainer(b)) {
                 visibleBlocks.push(b);
             }
         });
@@ -105,6 +124,16 @@ const Questionnaire = {
         if (text) text.textContent = percent + '% complété';
     },
 
+    // ─── Helper : vérifier si un élément est dans un conteneur masqué ──
+    isInsideHiddenContainer(el) {
+        let parent = el.parentElement;
+        while (parent) {
+            if (parent.style && parent.style.display === 'none') return true;
+            parent = parent.parentElement;
+        }
+        return false;
+    },
+
     // ─── Logique de satisfaction ─────────────────────────
     // Appelé quand Q1 (satisfaction globale) est répondue
     handleSatisfaction(radio) {
@@ -124,6 +153,7 @@ const Questionnaire = {
             middleBlocks.forEach(b => {
                 b.classList.add('q-hidden');
                 b.classList.remove('q-visible');
+                b.classList.remove('missing-answer');
                 // Réinitialiser les réponses intermédiaires
                 b.querySelectorAll('input[type="radio"]:checked').forEach(r => r.checked = false);
                 b.querySelectorAll('input[type="checkbox"]:checked').forEach(c => c.checked = false);
@@ -132,12 +162,14 @@ const Questionnaire = {
             if (lastBlock) {
                 lastBlock.classList.remove('q-hidden');
                 lastBlock.classList.add('q-visible');
+                lastBlock.classList.remove('missing-answer');
             }
         } else {
             // INSATISFAIT : afficher Q2, masquer les suivants et la dernière
             if (lastBlock) {
                 lastBlock.classList.add('q-hidden');
                 lastBlock.classList.remove('q-visible');
+                lastBlock.classList.remove('missing-answer');
                 // Réinitialiser la dernière
                 lastBlock.querySelectorAll('textarea').forEach(t => t.value = '');
             }
@@ -205,6 +237,7 @@ const Questionnaire = {
             content.querySelectorAll('input[type="radio"]:checked').forEach(r => r.checked = false);
             content.querySelectorAll('input[type="checkbox"]:checked').forEach(c => c.checked = false);
             content.querySelectorAll('textarea').forEach(t => t.value = '');
+            content.querySelectorAll('.missing-answer').forEach(el => el.classList.remove('missing-answer'));
         }
 
         this.updateProgress();
@@ -225,6 +258,7 @@ const Questionnaire = {
             conditionalBlock.querySelectorAll('input[type="radio"]:checked').forEach(r => r.checked = false);
             conditionalBlock.querySelectorAll('input[type="checkbox"]:checked').forEach(c => c.checked = false);
             conditionalBlock.querySelectorAll('textarea').forEach(t => t.value = '');
+            conditionalBlock.querySelectorAll('.missing-answer').forEach(el => el.classList.remove('missing-answer'));
         }
 
         this.updateProgress();
@@ -237,6 +271,13 @@ const Questionnaire = {
 
         document.querySelectorAll(`.exclusive-prof-block[data-module-id="${moduleId}"]`).forEach(block => {
             block.style.display = 'none';
+            // Réinitialiser les réponses des profs non sélectionnés
+            if (block.dataset.prof !== selectedProf) {
+                block.querySelectorAll('input[type="radio"]:checked').forEach(r => r.checked = false);
+                block.querySelectorAll('input[type="checkbox"]:checked').forEach(c => c.checked = false);
+                block.querySelectorAll('textarea').forEach(t => t.value = '');
+                block.querySelectorAll('.missing-answer').forEach(el => el.classList.remove('missing-answer'));
+            }
         });
 
         if (selectedProf && selectedProf !== '__none__') {
@@ -249,6 +290,113 @@ const Questionnaire = {
         this.updateProgress();
     },
 
+    // ─── Validation des réponses obligatoires ───────────
+    validateForm() {
+        const form = document.getElementById('questionnaire-form');
+        if (!form) return { valid: true, missingBlocks: [] };
+
+        const missingBlocks = [];
+
+        // Parcourir tous les question-block visibles
+        const allBlocks = form.querySelectorAll('.question-block');
+
+        allBlocks.forEach(block => {
+            // Ignorer les blocs masqués (q-hidden ou dans un conteneur display:none)
+            if (block.classList.contains('q-hidden')) return;
+            if (this.isInsideHiddenContainer(block)) return;
+
+            // Ignorer les questions facultatives (dernière question de chaque section pour le cas SATISFAIT)
+            if (block.dataset.optional === 'true') return;
+
+            // Détection dynamique de l'avant-dernière question (dernière question intermédiaire) pour le cas INSATISFAIT
+            const group = block.closest('[data-satisfaction-group]');
+            if (group) {
+                const middleBlocks = Array.from(group.querySelectorAll('.question-block[data-q-role="middle"]'));
+                // Si on est le dernier middle block, c'est la question facultative du cas INSATISFAIT
+                if (middleBlocks.length > 0 && block === middleBlocks[middleBlocks.length - 1]) {
+                    return;
+                }
+            }
+
+            // Ignorer les blocs de sélection exclusive de prof (ce sont des sélecteurs, pas des questions de contenu)
+            if (block.classList.contains('exclusive-prof-select')) return;
+
+            // Vérifier si le bloc a une réponse
+            const hasRadio = block.querySelectorAll('input[type="radio"]').length > 0;
+            const hasCheckbox = block.querySelectorAll('input[type="checkbox"]').length > 0;
+            const hasTextarea = block.querySelector('textarea.open-answer') !== null;
+
+            let answered = false;
+
+            if (hasRadio) {
+                const radios = block.querySelectorAll('input[type="radio"]');
+                const name = radios[0]?.name;
+                if (name && document.querySelector(`input[name="${name}"]:checked`)) {
+                    answered = true;
+                }
+            }
+
+            if (hasCheckbox && !answered) {
+                const checkboxes = block.querySelectorAll('input[type="checkbox"]');
+                const name = checkboxes[0]?.name;
+                if (name && document.querySelector(`input[name="${name}"]:checked`)) {
+                    answered = true;
+                }
+            }
+
+            if (hasTextarea && !hasRadio && !hasCheckbox) {
+                const ta = block.querySelector('textarea.open-answer');
+                if (ta && ta.value.trim().length > 0) {
+                    answered = true;
+                }
+            }
+
+            if (!answered) {
+                missingBlocks.push(block);
+            }
+        });
+
+        return {
+            valid: missingBlocks.length === 0,
+            missingBlocks: missingBlocks
+        };
+    },
+
+    // ─── Afficher les erreurs de validation ─────────────
+    showValidationErrors(missingBlocks) {
+        // Retirer les surbrillances précédentes
+        document.querySelectorAll('.missing-answer').forEach(el => el.classList.remove('missing-answer'));
+
+        // Ajouter la surbrillance sur les blocs manquants
+        missingBlocks.forEach(block => {
+            block.classList.add('missing-answer');
+        });
+
+        // Afficher le message d'erreur
+        const errorContainer = document.getElementById('validation-errors');
+        const errorCount = document.getElementById('validation-errors-count');
+        if (errorContainer) {
+            errorContainer.style.display = 'block';
+            if (errorCount) {
+                errorCount.textContent = `${missingBlocks.length} question(s) obligatoire(s) sans réponse.`;
+            }
+        }
+
+        // Scroller vers la première question manquante
+        if (missingBlocks.length > 0) {
+            setTimeout(() => {
+                missingBlocks[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+    },
+
+    // ─── Masquer les erreurs de validation ───────────────
+    hideValidationErrors() {
+        const errorContainer = document.getElementById('validation-errors');
+        if (errorContainer) errorContainer.style.display = 'none';
+        document.querySelectorAll('.missing-answer').forEach(el => el.classList.remove('missing-answer'));
+    },
+
     // ─── Collecte des réponses ──────────────────────────
     collectResponses() {
         const reponses = [];
@@ -259,7 +407,7 @@ const Questionnaire = {
         const isVisible = (el) => {
             const block = el.closest('.question-block');
             if (block && block.classList.contains('q-hidden')) return false;
-            if (block && block.closest('[style*="display: none"]')) return false;
+            if (block && this.isInsideHiddenContainer(block)) return false;
             return true;
         };
 
@@ -330,6 +478,16 @@ const Questionnaire = {
 
     // ─── Soumission ─────────────────────────────────────
     submit() {
+        // Validation stricte avant envoi
+        const validation = this.validateForm();
+        if (!validation.valid) {
+            this.showValidationErrors(validation.missingBlocks);
+            return;
+        }
+
+        // Masquer les erreurs précédentes
+        this.hideValidationErrors();
+
         const reponses = this.collectResponses();
 
         if (reponses.length === 0) {
