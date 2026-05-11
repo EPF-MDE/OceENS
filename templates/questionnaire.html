@@ -154,18 +154,42 @@
                         </div>
                     </div>
 
-                    {% if not module.choix_enseignant %}
+                    {% if module.choix_enseignant %}
+                        {# ── Mode exclusif (choix_enseignant == true) : 1 seul enseignant ── #}
+                        <div class="question-block exclusive-prof-select" data-module-id="{{ module.id_module }}">
+                            <div class="question-label">
+                                <span class="q-number">1.</span>
+                                Avec quel enseignant avez-vous suivi le module {{ module.nom }} ? / With which teacher did you take the module {{ module.nom }}?
+                            </div>
+                            <div class="options-grid">
+                                <label class="option-radio">
+                                    <input type="radio" name="q_mod_{{ module.id_module }}_exclusive_prof" value="__none__"
+                                        data-section="3" data-question="1" data-module="{{ module.id_module }}"
+                                        onchange="Questionnaire.selectExclusiveProf(this)" checked>
+                                    <span class="option-label">Je n'ai pas suivi ce module / I did not take this module</span>
+                                </label>
+                                {% for prof in module.enseignants %}
+                                <label class="option-radio">
+                                    <input type="radio" name="q_mod_{{ module.id_module }}_exclusive_prof" value="{{ prof }}"
+                                        data-section="3" data-question="1" data-module="{{ module.id_module }}"
+                                        onchange="Questionnaire.selectExclusiveProf(this)">
+                                    <span class="option-label">{{ prof }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
                         {% for prof in module.enseignants %}
-                        <div class="prof-block" data-prof="{{ prof }}" data-satisfaction-group="mod-{{ module.id_module }}-{{ prof | replace(' ', '_') }}">
+                        <div class="exclusive-prof-block" data-module-id="{{ module.id_module }}" data-prof="{{ prof }}" style="display: none;"
+                            data-satisfaction-group="mod-{{ module.id_module }}-{{ prof | replace(' ', '_') }}">
                             <div class="prof-name-banner">
                                 <span class="prof-icon">👤</span> {{ prof }}
                             </div>
-
                             {% for section in sections %}
                             {% if section.nom == "Module / Enseignant" %}
                             {% for question in section.questions %}
                             {% if question.id_question != 1 %}
-                            <div class="question-block {% if question.id_question > 2 and not loop.last %}q-hidden{% endif %} {% if loop.last %}q-hidden{% endif %}"
+                            <div class="question-block {% if loop.index0 > 1 and not loop.last %}q-hidden{% endif %} {% if loop.last %}q-hidden{% endif %}"
                                 data-question-id="{{ question.id_question }}"
                                 data-section-id="{{ section.id_section }}"
                                 data-module-id="{{ module.id_module }}"
@@ -175,20 +199,17 @@
                                 data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}"
                                 {% if loop.last %}data-optional="true"{% endif %}>
                                 <div class="question-label">
-                                    <span class="q-number">{{ question.id_question - 1 }}.</span>
+                                    <span class="q-number">{{ question.id_question }}.</span>
                                     {{ question.intitule | replace("[MODULE]", module.nom) | replace("[ENSEIGNANT]", prof) }}
                                 </div>
-
                                 {% if question.type == "QCU_Satisfaction" %}
                                 <div class="options-grid">
                                     {% for opt in question.options %}
                                     <label class="option-radio">
                                         <input type="radio"
                                             name="q_mod_{{ module.id_module }}_{{ prof | replace(' ', '_') }}_{{ question.id_question }}"
-                                            value="{{ opt.intitule }}"
-                                            data-section="{{ section.id_section }}"
-                                            data-question="{{ question.id_question }}"
-                                            data-module="{{ module.id_module }}"
+                                            value="{{ opt.intitule }}" data-section="{{ section.id_section }}"
+                                            data-question="{{ question.id_question }}" data-module="{{ module.id_module }}"
                                             data-prof="{{ prof }}"
                                             {% if question.id_question == 2 %}onchange="Questionnaire.handleSatisfaction(this)"{% endif %}>
                                         <span class="option-label">{{ opt.intitule }}</span>
@@ -202,12 +223,9 @@
                                     <label class="option-checkbox">
                                         <input type="checkbox"
                                             name="q_mod_{{ module.id_module }}_{{ prof | replace(' ', '_') }}_{{ question.id_question }}"
-                                            value="{{ opt.intitule }}"
-                                            data-section="{{ section.id_section }}"
-                                            data-question="{{ question.id_question }}"
-                                            data-module="{{ module.id_module }}"
-                                            data-prof="{{ prof }}"
-                                            data-max="3">
+                                            value="{{ opt.intitule }}" data-section="{{ section.id_section }}"
+                                            data-question="{{ question.id_question }}" data-module="{{ module.id_module }}"
+                                            data-prof="{{ prof }}" data-max="3">
                                         <span class="option-label">{{ opt.intitule }}</span>
                                     </label>
                                     {% endfor %}
@@ -215,11 +233,8 @@
                                 {% elif question.type == "Question_ouverte" %}
                                 <textarea class="open-answer"
                                     name="q_mod_{{ module.id_module }}_{{ prof | replace(' ', '_') }}_{{ question.id_question }}"
-                                    data-section="{{ section.id_section }}"
-                                    data-question="{{ question.id_question }}"
-                                    data-module="{{ module.id_module }}"
-                                    data-prof="{{ prof }}"
-                                    rows="3"
+                                    data-section="{{ section.id_section }}" data-question="{{ question.id_question }}"
+                                    data-module="{{ module.id_module }}" data-prof="{{ prof }}" rows="3"
                                     placeholder="Entrez votre réponse ici / Enter your answer here..."></textarea>
                                 {% endif %}
                             </div>
@@ -231,7 +246,7 @@
                         {% endfor %}
 
                     {% else %}
-                    {# ── Mode inclusif (choix_enseignant == false) : question filtre par prof ── #}
+                        {# ── Mode inclusif (choix_enseignant == false) : question filtre par prof ── #}
                         {% for prof in module.enseignants %}
                         <div class="prof-block prof-block-optional" data-prof="{{ prof }}">
                             <div class="prof-name-banner prof-banner-optional">
@@ -340,99 +355,6 @@
                                 {% endif %}
                                 {% endfor %}
                             </div>
-                        </div>
-                        {% endfor %}
-
-                    {% endif %}
-
-                    {# ── Mode exclusif (choix_enseignant == true) : 1 seul enseignant ── #}
-                    {% if module.choix_enseignant %}
-                        <div class="question-block exclusive-prof-select" data-module-id="{{ module.id_module }}">
-                            <div class="question-label">
-                                <span class="q-number">1.</span>
-                                Avec quel enseignant avez-vous suivi le module {{ module.nom }} ? / With which teacher did you take the module {{ module.nom }}?
-                            </div>
-                            <div class="options-grid">
-                                <label class="option-radio">
-                                    <input type="radio" name="q_mod_{{ module.id_module }}_exclusive_prof" value="__none__"
-                                        data-section="3" data-question="1" data-module="{{ module.id_module }}"
-                                        onchange="Questionnaire.selectExclusiveProf(this)" checked>
-                                    <span class="option-label">Je n'ai pas suivi ce module / I did not take this module</span>
-                                </label>
-                                {% for prof in module.enseignants %}
-                                <label class="option-radio">
-                                    <input type="radio" name="q_mod_{{ module.id_module }}_exclusive_prof" value="{{ prof }}"
-                                        data-section="3" data-question="1" data-module="{{ module.id_module }}"
-                                        onchange="Questionnaire.selectExclusiveProf(this)">
-                                    <span class="option-label">{{ prof }}</span>
-                                </label>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        {% for prof in module.enseignants %}
-                        <div class="exclusive-prof-block" data-module-id="{{ module.id_module }}" data-prof="{{ prof }}" style="display: none;"
-                            data-satisfaction-group="mod-{{ module.id_module }}-{{ prof | replace(' ', '_') }}">
-                            <div class="prof-name-banner">
-                                <span class="prof-icon">👤</span> {{ prof }}
-                            </div>
-                            {% for section in sections %}
-                            {% if section.nom == "Module / Enseignant" %}
-                            {% for question in section.questions %}
-                            {% if question.id_question != 1 %}
-                            <div class="question-block {% if loop.index0 > 1 and not loop.last %}q-hidden{% endif %} {% if loop.last %}q-hidden{% endif %}"
-                                data-question-id="{{ question.id_question }}"
-                                data-section-id="{{ section.id_section }}"
-                                data-module-id="{{ module.id_module }}"
-                                data-prof="{{ prof }}"
-                                data-q-index="{{ loop.index0 }}"
-                                data-q-total="{{ section.questions|length }}"
-                                data-q-role="{% if question.id_question == 2 %}first{% elif loop.last %}last{% else %}middle{% endif %}"
-                                {% if loop.last %}data-optional="true"{% endif %}>
-                                <div class="question-label">
-                                    <span class="q-number">{{ question.id_question }}.</span>
-                                    {{ question.intitule | replace("[MODULE]", module.nom) | replace("[ENSEIGNANT]", prof) }}
-                                </div>
-                                {% if question.type == "QCU_Satisfaction" %}
-                                <div class="options-grid">
-                                    {% for opt in question.options %}
-                                    <label class="option-radio">
-                                        <input type="radio"
-                                            name="q_mod_{{ module.id_module }}_{{ prof | replace(' ', '_') }}_{{ question.id_question }}"
-                                            value="{{ opt.intitule }}" data-section="{{ section.id_section }}"
-                                            data-question="{{ question.id_question }}" data-module="{{ module.id_module }}"
-                                            data-prof="{{ prof }}"
-                                            {% if question.id_question == 2 %}onchange="Questionnaire.handleSatisfaction(this)"{% endif %}>
-                                        <span class="option-label">{{ opt.intitule }}</span>
-                                    </label>
-                                    {% endfor %}
-                                </div>
-                                {% elif question.type == "QCM_Insatisfaction" %}
-                                <p class="hint">Sélectionnez au plus 3 options / Select at most 3 options</p>
-                                <div class="options-grid options-grid-checkbox">
-                                    {% for opt in question.options %}
-                                    <label class="option-checkbox">
-                                        <input type="checkbox"
-                                            name="q_mod_{{ module.id_module }}_{{ prof | replace(' ', '_') }}_{{ question.id_question }}"
-                                            value="{{ opt.intitule }}" data-section="{{ section.id_section }}"
-                                            data-question="{{ question.id_question }}" data-module="{{ module.id_module }}"
-                                            data-prof="{{ prof }}" data-max="3">
-                                        <span class="option-label">{{ opt.intitule }}</span>
-                                    </label>
-                                    {% endfor %}
-                                </div>
-                                {% elif question.type == "Question_ouverte" %}
-                                <textarea class="open-answer"
-                                    name="q_mod_{{ module.id_module }}_{{ prof | replace(' ', '_') }}_{{ question.id_question }}"
-                                    data-section="{{ section.id_section }}" data-question="{{ question.id_question }}"
-                                    data-module="{{ module.id_module }}" data-prof="{{ prof }}" rows="3"
-                                    placeholder="Entrez votre réponse ici / Enter your answer here..."></textarea>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                            {% endfor %}
-                            {% endif %}
-                            {% endfor %}
                         </div>
                         {% endfor %}
                     {% endif %}

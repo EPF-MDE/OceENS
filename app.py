@@ -175,19 +175,21 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
 
     professors = []
     professor_index = 1
-    seen_professors = set()
+    seen_professors = {}
     for module in modules:
         if not module.enseignant:
             continue
-        professor = parse_name(module.enseignant, professor_index)
-        if not professor["prenom"] and not professor["nom"]:
-            continue
-        key = (professor["prenom"].lower(), professor["nom"].lower())
-        if key not in seen_professors:
-            professor["id"] = professor_index
-            seen_professors.add(key)
-            professors.append(professor)
-            professor_index += 1
+        prof_strings = [p.strip() for p in module.enseignant.split(",") if p.strip()]
+        for prof_str in prof_strings:
+            professor = parse_name(prof_str, professor_index)
+            if not professor["prenom"] and not professor["nom"]:
+                continue
+            key = (professor["prenom"].lower(), professor["nom"].lower())
+            if key not in seen_professors:
+                seen_professors[key] = professor_index
+                professor["id"] = professor_index
+                professors.append(professor)
+                professor_index += 1
 
     for user in users:
         if user.role and "Enseignant" in user.role and user.mail:
@@ -198,8 +200,8 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
             parsed["prenom"] = parsed["prenom"] or ""
             key = (parsed["prenom"].lower(), parsed["nom"].lower())
             if key and key not in seen_professors:
+                seen_professors[key] = professor_index
                 parsed["id"] = professor_index
-                seen_professors.add(key)
                 professors.append(parsed)
                 professor_index += 1
 
@@ -213,14 +215,6 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
             ue_entry = next(
                 (ue for ue in ues_by_filiere[filiere_id] if ue["nom"] == ue_name), None
             )
-            professor = parse_name(module.enseignant, professor_index)
-            if professor["prenom"] or professor["nom"]:
-                key = (professor["prenom"].lower(), professor["nom"].lower())
-                if key not in seen_professors:
-                    professor["id"] = professor_index
-                    seen_professors.add(key)
-                    professors.append(professor)
-                    professor_index += 1
             if ue_entry is None:
                 ue_entry = {
                     "id": len(ues_by_filiere[filiere_id]) + 1,
@@ -236,19 +230,19 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
                     p.strip() for p in module.enseignant.split(",") if p.strip()
                 ]
                 for prof_str in prof_strings:
-                    professor = parse_name(prof_str, professor_index)
-                    if professor["prenom"] or professor["nom"]:
-                        key = (professor["prenom"].lower(), professor["nom"].lower())
+                    parsed = parse_name(prof_str, 0)
+                    if parsed["prenom"] or parsed["nom"]:
+                        key = (parsed["prenom"].lower(), parsed["nom"].lower())
                         if key not in seen_professors:
-                            professor["id"] = professor_index
-                            seen_professors.add(key)
-                            professors.append(professor)
+                            seen_professors[key] = professor_index
+                            parsed["id"] = professor_index
+                            professors.append(parsed)
                             professor_index += 1
                         prof_list.append(
                             {
-                                "id": professor.get("id", 0),
-                                "prenom": professor["prenom"],
-                                "nom": professor["nom"],
+                                "id": seen_professors[key],
+                                "prenom": parsed["prenom"],
+                                "nom": parsed["nom"],
                             }
                         )
             ue_entry["modules"].append(
@@ -402,37 +396,21 @@ def create_app():
 
                 for ue in sondage.ues:
                     for module_data in ue.modules:
-                        module = session.exec(
-                            select(Module).where(Module.id_module == module_data.id)
-                        ).first()
-                        if module:
-                            module.id_sondage = next_id_sondage
-                            module.ue = ue.nom
-                            module.ue_optionnelle = ue.optionnel
-                            module.choix_enseignant = module_data.choix_enseignant_exclusif
-                            prof_names = [
-                                f"{p.prenom} {p.nom}" for p in module_data.professeurs
-                            ]
-                            module.enseignant = (
-                                ", ".join(prof_names) if prof_names else None
-                            )
-                        else:
-                            new_module = Module(
-                                id_module=module_data.id,
-                                nom=module_data.nom,
-                                enseignant=", ".join(
-                                    [
-                                        f"{p.prenom} {p.nom}"
-                                        for p in module_data.professeurs
-                                    ]
-                                ),
-                                ue=ue.nom,
-                                ue_optionnelle=ue.optionnel,
-                                choix_enseignant=module_data.choix_enseignant_exclusif,
-                                id_template=sondage.id_template,
-                                id_sondage=next_id_sondage,
-                            )
-                            session.add(new_module)
+                        prof_names = [
+                            f"{p.prenom} {p.nom}" for p in module_data.professeurs
+                        ]
+                        enseignant_str = ", ".join(prof_names) if prof_names else None
+
+                        new_module = Module(
+                            nom=module_data.nom,
+                            enseignant=enseignant_str,
+                            ue=ue.nom,
+                            ue_optionnelle=ue.optionnel,
+                            choix_enseignant=module_data.choix_enseignant_exclusif,
+                            id_template=sondage.id_template,
+                            id_sondage=next_id_sondage,
+                        )
+                        session.add(new_module)
 
         return {
             "message": "Sondage cree avec succes",
