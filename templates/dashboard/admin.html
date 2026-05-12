@@ -1,56 +1,299 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-  <meta charset="UTF-8"/>
-  <title>Dashboard Admin</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OceEns — Tableau de bord</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Playfair+Display:wght@600&display=swap"
+    rel="stylesheet" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fef2f2; min-height: 100vh; }
-    header { background: #dc2626; color: white; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
-    header .brand { font-weight: 700; font-size: 18px; }
-    header nav { display: flex; align-items: center; gap: 16px; font-size: 14px; }
-    header nav a { color: white; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.5); border-radius: 6px; }
-    header nav a:hover { background: rgba(255,255,255,0.15); }
-    main { max-width: 900px; margin: 40px auto; padding: 0 24px; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; background: #dc2626; color: white; padding: 4px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; margin-bottom: 24px; }
-    h1 { font-size: 26px; color: #111; margin-bottom: 8px; }
-    p { color: #666; margin-bottom: 32px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-    .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 4px solid #dc2626; }
-    .card h3 { font-size: 15px; color: #333; margin-bottom: 6px; }
-    .card p { color: #888; font-size: 14px; margin: 0; }
-    .card .number { font-size: 32px; font-weight: 700; color: #dc2626; margin: 8px 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #F5F4F0;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: white;
+      padding: 0 32px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .header-logo-oceens {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .btn-logout {
+      color: #555;
+      font-size: 13px;
+      text-decoration: none;
+      background: #f5f5f5;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: none;
+    }
+
+    .banner {
+      background: linear-gradient(135deg, #470a68 0%, #df231d 100%);
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 12px;
+      margin: 24px 24px 20px;
+      overflow: hidden;
+    }
+
+    .banner-badge {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .banner-greeting {
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .btn-banner {
+      background: white;
+      color: #470a68;
+      border: none;
+      border-radius: 24px;
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 0 24px 24px;
+    }
+
+    .stat-card-new {
+      background: white;
+      border-radius: 12px;
+      border: 0.5px solid rgba(0, 0, 0, 0.08);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .stat-card-new .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    .stat-card-new .stat-label {
+      font-size: 11px;
+      color: #999;
+    }
+
+    .questionnaires-card {
+      background: white;
+      border-radius: 12px;
+      border: 0.5px solid rgba(0, 0, 0, 0.08);
+      padding: 20px 24px;
+      margin: 0 24px 24px;
+    }
+
+    .questionnaires-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .questionnaires-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111;
+    }
+
+    .sondage-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 0.5px solid #f0f0f0;
+    }
+
+    .sondage-row:last-child {
+      border-bottom: none;
+    }
+
+    .sondage-row-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #111;
+    }
+
+    .sondage-row-meta {
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .sondage-date {
+      font-size: 12px;
+      color: #aaa;
+      white-space: nowrap;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .row-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #f5f5f5;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
   </style>
 </head>
+
 <body>
-  <header>
-    <span class="brand">🏢 Mon App</span>
-    <nav>
-      <span>{{ user.email }}</span>
-      <a href="/logout">Déconnexion</a>
+
+  <header class="header">
+    <div class="header-logo-oceens">
+      <span style="color: #df231d;">Océ</span><span style="color: #470a68;">Ens</span>
+    </div>
+    <nav style="display:flex; align-items:center; gap:14px;">
+      <span style="color:#555; font-size:13px;">{{ user.email }}</span>
+      <a href="/logout" class="btn-logout">Déconnexion</a>
     </nav>
   </header>
-  <main>
-    <div class="badge">🔴 Administrateur</div>
-    <h1>Bonjour, {{ user.name }} 👋</h1>
-    <p>Vous avez accès à toutes les fonctionnalités d'administration.</p>
-    <div class="grid">
-      <div class="card">
-        <h3>Utilisateurs</h3>
-        <div class="number">12 926</div>
-        <p>membres actifs</p>
-      </div>
-      <div class="card">
-        <h3>Votre rôle</h3>
-        <div class="number">Admin</div>
-        <p>accès complet</p>
-      </div>
-      <div class="card">
-        <h3>Email vérifié</h3>
-        <div class="number" style="font-size:18px; margin-top: 14px;">{{ user.email }}</div>
-        <p>via Microsoft SSO</p>
+
+  <div class="banner">
+    <div>
+      <div class="banner-badge">Administrateur</div>
+      <div class="banner-greeting">Bonjour, {{ user.name }} !</div>
+    </div>
+    <a href="/parametrage" class="btn-banner">+ Créer un questionnaire</a>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card-new">
+      <div>
+        <div class="stat-value" style="color:#470a68;">{{ sondages | length }}</div>
+        <div class="stat-label">Questionnaires créés</div>
       </div>
     </div>
-  </main>
+    <div class="stat-card-new">
+      <div>
+        <div class="stat-value" style="color:#0F6E56;">0</div>
+        <div class="stat-label">Réponses totales</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="questionnaires-card">
+    <div class="questionnaires-header">
+      <div class="questionnaires-title">Mes questionnaires</div>
+    </div>
+
+    {% for sondage in sondages %}
+
+    <div class="sondage-row">
+      <div style="flex:1;">
+        <div class="sondage-row-name">{{ sondage['formation'] }} — {{ sondage['semestre'] }}</div>
+        <div class="sondage-row-meta">{{ sondage['campus'] }} · {{ sondage['annee_scolaire'] }}</div>
+      </div>
+      <span class="sondage-date">--</span>
+      <div class="row-actions">
+        <a href="/visualisation/{{ sondage['id_template'] }}/{{ sondage['id_sondage'] }}" class="row-icon"
+          title="Visualisation">
+          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </a>
+        <button class="row-icon" title="Copier le lien"
+          onclick="navigator.clipboard.writeText(window.location.origin + '{{ sondage['url'] }}')">
+          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        </button>
+        <a href="/parametrage?from={{ sondage['id_template'] }}&sondage={{ sondage['id_sondage'] }}" class="row-icon"
+          title="Dupliquer">
+          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    {% else %}
+
+    <div style="text-align:center; padding: 48px 0;">
+      <svg viewBox="0 0 120 100" width="100" height="100" style="margin-bottom:16px;">
+        <rect x="25" y="10" width="55" height="70" rx="6" fill="#fdf0f0" stroke="#df231d" stroke-width="1.5" />
+        <rect x="15" y="18" width="55" height="70" rx="6" fill="white" stroke="#ddd" stroke-width="1.5" />
+        <circle cx="42" cy="48" r="14" fill="#fdf0f0" />
+        <text x="42" y="54" text-anchor="middle" font-size="18" fill="#df231d" font-weight="700">?</text>
+        <line x1="28" y1="68" x2="56" y2="68" stroke="#eee" stroke-width="2" />
+        <line x1="28" y1="74" x2="50" y2="74" stroke="#eee" stroke-width="2" />
+      </svg>
+      <div style="font-size:15px; font-weight:600; color:#111; margin-bottom:8px;">Aucun questionnaire pour l'instant
+      </div>
+      <div style="font-size:13px; color:#aaa; margin-bottom:20px;">Vous n'avez pas encore créé de
+        questionnaire.<br>Cliquez sur le bouton pour commencer.</div>
+      <a href="/parametrage"
+        style="background:#df231d; color:white; border-radius:24px; padding:10px 22px; text-decoration:none; font-size:13px; font-weight:600;">+
+        Créer un questionnaire</a>
+    </div>
+
+    {% endfor %}
+  </div>
+
 </body>
+
 </html>
