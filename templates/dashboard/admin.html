@@ -1,29 +1,47 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OceEns — Tableau de bord</title>
-  <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Playfair+Display:wght@600&display=swap"
-    rel="stylesheet" />
-  <style>
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des rôles – OCEENS II</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
+        :root {
+            --purple: #470a68;
+            --purple-mid: #5c1a7a;
+            --purple-light: #7b2fa0;
+            --red: #df231d;
+            --red-light: #e84b46;
+            --bg: #f0f4f8;
+            --white: #ffffff;
+            --border: #dce4ec;
+            --text: #2c3e50;
+            --text-muted: #7f8fa6;
+            --blue-label: #3d5a80;
+            --shadow-sm: 0 1px 6px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 20px rgba(71,10,104,0.15);
+            --radius: 10px;
+            --tag-student: #e8f5e9;
+            --tag-student-text: #2e7d32;
+            --tag-admin: #fff3e0;
+            --tag-admin-text: #e65100;
+            --tag-rprm: #ede7f6;
+            --tag-rprm-text: #4527a0;
+        }
+
+         body {
       font-family: 'DM Sans', sans-serif;
       background: #F5F4F0;
       color: #1a1a1a;
       min-height: 100vh;
     }
 
+
+        /* ── Header ── */
     .header {
       background: white;
       padding: 0 32px;
@@ -42,18 +60,28 @@
       font-weight: 700;
       letter-spacing: -0.5px;
     }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .btn-retour {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 14px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .btn-retour:hover { background: rgba(255,255,255,0.1); color: white; }
+        .header-logo-oceens {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+        }
 
-    .btn-logout {
-      color: #555;
-      font-size: 13px;
-      text-decoration: none;
-      background: #f5f5f5;
-      padding: 5px 14px;
-      border-radius: 20px;
-      border: none;
-    }
+        /* ── Hero banner ── */
 
-    .banner {
+            .banner {
       background: linear-gradient(135deg, #470a68 0%, #df231d 100%);
       padding: 32px;
       display: flex;
@@ -96,94 +124,406 @@
       gap: 8px;
       white-space: nowrap;
     }
+       
+        /* ── Main ── */
+        main {
+            max-width: 1000px;
+            margin: 28px auto;
+            padding: 0 20px;
+        }
 
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin: 0 24px 24px;
-    }
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            box-shadow: var(--shadow-sm);
+        }
+        .card-title {
+            color: var(--purple);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e8eef3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-title span.count {
+            font-size: 0.78rem;
+            background: var(--bg);
+            color: var(--text-muted);
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
 
-    .stat-card-new {
-      background: white;
-      border-radius: 12px;
-      border: 0.5px solid rgba(0, 0, 0, 0.08);
-      padding: 16px 18px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
+        /* ── Search bar ── */
+        .search-wrap {
+            position: relative;
+            margin-bottom: 18px;
+        }
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+        .search-input {
+            width: 100%;
+            padding: 11px 14px 11px 42px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: var(--bg);
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--purple);
+            box-shadow: 0 0 0 3px rgba(71,10,104,0.1);
+            background: white;
+        }
+        .search-input::placeholder { color: #b0bec5; }
 
-    .questionnaires-card {
-      background: white;
-      border-radius: 12px;
-      border: 0.5px solid rgba(0, 0, 0, 0.08);
-      padding: 20px 24px;
-      margin: 0 24px 24px;
-    }
+        /* ── Filter tabs ── */
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-tab {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        .filter-tab:hover { border-color: var(--purple); color: var(--purple); }
+        .filter-tab.active {
+            background: var(--purple);
+            color: white;
+            border-color: var(--purple);
+        }
 
-    .questionnaires-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
+        /* ── Table ── */
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .users-table thead tr {
+            background: #f7f9fb;
+            border-bottom: 2px solid var(--border);
+        }
+        .users-table th {
+            padding: 10px 16px;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+        .users-table tbody tr {
+            border-bottom: 1px solid #eef1f5;
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+        .users-table tbody tr:hover { background: #f7f4ff; }
+        .users-table tbody tr:last-child { border-bottom: none; }
+        .users-table td {
+            padding: 13px 16px;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
 
-    .questionnaires-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #111;
-    }
+        /* ── User info cell ── */
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0;
+            color: white;
+        }
+        .user-name { font-weight: 500; }
+        .user-email { font-size: 0.78rem; color: var(--text-muted); margin-top: 1px; font-family: 'DM Mono', monospace; }
 
-    .sondage-row {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 12px 0;
-      border-bottom: 0.5px solid #f0f0f0;
-    }
+        /* ── Role badge ── */
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .role-badge.student { background: var(--tag-student); color: var(--tag-student-text); }
+        .role-badge.admin   { background: var(--tag-admin);   color: var(--tag-admin-text); }
+        .role-badge.rprm    { background: var(--tag-rprm);    color: var(--tag-rprm-text); }
+        .role-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-    .sondage-row:last-child {
-      border-bottom: none;
-    }
+        /* ── Edit icon ── */
+        .td-actions { text-align: right; }
+        .btn-edit {
+            background: none;
+            border: 1px solid var(--border);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .btn-edit:hover {
+            border-color: var(--purple);
+            color: var(--purple);
+            background: #f7f4ff;
+        }
 
-    .sondage-row-name {
-      font-size: 13px;
-      font-weight: 500;
-      color: #111;
-    }
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state svg { opacity: 0.3; margin-bottom: 12px; }
+        .empty-state p { font-size: 0.9rem; }
 
-    .sondage-row-meta {
-      font-size: 11px;
-      color: #aaa;
-    }
+        /* ── Modal ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 10, 30, 0.45);
+            backdrop-filter: blur(3px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
 
-    .sondage-date {
-      font-size: 12px;
-      color: #aaa;
-      white-space: nowrap;
-    }
+        .modal {
+            background: white;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 520px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            transform: translateY(20px) scale(0.97);
+            transition: transform 0.25s;
+            overflow: hidden;
+        }
+        .modal-overlay.open .modal { transform: translateY(0) scale(1); }
 
-    .row-actions {
-      display: flex;
-      gap: 6px;
-    }
+        .modal-header {
+            background: linear-gradient(135deg, var(--purple), var(--purple-mid));
+            padding: 22px 24px 18px;
+            color: white;
+        }
+        .modal-header h3 { font-size: 1.05rem; font-weight: 600; }
+        .modal-header p { font-size: 0.82rem; opacity: 0.75; margin-top: 4px; }
 
-    .row-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      background: #f5f5f5;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-    }
-  </style>
+        .modal-body { padding: 24px; }
+
+        .role-select-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--blue-label);
+            margin-bottom: 8px;
+            display: block;
+        }
+        .role-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        .role-option {
+            flex: 1;
+            padding: 12px 8px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .role-option:hover { border-color: var(--purple-light); background: #faf7ff; }
+        .role-option.selected { border-color: var(--purple); background: #f3eeff; }
+        .role-option .ro-icon { font-size: 1.5rem; margin-bottom: 5px; }
+        .role-option .ro-name { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+        .role-option .ro-desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* ── RPRM section ── */
+        .rprm-section {
+            margin-top: 4px;
+            display: none;
+        }
+        .rprm-section.visible { display: block; }
+
+        .rprm-section-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--blue-label);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rprm-section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .rprm-cards { display: flex; flex-direction: column; gap: 10px; }
+
+        .rprm-card {
+            border: 1px solid #dce4ec;
+            border-radius: 8px;
+            padding: 14px 14px 12px;
+            position: relative;
+            background: #fafbfc;
+            animation: slideIn 0.2s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .rprm-card-header {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+        .rprm-card input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            background: white;
+            transition: border-color 0.2s;
+        }
+        .rprm-card input[type="text"]:focus {
+            outline: none;
+            border-color: var(--purple);
+            box-shadow: 0 0 0 2px rgba(71,10,104,0.1);
+        }
+        .btn-remove-rprm {
+            position: absolute;
+            top: 10px; right: 10px;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            line-height: 1;
+        }
+        .btn-remove-rprm:hover { background: #fca5a5; }
+
+        .btn-add-rprm {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: none;
+            border: 1px dashed var(--purple-light);
+            color: var(--purple);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.2s;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-add-rprm:hover { background: #f3eeff; border-style: solid; }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .btn-cancel {
+            padding: 10px 20px;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            font-size: 0.88rem;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+        .btn-save {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--purple), var(--purple-mid));
+            color: white;
+            border: none;
+            border-radius: 7px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-save:hover { background: linear-gradient(135deg, var(--purple-mid), var(--purple-light)); box-shadow: 0 4px 12px rgba(71,10,104,0.3); }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 28px; right: 28px;
+            background: #1e1b2e;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 9999;
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-icon { font-size: 1rem; }
+    </style>
 </head>
-
 <body>
 
   <header class="header">
@@ -196,6 +536,9 @@
     </nav>
   </header>
 
+
+
+<!-- Hero -->
   <div class="banner">
     <div>
       <div class="banner-badge">Administrateur</div>
@@ -204,69 +547,309 @@
     <a href="/parametrage" class="btn-banner">+ Créer un questionnaire</a>
   </div>
 
-  <div class="questionnaires-card">
-    <div class="questionnaires-header">
-      <div class="questionnaires-title">Mes questionnaires</div>
+<!-- Main -->
+<main>
+    <div class="card">
+        <div class="card-title">
+            Liste des utilisateurs
+            <span class="count" id="count-label">0 affiché(s)</span>
+        </div>
+
+        <!-- Search -->
+        <div class="search-wrap">
+            <span class="search-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+            </span>
+            <input type="text" class="search-input" id="search-input" placeholder="Rechercher par nom, prénom ou email…">
+        </div>
+
+        <!-- Filter tabs -->
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">Tous</button>
+            <button class="filter-tab" data-filter="student">Étudiants</button>
+            <button class="filter-tab" data-filter="admin">Admins</button>
+            <button class="filter-tab" data-filter="rprm">RP-RM</button>
+        </div>
+
+        <!-- Table -->
+        <table class="users-table" id="users-table">
+            <thead>
+                <tr>
+                    <th>Utilisateur</th>
+                    <th>Rôle</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+        </table>
+
+        <div class="empty-state" id="empty-state" style="display:none;">
+            <svg width="48" height="48" fill="none" stroke="#470a68" stroke-width="1.5" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <p>Aucun utilisateur ne correspond à votre recherche.</p>
+        </div>
     </div>
+</main>
 
-    {% for sondage in sondages %}
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modal-title">Modifier le rôle</h3>
+            <p id="modal-subtitle">Choisissez un rôle pour cet utilisateur</p>
+        </div>
+        <div class="modal-body">
+            <span class="role-select-label">Rôle</span>
+            <div class="role-options">
+                <div class="role-option" data-role="student">
+                    <div class="ro-icon">🎓</div>
+                    <div class="ro-name">Étudiant</div>
+                    <div class="ro-desc">Accès limité</div>
+                </div>
+                <div class="role-option" data-role="admin">
+                    <div class="ro-icon">🛡️</div>
+                    <div class="ro-name">Admin</div>
+                    <div class="ro-desc">Accès complet</div>
+                </div>
+                <div class="role-option" data-role="rprm">
+                    <div class="ro-icon">📋</div>
+                    <div class="ro-name">RP-RM</div>
+                    <div class="ro-desc">Responsable</div>
+                </div>
+            </div>
 
-    <div class="sondage-row">
-      <div style="flex:1;">
-        <div class="sondage-row-name">{{ sondage['formation'] }} — {{ sondage['semestre'] }}</div>
-        <div class="sondage-row-meta">{{ sondage['campus'] }} · {{ sondage['annee_scolaire'] }}</div>
-      </div>
-      <span class="sondage-date">--</span>
-      <div class="row-actions">
-        <a href="/visualisation/{{ sondage['id_template'] }}/{{ sondage['id_sondage'] }}" class="row-icon"
-          title="Visualisation">
-          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-        </a>
-        <button class="row-icon" title="Copier le lien"
-          onclick="navigator.clipboard.writeText(window.location.origin + '{{ sondage['url'] }}')">
-          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <rect x="9" y="9" width="13" height="13" rx="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-        </button>
-        <a href="/parametrage?from={{ sondage['id_template'] }}&sondage={{ sondage['id_sondage'] }}" class="row-icon"
-          title="Dupliquer">
-          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-          </svg>
-        </a>
-      </div>
+            <!-- RPRM fields -->
+            <div class="rprm-section" id="rprm-section">
+                <div class="rprm-section-title">Types RP-RM</div>
+                <div class="rprm-cards" id="rprm-cards"></div>
+                <button class="btn-add-rprm" id="btn-add-rprm">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Ajouter un type RP-RM
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btn-cancel">Annuler</button>
+            <button class="btn-save" id="btn-save">Enregistrer</button>
+        </div>
     </div>
+</div>
 
-    {% else %}
+<!-- Toast -->
+<div class="toast" id="toast">
+    <span class="toast-icon">✓</span>
+    <span id="toast-msg">Rôle mis à jour</span>
+</div>
 
-    <div style="text-align:center; padding: 48px 0;">
-      <svg viewBox="0 0 120 100" width="100" height="100" style="margin-bottom:16px;">
-        <rect x="25" y="10" width="55" height="70" rx="6" fill="#fdf0f0" stroke="#df231d" stroke-width="1.5" />
-        <rect x="15" y="18" width="55" height="70" rx="6" fill="white" stroke="#ddd" stroke-width="1.5" />
-        <circle cx="42" cy="48" r="14" fill="#fdf0f0" />
-        <text x="42" y="54" text-anchor="middle" font-size="18" fill="#df231d" font-weight="700">?</text>
-        <line x1="28" y1="68" x2="56" y2="68" stroke="#eee" stroke-width="2" />
-        <line x1="28" y1="74" x2="50" y2="74" stroke="#eee" stroke-width="2" />
-      </svg>
-      <div style="font-size:15px; font-weight:600; color:#111; margin-bottom:8px;">Aucun questionnaire pour l'instant
-      </div>
-      <div style="font-size:13px; color:#aaa; margin-bottom:20px;">Vous n'avez pas encore créé de
-        questionnaire.<br>Cliquez sur le bouton pour commencer.</div>
-      <a href="/parametrage"
-        style="background:#df231d; color:white; border-radius:24px; padding:10px 22px; text-decoration:none; font-size:13px; font-weight:600;">+
-        Créer un questionnaire</a>
-    </div>
+<script>
+// ── Sample data ──
+const USERS = [
+    { id:1, nom:'Martin',    prenom:'Sophie',   email:'s.martin@epf.fr',   role:'student', rprmTypes:[] },
+    { id:2, nom:'Dupont',    prenom:'Thomas',   email:'t.dupont@epf.fr',   role:'admin',   rprmTypes:[] },
+    { id:3, nom:'Leroy',     prenom:'Camille',  email:'c.leroy@epf.fr',    role:'rprm',    rprmTypes:['Génie Civil','Informatique'] },
+    { id:4, nom:'Bernard',   prenom:'Lucas',    email:'l.bernard@epf.fr',  role:'student', rprmTypes:[] },
+    { id:5, nom:'Moreau',    prenom:'Élise',    email:'e.moreau@epf.fr',   role:'rprm',    rprmTypes:['Électronique'] },
+    { id:6, nom:'Fontaine',  prenom:'Hugo',     email:'h.fontaine@epf.fr', role:'student', rprmTypes:[] },
+    { id:7, nom:'Girard',    prenom:'Inès',     email:'i.girard@epf.fr',   role:'admin',   rprmTypes:[] },
+    { id:8, nom:'Rousseau',  prenom:'Mathieu',  email:'m.rousseau@epf.fr', role:'student', rprmTypes:[] },
+    { id:9, nom:'Petit',     prenom:'Anaïs',    email:'a.petit@epf.fr',    role:'rprm',    rprmTypes:['Mécanique','Thermique'] },
+    { id:10, nom:'Roux',     prenom:'Nicolas',  email:'n.roux@epf.fr',     role:'student', rprmTypes:[] },
+];
 
-    {% endfor %}
-  </div>
+const AVATAR_COLORS = ['#7b2fa0','#df231d','#1565c0','#2e7d32','#e65100','#ad1457','#0277bd','#558b2f'];
 
+let currentFilter = 'all';
+let searchQuery   = '';
+let editingUserId = null;
+let selectedRole  = null;
+
+function getAvatarColor(id) { return AVATAR_COLORS[id % AVATAR_COLORS.length]; }
+function getInitials(u)     { return (u.prenom[0] + u.nom[0]).toUpperCase(); }
+
+function getRoleBadge(user) {
+    if (user.role === 'student') return `<span class="role-badge student"><span class="role-dot"></span>Étudiant</span>`;
+    if (user.role === 'admin')   return `<span class="role-badge admin"><span class="role-dot"></span>Administrateur</span>`;
+    if (user.role === 'rprm') {
+        const types = user.rprmTypes.length ? user.rprmTypes.join(' ; ') : '–';
+        return `<span class="role-badge rprm"><span class="role-dot"></span>RP-RM : ${types}</span>`;
+    }
+}
+
+function filteredUsers() {
+    return USERS.filter(u => {
+        const q = searchQuery.toLowerCase();
+        const matchSearch = !q || `${u.prenom} ${u.nom} ${u.email}`.toLowerCase().includes(q);
+        const matchFilter = currentFilter === 'all' || u.role === currentFilter;
+        return matchSearch && matchFilter;
+    });
+}
+
+function renderTable() {
+    const tbody    = document.getElementById('users-tbody');
+    const empty    = document.getElementById('empty-state');
+    const countLbl = document.getElementById('count-label');
+    const list     = filteredUsers();
+
+    countLbl.textContent = `${list.length} affiché(s)`;
+
+    if (!list.length) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = list.map(u => `
+        <tr data-id="${u.id}">
+            <td>
+                <div class="user-info">
+                    <div class="avatar" style="background:${getAvatarColor(u.id)}">${getInitials(u)}</div>
+                    <div>
+                        <div class="user-name">${u.prenom} ${u.nom}</div>
+                        <div class="user-email">${u.email}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${getRoleBadge(u)}</td>
+            <td class="td-actions"><button class="btn-edit" data-id="${u.id}">Modifier</button></td>
+        </tr>
+    `).join('');
+
+    tbody.querySelectorAll('tr').forEach(tr => {
+        tr.addEventListener('click', e => {
+            const id = parseInt(tr.dataset.id);
+            openModal(id);
+        });
+    });
+}
+
+function updateStats() {
+    document.getElementById('stat-total').textContent = USERS.length;
+    document.getElementById('stat-admin').textContent = USERS.filter(u => u.role === 'admin').length;
+    document.getElementById('stat-rprm').textContent  = USERS.filter(u => u.role === 'rprm').length;
+}
+
+// ── Modal ──
+function openModal(userId) {
+    const user = USERS.find(u => u.id === userId);
+    if (!user) return;
+    editingUserId = userId;
+    selectedRole  = user.role;
+
+    document.getElementById('modal-title').textContent    = `${user.prenom} ${user.nom}`;
+    document.getElementById('modal-subtitle').textContent = user.email;
+
+    // Set role option selected
+    document.querySelectorAll('.role-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.role === selectedRole);
+    });
+
+    // RPRM
+    const rprmSection = document.getElementById('rprm-section');
+    const rprmCards   = document.getElementById('rprm-cards');
+    rprmCards.innerHTML = '';
+
+    if (user.role === 'rprm') {
+        rprmSection.classList.add('visible');
+        (user.rprmTypes.length ? user.rprmTypes : ['']).forEach(t => addRprmCard(t));
+    } else {
+        rprmSection.classList.remove('visible');
+    }
+
+    document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    editingUserId = null;
+}
+
+function addRprmCard(value = '') {
+    const cards = document.getElementById('rprm-cards');
+    const div   = document.createElement('div');
+    div.className = 'rprm-card';
+    div.innerHTML = `
+        <div class="rprm-card-header">Type RP-RM</div>
+        <input type="text" placeholder="ex : Génie Civil, Informatique…" value="${value}">
+        <button class="btn-remove-rprm" title="Supprimer">×</button>
+    `;
+    div.querySelector('.btn-remove-rprm').addEventListener('click', e => {
+        e.stopPropagation();
+        div.remove();
+    });
+    cards.appendChild(div);
+}
+
+document.querySelectorAll('.role-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+        document.querySelectorAll('.role-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        selectedRole = opt.dataset.role;
+        const rprmSection = document.getElementById('rprm-section');
+        const rprmCards   = document.getElementById('rprm-cards');
+        if (selectedRole === 'rprm') {
+            rprmSection.classList.add('visible');
+            if (!rprmCards.children.length) addRprmCard();
+        } else {
+            rprmSection.classList.remove('visible');
+        }
+    });
+});
+
+document.getElementById('btn-add-rprm').addEventListener('click', () => addRprmCard());
+
+document.getElementById('btn-save').addEventListener('click', () => {
+    const user = USERS.find(u => u.id === editingUserId);
+    if (!user) return;
+
+    user.role = selectedRole;
+    if (selectedRole === 'rprm') {
+        const inputs = document.querySelectorAll('#rprm-cards input[type="text"]');
+        user.rprmTypes = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+    } else {
+        user.rprmTypes = [];
+    }
+
+    closeModal();
+    renderTable();
+    updateStats();
+    showToast(`Rôle de ${user.prenom} ${user.nom} mis à jour`);
+});
+
+document.getElementById('btn-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ── Search & filter ──
+document.getElementById('search-input').addEventListener('input', e => {
+    searchQuery = e.target.value;
+    renderTable();
+});
+
+document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderTable();
+    });
+});
+
+// ── Toast ──
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toast-msg').textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ── Init ──
+renderTable();
+updateStats();
+</script>
 </body>
-
 </html>
