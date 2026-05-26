@@ -185,7 +185,7 @@
 
     <header>
         <div class="header-left">
-            <img src="/static/img/epf_logo.png" alt="EPF">
+            <img src="/static/img/epf_logo_blanc.png" alt="EPF">
             <a href="/" class="btn-retour">Retour</a>
         </div>
         <div class="header-right">
@@ -214,7 +214,7 @@
                         <select id="param-semestre">
                             <option value="">-- Sélectionnez un semestre --</option>
                             {% for s in ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'] %}
-                            <option value="{{ s }}" {% if semestre_annee == s %}selected{% endif %}>{{ s }}</option>
+                            <option value="{{ s }}" {% if semestre_annee==s %}selected{% endif %}>{{ s }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -224,10 +224,12 @@
                             <select id="param-annee" style="flex: 1;">
                                 <option value="">-- Sélectionnez --</option>
                                 {% for a in annees_scolaires %}
-                                <option value="{{ a }}" {% if selected_annee_scolaire == a %}selected{% endif %}>{{ a }}</option>
+                                <option value="{{ a }}" {% if selected_annee_scolaire==a %}selected{% endif %}>{{ a }}
+                                </option>
                                 {% endfor %}
                             </select>
-                            <button class="btn-icon" title="Ajouter une année scolaire" style="flex-shrink: 0; padding: 0 15px; background: linear-gradient(135deg, #470a68, #5c1a7a); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">+</button>
+                            <button class="btn-icon" title="Ajouter une année scolaire"
+                                style="flex-shrink: 0; padding: 0 15px; background: linear-gradient(135deg, #470a68, #5c1a7a); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">+</button>
                         </div>
                     </div>
                 </div>
@@ -275,21 +277,24 @@
         </div>
     </main>
 
+    <script id="app-data" type="application/json">
+    {
+        "templates": {{ templates | tojson }},
+        "campusList": {{ campus_list | tojson }},
+        "filieres": {{ filieres | tojson }},
+        "semestres": {{ semestres | tojson }},
+        "anneesScolaires": {{ annees_scolaires | tojson }},
+        "profsList": {{ profs | tojson }},
+        "uesByFiliere": {{ ues_by_filiere | tojson }},
+        "selectedTemplateId": {{ selected_template_id | tojson }},
+        "selectedCampusId": {{ selected_campus_id | tojson }},
+        "selectedFiliereId": {{ selected_filiere_id | tojson }},
+        "semestreAnnee": {{ semestre_annee | tojson }},
+        "selectedAnneeScolaire": {{ selected_annee_scolaire | tojson }}
+    }
+    </script>
     <script>
-        window.__initialData__ = {
-            templates: {{ templates | tojson }},
-            campusList: {{ campus_list | tojson }},
-            filieres: {{ filieres | tojson }},
-            semestres: {{ semestres | tojson }},
-            anneesScolaires: {{ annees_scolaires | tojson }},
-            profsList: {{ profs | tojson }},
-            uesByFiliere: {{ ues_by_filiere | tojson }},
-            selectedTemplateId: {{ selected_template_id | tojson }},
-            selectedCampusId: {{ selected_campus_id | tojson }},
-            selectedFiliereId: {{ selected_filiere_id | tojson }},
-            semestreAnnee: {{ semestre_annee | tojson }},
-            selectedAnneeScolaire: {{ selected_annee_scolaire | tojson }}
-        };
+        window.__initialData__ = JSON.parse(document.getElementById('app-data').textContent);
     </script>
     <script src="/static/js/parametrage.js"></script>
     <script>

@@ -14,15 +14,6 @@ class User(SQLModel, table=True):
     role: Optional[str] = Field(default=None, sa_column=Column("Role", String))
 
 
-class Repondant(SQLModel, table=True):
-    __tablename__ = "Répondants"
-
-    id_repondant: Optional[int] = Field(
-        default=None, sa_column=Column("Id_Répondant", Integer, primary_key=True)
-    )
-    date_soumission: Optional[str] = Field(
-        default=None, sa_column=Column("Date_soumission", String)
-    )
 
 
 class Template(SQLModel, table=True):
@@ -64,9 +55,6 @@ class Sondage(SQLModel, table=True):
     )
     mot_de_passe: Optional[str] = Field(
         default=None, sa_column=Column("Mot_de_passe", String)
-    )
-    id_user: Optional[int] = Field(
-        default=None, sa_column=Column("Id_User", Integer, ForeignKey("Users.Id_User"))
     )
 
 
@@ -194,15 +182,7 @@ class Reponse(SQLModel, table=True):
             "Id_Sondage", Integer, ForeignKey("Sondages.Id_Sondage"), primary_key=True
         ),
     )
-    id_repondant: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            "Id_Répondant",
-            Integer,
-            ForeignKey("Répondants.Id_Répondant"),
-            primary_key=True,
-        ),
-    )
+
     id_template_1: Optional[int] = Field(
         default=None,
         sa_column=Column(
@@ -253,4 +233,10 @@ class Repondre(SQLModel, table=True):
         sa_column=Column(
             "Id_User", Integer, ForeignKey("Users.Id_User"), primary_key=True
         ),
+    )
+    date_soumission: Optional[str] = Field(
+        default=None, sa_column=Column("Date_soumission", String)
+    )
+    repondu: Optional[bool] = Field(
+        default=False, sa_column=Column("Repondu", Integer)
     )

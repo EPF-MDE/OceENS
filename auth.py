@@ -24,7 +24,6 @@ Utilisateur → /login → Microsoft Login → /auth/callback → Dashboard
 
 from dotenv import load_dotenv
 
-load_dotenv()
 
 import uuid
 import requests
@@ -32,6 +31,7 @@ import msal
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, Response
 import os
+load_dotenv()
 
 # ┌─ Domaines autorisés ──────────────────────────────────────────────────────┐
 ALLOWED_DOMAINS = os.environ.get("ALLOWED_DOMAINS", "").split(",")
