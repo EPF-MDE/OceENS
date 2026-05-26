@@ -114,18 +114,6 @@
       gap: 14px;
     }
 
-    .stat-card-new .stat-value {
-      font-size: 22px;
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 3px;
-    }
-
-    .stat-card-new .stat-label {
-      font-size: 11px;
-      color: #999;
-    }
-
     .questionnaires-card {
       background: white;
       border-radius: 12px;
@@ -214,21 +202,6 @@
       <div class="banner-greeting">Bonjour, {{ user.name }} !</div>
     </div>
     <a href="/parametrage" class="btn-banner">+ Créer un questionnaire</a>
-  </div>
-
-  <div class="stats-row">
-    <div class="stat-card-new">
-      <div>
-        <div class="stat-value" style="color:#470a68;">{{ sondages | length }}</div>
-        <div class="stat-label">Questionnaires créés</div>
-      </div>
-    </div>
-    <div class="stat-card-new">
-      <div>
-        <div class="stat-value" style="color:#0F6E56;">0</div>
-        <div class="stat-label">Réponses totales</div>
-      </div>
-    </div>
   </div>
 
   <div class="questionnaires-card">
