@@ -11,7 +11,6 @@ Combine :
 
 from dotenv import load_dotenv
 
-load_dotenv()  # Charge les variables d'environnement depuis .env
 
 import os
 from typing import Annotated, Dict, List, Optional
@@ -29,7 +28,7 @@ import uvicorn
 from models import (
     Module,
     Question,
-    Repondant,
+    Repondre,
     Reponse,
     Section,
     Sondage,
@@ -41,6 +40,7 @@ from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 from auth import router as auth_router, get_current_user
 
+load_dotenv()  # Charge les variables d'environnement depuis .env
 VALID_ROLES = {"admin", "etudiant", "professeur"}
 # └────────────────────────────────────────────────────────────────────────┘
 
@@ -390,7 +390,6 @@ def create_app():
                     annee_scolaire=sondage.annee_scolaire,
                     url=questionnaire_url,
                     statut=1,
-                    id_user=1,
                 )
                 session.add(new_sondage)
 
@@ -533,11 +532,31 @@ def create_app():
     # ┌─ API : Soumission des réponses du questionnaire ─────────────────┐
     @app.post("/api/questionnaire/{id_template}/{id_sondage}/reponses")
     def submit_reponses(
+        request: Request,
         id_template: int,
         id_sondage: int,
         submission: QuestionnaireSubmission,
         session: SessionDep,
     ):
+        # 1. Authentification : récupérer l'utilisateur connecté (Azure Entra ID)
+        user = get_current_user(request)
+        if not user:
+            return JSONResponse(
+                content={"error": "Authentification requise. Veuillez vous connecter."},
+                status_code=401,
+            )
+
+        # 2. Résoudre l'Id_User depuis l'email de l'utilisateur connecté
+        db_user = session.exec(
+            select(User).where(User.mail == user["email"])
+        ).first()
+        if not db_user:
+            return JSONResponse(
+                content={"error": "Utilisateur non trouvé dans la base de données."},
+                status_code=403,
+            )
+
+        # 3. Vérifier que le sondage existe
         sondage = session.exec(
             select(Sondage).where(
                 Sondage.id_template == id_template,
@@ -546,37 +565,72 @@ def create_app():
         ).first()
         if not sondage:
             return JSONResponse(
-                content={"error": "Sondage introuvable"}, status_code=404
+                content={"error": "Sondage introuvable."}, status_code=404
             )
 
-        new_repondant = Repondant(
-            date_soumission=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
-        session.add(new_repondant)
-        session.flush()
-
-        existing_reponses = session.exec(select(Reponse)).all()
-        next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
-
-        for rep in submission.reponses:
-            new_reponse = Reponse(
-                id_template=id_template,
-                id_sondage=id_sondage,
-                id_repondant=new_repondant.id_repondant,
-                id_template_1=id_template,
-                id_section=rep.id_section,
-                id_question=rep.id_question,
-                id_reponse=next_id_reponse,
-                valeur=rep.valeur,
+        # 4. Vérifier que cet élève est assigné à ce sondage (table Repondre)
+        #    Règle stricte : pas de INSERT, UPDATE uniquement
+        repondre = session.exec(
+            select(Repondre).where(
+                Repondre.id_template == id_template,
+                Repondre.id_sondage == id_sondage,
+                Repondre.id_user == db_user.id_user,
             )
-            session.add(new_reponse)
-            next_id_reponse += 1
+        ).first()
+        if not repondre:
+            return JSONResponse(
+                content={"error": "Vous n'êtes pas autorisé ou assigné à répondre à ce sondage."},
+                status_code=403,
+            )
 
-        session.commit()
+        # 5. Vérifier que l'élève n'a pas déjà soumis ses réponses
+        if repondre.repondu:
+            return JSONResponse(
+                content={"error": "Vous avez déjà soumis vos réponses pour ce sondage."},
+                status_code=409,
+            )
+
+        # 6. Enregistrement atomique : insertion des réponses + UPDATE Repondre
+        #    On utilise begin_nested() (SAVEPOINT) car la session a déjà une
+        #    transaction implicite ouverte par le générateur get_session().
+        try:
+            with session.begin_nested():
+                # Calculer le prochain Id_Reponse
+                existing_reponses = session.exec(select(Reponse)).all()
+                next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
+
+                # Insérer chaque réponse individuelle dans la table Reponses
+                for rep in submission.reponses:
+                    new_reponse = Reponse(
+                        id_template=id_template,
+                        id_sondage=id_sondage,
+                        id_template_1=id_template,
+                        id_section=rep.id_section,
+                        id_question=rep.id_question,
+                        id_reponse=next_id_reponse,
+                        valeur=rep.valeur,
+                    )
+                    session.add(new_reponse)
+                    next_id_reponse += 1
+
+                # UPDATE de la ligne Repondre : marquer comme répondu
+                repondre.repondu = True
+                repondre.date_soumission = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                session.add(repondre)
+
+            # Commit de la transaction principale
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            return JSONResponse(
+                content={"error": f"Erreur lors de l'enregistrement : {str(e)}"},
+                status_code=500,
+            )
 
         return {
-            "message": "Reponses enregistrees avec succes",
-            "id_repondant": new_repondant.id_repondant,
+            "message": "Réponses enregistrées avec succès",
+            "id_user": db_user.id_user,
         }
 
     # └────────────────────────────────────────────────────────────────┘

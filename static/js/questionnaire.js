@@ -506,11 +506,17 @@ const Questionnaire = {
         fetch(`/api/questionnaire/${id_template}/${id_sondage}/reponses`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ reponses }),
         })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`Erreur serveur (${response.status})`);
+                    return response.json().then(data => {
+                        throw new Error(data.error || `Erreur serveur (${response.status})`);
+                    }).catch(parseErr => {
+                        if (parseErr.message && !parseErr.message.includes('Erreur serveur')) throw parseErr;
+                        throw new Error(`Erreur serveur (${response.status})`);
+                    });
                 }
                 return response.json();
             })
