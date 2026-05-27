@@ -40,6 +40,7 @@ from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 from auth import router as auth_router, get_current_user
 
+load_dotenv()
 # ┌─ Configuration ────────────────────────────────────────────────────────┐
 # Les trois slugs de dashboard reconnus par l'application
 VALID_ROLES = {"admin", "etudiant", "rprm"}
