@@ -386,6 +386,121 @@ def create_app():
 
     # └────────────────────────────────────────────────────────────────┘
 
+    # ┌─ API : Modules du sondage de l'année précédente ─────────────────┐
+    @app.get("/api/modules-precedents")
+    def modules_precedents_api(
+        session: SessionDep,
+        semestre: str = "",
+        formation: str = "",
+        annee_scolaire: str = "",
+    ):
+        """
+        Retourne les modules du sondage de l'année scolaire précédente
+        pour le même semestre et la même formation.
+
+        Exemple : annee_scolaire="2025-2026" → cherche "2024-2025".
+        Si aucun sondage précédent n'existe, renvoie un tableau vide.
+        """
+        if not semestre or not formation or not annee_scolaire:
+            return JSONResponse(content={"ues": [], "profsList": []})
+
+        # ── Calcul de l'année précédente ──────────────────────────────
+        try:
+            parts = annee_scolaire.split("-")
+            if len(parts) == 2:
+                year_start = int(parts[0]) - 1
+                year_end = int(parts[1]) - 1
+                annee_precedente = f"{year_start}-{year_end}"
+            else:
+                return JSONResponse(content={"ues": [], "profsList": []})
+        except (ValueError, IndexError):
+            return JSONResponse(content={"ues": [], "profsList": []})
+
+        # ── Recherche du sondage de l'année précédente ────────────────
+        sondage_precedent = session.exec(
+            select(Sondage).where(
+                Sondage.annee_scolaire == annee_precedente,
+                Sondage.semestre == semestre,
+                Sondage.formation == formation,
+            )
+        ).first()
+
+        if not sondage_precedent:
+            return JSONResponse(content={"ues": [], "profsList": []})
+
+        # ── Récupération des modules liés à ce sondage ────────────────
+        modules = session.exec(
+            select(Module).where(
+                Module.id_sondage == sondage_precedent.id_sondage,
+                Module.id_template == sondage_precedent.id_template,
+            )
+        ).all()
+
+        if not modules:
+            return JSONResponse(content={"ues": [], "profsList": []})
+
+        # ── Groupement par UE + extraction des professeurs ────────────
+        ues_dict = {}
+        seen_professors = {}
+        professors = []
+        professor_index = 1
+
+        for module in modules:
+            ue_name = module.ue or "Sans UE"
+            if ue_name not in ues_dict:
+                ues_dict[ue_name] = {
+                    "id": len(ues_dict) + 1,
+                    "nom": ue_name,
+                    "optionnel": bool(module.ue_optionnelle),
+                    "_open": True,
+                    "modules": [],
+                }
+
+            prof_list = []
+            if module.enseignant:
+                prof_strings = [
+                    p.strip() for p in module.enseignant.split(",") if p.strip()
+                ]
+                for prof_str in prof_strings:
+                    parsed = parse_name(prof_str, professor_index)
+                    if parsed["prenom"] or parsed["nom"]:
+                        key = (
+                            (parsed["prenom"] or "").lower(),
+                            (parsed["nom"] or "").lower(),
+                        )
+                        if key not in seen_professors:
+                            seen_professors[key] = professor_index
+                            parsed["id"] = professor_index
+                            professors.append(parsed)
+                            professor_index += 1
+                        prof_list.append(
+                            {
+                                "id": seen_professors[key],
+                                "prenom": parsed["prenom"],
+                                "nom": parsed["nom"],
+                            }
+                        )
+
+            ues_dict[ue_name]["modules"].append(
+                {
+                    "id": int(module.id_module or 0),
+                    "nom": module.nom or "Module",
+                    "choix_enseignant_exclusif": bool(module.choix_enseignant),
+                    "professeurs": prof_list,
+                }
+            )
+
+        return JSONResponse(
+            content={
+                "ues": list(ues_dict.values()),
+                "profsList": professors,
+                "annee_precedente": annee_precedente,
+                "sondage_id": sondage_precedent.id_sondage,
+            }
+        )
+
+    # └────────────────────────────────────────────────────────────────┘
+
     # ┌─ API : Création d'un sondage ────────────────────────────────────┐
     @app.post("/api/sondage")
     def create_sondage(sondage: SondageFullCreate, session: SessionDep):

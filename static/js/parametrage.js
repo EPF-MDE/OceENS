@@ -47,11 +47,12 @@ const Parametrage = {
         this.anneesScolaires = initialData.anneesScolaires || [];
         this.selectedAnneeScolaire = initialData.selectedAnneeScolaire || '';
         this.filieresList = this.selectedCampusId ? this.allFilieres.filter(f => f.campus_id === this.selectedCampusId) : [];
-        if (this.selectedFiliereId && this.mockUEsByFiliere[this.selectedFiliereId]) {
-            this.ues = JSON.parse(JSON.stringify(this.mockUEsByFiliere[this.selectedFiliereId]));
-        }
 
         this.render();
+
+        // Au chargement initial : charger les modules de l'année précédente
+        // si les 3 valeurs (semestre, formation, année) sont déjà renseignées
+        this._tryFetchModulesPrecedents();
     },
 
     // ─── Render principal ───────────────────────────────
@@ -66,7 +67,7 @@ const Parametrage = {
                 </div>
                 <div class="pub-field">
                     <label>Semestre</label>
-                    <select id="param-semestre" onchange="Parametrage.semestreAnnee = this.value;">
+                    <select id="param-semestre" onchange="Parametrage.onSemestreChange(this.value)">
                         <option value="">-- Sélectionnez un semestre --</option>
                         ${['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'].map(s => `<option value="${s}" ${this.semestreAnnee === s ? 'selected' : ''}>${s}</option>`).join('')}
                     </select>
@@ -74,7 +75,7 @@ const Parametrage = {
                 <div class="pub-field">
                     <label>Année scolaire</label>
                     <div class="param-select-group" style="display: flex; gap: 10px; width: 100%;">
-                        <select id="param-annee" onchange="Parametrage.selectedAnneeScolaire = this.value;" style="flex: 1;">
+                        <select id="param-annee" onchange="Parametrage.onAnneeChange(this.value)" style="flex: 1;">
                             <option value="">-- Sélectionnez --</option>
                             ${this.anneesScolaires.map(a => `<option value="${a}" ${this.selectedAnneeScolaire === a ? 'selected' : ''}>${a}</option>`).join('')}
                         </select>
@@ -136,6 +137,18 @@ const Parametrage = {
 
         this.renderUEContainer();
         this.bindDropzone();
+    },
+
+    // ─── Semestre change ─────────────────────────────────
+    onSemestreChange(value) {
+        this.semestreAnnee = value;
+        this._tryFetchModulesPrecedents();
+    },
+
+    // ─── Année scolaire change ───────────────────────────
+    onAnneeChange(value) {
+        this.selectedAnneeScolaire = value;
+        this._tryFetchModulesPrecedents();
     },
 
     // ─── Campus change ──────────────────────────────────
@@ -237,13 +250,10 @@ const Parametrage = {
     async onFiliereChange() {
         const sel = document.getElementById('param-filiere');
         this.selectedFiliereId = sel.value ? parseInt(sel.value) : null;
-        if (this.selectedFiliereId) {
-            this.ues = JSON.parse(JSON.stringify(this.mockUEsByFiliere[this.selectedFiliereId] || []));
-        } else {
-            this.ues = [];
-        }
+        this.ues = [];
         this.render();
-        await this.fetchAndUpdateData();
+        // Charger les modules de l'année précédente pour cette nouvelle filière
+        await this._tryFetchModulesPrecedents();
     },
 
     addFiliere() {
@@ -268,6 +278,85 @@ const Parametrage = {
         }
         this.selectedAnneeScolaire = annee;
         this.render();
+        this._tryFetchModulesPrecedents();
+    },
+
+    // ─── Chargement des modules de l'année précédente ───
+    async _tryFetchModulesPrecedents() {
+        // Résoudre le nom de la filière sélectionnée
+        const filiereNom = this.selectedFiliereId
+            ? (this.allFilieres.find(f => f.id === this.selectedFiliereId) ||
+               this.filieresList.find(f => f.id === this.selectedFiliereId))?.nom || ''
+            : '';
+
+        // On ne peut lancer la requête que si les 3 valeurs sont renseignées
+        if (!this.semestreAnnee || !filiereNom || !this.selectedAnneeScolaire) {
+            return;
+        }
+
+        this.isLoading = true;
+        this.loadError = null;
+        this.renderUEContainer();
+
+        try {
+            const params = new URLSearchParams({
+                semestre: this.semestreAnnee,
+                formation: filiereNom,
+                annee_scolaire: this.selectedAnneeScolaire,
+            });
+            const response = await fetch(`/api/modules-precedents?${params}`, {
+                cache: 'no-store',
+            });
+            if (!response.ok) {
+                throw new Error(`Erreur serveur : ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.ues && data.ues.length > 0) {
+                // Réassigner des IDs locaux pour éviter les conflits
+                let localId = this.nextId;
+                this.ues = data.ues.map(ue => {
+                    localId++;
+                    return {
+                        ...ue,
+                        id: localId,
+                        _open: true,
+                        modules: (ue.modules || []).map(mod => {
+                            localId++;
+                            return { ...mod, id: localId };
+                        }),
+                    };
+                });
+                this.nextId = localId;
+
+                // Enrichir la liste des profs avec ceux du sondage précédent
+                if (data.profsList && data.profsList.length > 0) {
+                    const existingIds = new Set(this.profsList.map(p => `${(p.prenom||'').toLowerCase()}_${(p.nom||'').toLowerCase()}`));
+                    for (const prof of data.profsList) {
+                        const key = `${(prof.prenom||'').toLowerCase()}_${(prof.nom||'').toLowerCase()}`;
+                        if (!existingIds.has(key)) {
+                            this.nextId++;
+                            prof.id = this.nextId;
+                            this.profsList.push(prof);
+                            existingIds.add(key);
+                        }
+                    }
+                }
+
+                console.log(`[Parametrage] ${data.ues.length} UE(s) chargée(s) depuis le sondage ${data.annee_precedente}`);
+            } else {
+                // Aucun historique : liste vide, l'utilisateur ajoutera manuellement
+                this.ues = [];
+                console.log('[Parametrage] Aucun sondage précédent trouvé, liste vide.');
+            }
+        } catch (error) {
+            console.error('[Parametrage] Erreur chargement modules précédents:', error);
+            this.ues = [];
+            // Pas de loadError bloquant : on laisse l'utilisateur ajouter manuellement
+        } finally {
+            this.isLoading = false;
+            this.render();
+        }
     },
 
     // ─── Render la liste des UE ─────────────────────────
