@@ -39,7 +39,11 @@ from models import (
 )
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
-from auth import router as auth_router, get_current_user
+from auth import (
+    router as auth_router,
+    get_current_user,
+    require_role,
+)
 
 load_dotenv()
 # ┌─ Configuration ────────────────────────────────────────────────────────┐
@@ -66,8 +70,8 @@ def role_to_dashboard_slug(role: str) -> str:
 
 
 # ┌─ Configuration de la base de données ──────────────────────────────────┐
-sqlite_file_name = "database/db_oceens.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+sqlite_file_name = "database/db_oceens_rempli.db"
+sqlite_url = f"sqlite:///C:\\Users\\j_blo\\Desktop\\OceENS II\\projet-OceENS\\OceENS\\{sqlite_file_name}"
 
 connect_args = {"check_same_thread": False, "timeout": 15}
 engine = create_engine(sqlite_url, connect_args=connect_args)
@@ -330,7 +334,7 @@ def create_app():
     app.add_middleware(
         SessionMiddleware,
         secret_key=os.environ.get("SECRET_KEY", "changeme"),
-        https_only=True,
+        https_only=False,  # à mettre à True en production avec HTTPS et el False pour le local
         same_site="lax",
     )
 
@@ -358,7 +362,11 @@ def create_app():
 
     # ┌─ Route : Paramétrage (version du main conservée) ────────────────┐
     @app.get("/parametrage", response_class=HTMLResponse)
-    def parametrage(request: Request, session: SessionDep):
+    def parametrage(
+        request: Request,
+        session: SessionDep,
+        user: dict = Depends(require_role("professeur", "admin")),
+    ):
         data = build_parametrage_data(session)
         return templates.TemplateResponse(
             request=request,  # modification liée à versions récentes de FastAPI/Starlette
@@ -384,7 +392,9 @@ def create_app():
 
     # ┌─ API : Données de paramétrage ───────────────────────────────────┐
     @app.get("/api/parametrage")
-    def parametrage_api(session: SessionDep):
+    def parametrage_api(
+        session: SessionDep, user: dict = Depends(require_role("professeur", "admin"))
+    ):
         return JSONResponse(content=build_parametrage_data(session))
 
     # └────────────────────────────────────────────────────────────────┘
@@ -506,7 +516,11 @@ def create_app():
 
     # ┌─ API : Création d'un sondage ────────────────────────────────────┐
     @app.post("/api/sondage")
-    def create_sondage(sondage: SondageFullCreate, session: SessionDep):
+    def create_sondage(
+        sondage: SondageFullCreate,
+        session: SessionDep,
+        user: dict = Depends(require_role("professeur", "admin")),
+    ):
         with session.begin():
             with session.no_autoflush:
                 existing_sondages = session.exec(
@@ -736,7 +750,10 @@ def create_app():
     # ┌─ Page questionnaire ─────────────────────────────────────────────┐
     @app.get("/questionnaire/{id_template}/{id_sondage}", response_class=HTMLResponse)
     def questionnaire_page(
-        request: Request, id_template: int, id_sondage: int, session: SessionDep
+        request: Request,
+        id_template: int,
+        id_sondage: int,
+        session: SessionDep,
     ):
         sondage = session.exec(
             select(Sondage).where(

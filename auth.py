@@ -28,10 +28,13 @@ from dotenv import load_dotenv
 import uuid
 import requests
 import msal
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
 import os
+import json
+
 load_dotenv()
+
 
 # ┌─ Domaines autorisés ──────────────────────────────────────────────────────┐
 ALLOWED_DOMAINS = os.environ.get("ALLOWED_DOMAINS", "").split(",")
@@ -254,27 +257,32 @@ async def auth_callback(request: Request):
 
 def get_current_user(request: Request) -> dict | None:
     """
-    Récupère l'utilisateur actuellement connecté
+    Dépendance FastAPI pour récupérer l'utilisateur connecté.
 
-    Mécanisme de fallback :
-    1. D'abord : session Starlette (fonctionne en production)
-    2. Sinon : cookie manuel (fallback pour dev local avec cert auto-signé)
-    3. Sinon : None (utilisateur non connecté)
-
-    Return : dict avec {"name", "email", "role"} ou None si pas connecté
+    Ordre de résolution :
+    1. DEV_USER (variable d'env JSON) → mode développement local
+    2. Session Starlette → mode production
+    3. HTTPException 401 → non connecté
     """
-    # Essaie de récupérer l'utilisateur depuis la session Starlette
+    # Mode développement local
+    # Définir DEV_USER='{"name":"Dev User","email":"dev@example.com","role":"admin"}'
+    # dans ton .env pour bypasser complètement Microsoft
+    dev_user_json = os.environ.get("DEV_USER")
+    if dev_user_json:
+        return json.loads(dev_user_json)
+
+    # Production : session Starlette
     user = request.session.get("user")
-    if user:
-        return user
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Non authentifié"
+        )
+    return user
 
     # Fallback : essaie de récupérer depuis le cookie et la mémoire (dev local)
     # session_token = request.cookies.get("session_token")
     # if session_token and session_token in _user_sessions:
     #     return _user_sessions[session_token]
-
-    # Aucune session trouvée
-    return None
 
 
 # └───────────────────────────────────────────────────────────────────────────┘
@@ -283,7 +291,7 @@ def get_current_user(request: Request) -> dict | None:
 
 
 @router.get("/logout")
-async def logout(request: Request):
+async def logout(request: Request, user: dict = Depends(get_current_user)):
     """
     Déconnexion de l'utilisateur
 
@@ -312,3 +320,23 @@ async def logout(request: Request):
 
 
 # └───────────────────────────────────────────────────────────────────────────┘
+
+
+def require_role(*roles: str):
+    """
+    Dépendance factory pour restreindre l'accès par rôle.
+
+    Utilisation :
+        @router.get("/admin", dependencies=[Depends(require_role("admin"))])
+        async def admin_panel(user: dict = Depends(get_current_user)): ...
+    """
+
+    # Cette fonction retourne une dépendance FastAPI qui vérifie que l'utilisateur a l'un des rôles requis
+    def _check(user: dict = Depends(get_current_user)) -> dict:
+        if user.get("role") not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail=f"Rôle requis : {roles}"
+            )
+        return user
+
+    return _check
