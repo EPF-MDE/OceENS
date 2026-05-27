@@ -153,7 +153,7 @@ async def auth_callback(request: Request):
     5. Stocker l'utilisateur en session
     6. Rediriger vers le dashboard
     """
-    from database import get_role
+    from database import get_or_create_user
 
     # Récupère le state que Microsoft a renvoyé
     received_state = request.query_params.get("state")
@@ -206,8 +206,8 @@ async def auth_callback(request: Request):
         )
 
     # Récupère le rôle de cet utilisateur depuis notre base de données
-    # Par défaut : "etudiant" si l'utilisateur n'existe pas en BDD
-    role = get_role(email)
+    # Si l'utilisateur n'existe pas, il est créé avec le rôle "Etudiant"
+    role = get_or_create_user(email)
 
     # Construit l'objet utilisateur avec les infos Microsoft + notre rôle
     user = {
@@ -223,8 +223,17 @@ async def auth_callback(request: Request):
     session_token = str(uuid.uuid4())
     _user_sessions[session_token] = user
 
+    # Détermine le slug de dashboard en fonction du rôle
+    # "Admin" → "admin", "RP-RM:..." → "rprm", autre → "etudiant"
+    if role == "Admin":
+        dashboard_slug = "admin"
+    elif role.startswith("RP-RM"):
+        dashboard_slug = "rprm"
+    else:
+        dashboard_slug = "etudiant"
+
     # Redirige vers le dashboard de l'utilisateur
-    response = RedirectResponse(url=f"/dashboard/{role}")
+    response = RedirectResponse(url=f"/dashboard/{dashboard_slug}")
 
     # Code commenté : stockage du token en cookie sécurisé
     # Utilisé uniquement en développement avec certificat auto-signé

@@ -40,8 +40,26 @@ from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 from auth import router as auth_router, get_current_user
 
-load_dotenv()  # Charge les variables d'environnement depuis .env
-VALID_ROLES = {"admin", "etudiant", "professeur"}
+# ┌─ Configuration ────────────────────────────────────────────────────────┐
+# Les trois slugs de dashboard reconnus par l'application
+VALID_ROLES = {"admin", "etudiant", "rprm"}
+
+
+def role_to_dashboard_slug(role: str) -> str:
+    """
+    Convertit le rôle stocké en BDD en slug de route dashboard.
+
+    "Admin"              → "admin"
+    "RP-RM"              → "rprm"
+    "RP-RM:MDE_P2027"    → "rprm"
+    "Etudiant" (ou autre) → "etudiant"
+    """
+    if role == "Admin":
+        return "admin"
+    elif role.startswith("RP-RM"):
+        return "rprm"
+    else:
+        return "etudiant"
 # └────────────────────────────────────────────────────────────────────────┘
 
 
@@ -326,8 +344,9 @@ def create_app():
         valide, redirection vers son dashboard. Sinon, affichage du login.
         """
         user = get_current_user(request)
-        if user and user.get("role") in VALID_ROLES:
-            return RedirectResponse(url=f"/dashboard/{user['role']}")
+        if user and user.get("role"):
+            slug = role_to_dashboard_slug(user["role"])
+            return RedirectResponse(url=f"/dashboard/{slug}")
         return templates.TemplateResponse(request=request, name="index.html")
 
     # └────────────────────────────────────────────────────────────────┘
@@ -639,28 +658,40 @@ def create_app():
     @app.get("/dashboard/{role}", response_class=HTMLResponse)
     async def dashboard(request: Request, role: str):
         """
-        Vérifications de sécurité : l'utilisateur doit être connecté,
-        le rôle doit exister, et l'utilisateur ne peut voir que son
-        propre tableau de bord.
+        Route du tableau de bord principal (dashboard)
+
+        Sécurité :
+        1. Vérifier que l'utilisateur est connecté
+        2. Vérifier que le slug de rôle demandé existe
+        3. Vérifier que l'utilisateur a le droit d'accéder à ce dashboard
         """
         user = get_current_user(request)
         if not user:
             return RedirectResponse(url="/")
         if role not in VALID_ROLES:
             return RedirectResponse(url="/")
-        if user.get("role") != role:
-            return RedirectResponse(url=f"/dashboard/{user['role']}")
+
+        # Compare le slug du rôle de l'utilisateur avec le slug demandé
+        user_slug = role_to_dashboard_slug(user.get("role", ""))
+        if user_slug != role:
+            return RedirectResponse(url=f"/dashboard/{user_slug}")
 
         template_map = {
             "admin": "dashboard/admin.html",
             "etudiant": "dashboard/etudiant.html",
-            "professeur": "dashboard/professeur.html",
+            "rprm": "dashboard/rprm.html",
         }
+
+        # Pour RP-RM, extraire les filières du rôle complet (si présentes)
+        filieres = []
+        full_role = user.get("role", "")
+        if full_role.startswith("RP-RM:") and ":" in full_role:
+            filieres = full_role.split(":", 1)[1].split("-")
 
         return templates.TemplateResponse(
             request=request,
             name=template_map[role],
-            context={"user": user},
+            context={"user": user, "filieres": filieres},
         )
 
     # └────────────────────────────────────────────────────────────────┘
