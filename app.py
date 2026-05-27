@@ -971,7 +971,7 @@ def create_app():
         template_map = {
             "admin": "dashboard/admin.html",
             "etudiant": "dashboard/etudiant.html",
-            "rprm": "dashboard/rprm.html",
+            "rprm": "dashboard/RPRM.html",
         }
 
         # Pour RP-RM, extraire les filières du rôle complet (si présentes)
