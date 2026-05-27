@@ -14,7 +14,7 @@ function getRoleBadge(role) {
     const map = {
         'Etudiant': ['etudiant', 'Étudiant'],
         'Admin': ['admin', 'Administrateur'],
-        'RPRM': ['rprm', 'RP-RM'],
+        'RP-RM': ['rprm', 'RP-RM'],
         'Enseignant': ['enseignant', 'Enseignant'],
     };
     const [cls, label] = map[role] || ['etudiant', role];

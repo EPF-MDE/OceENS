@@ -991,7 +991,7 @@ def create_app():
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
-    VALID_USER_ROLES = {"Admin", "Etudiant", "RPRM"}
+    VALID_USER_ROLES = {"Admin", "Etudiant", "RP-RM"}
 
     @app.get("/api/users")
     def get_users(session: SessionDep):
@@ -1018,7 +1018,7 @@ def create_app():
         session.add(user)
         session.commit()
         session.refresh(user)
-        
+
         return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
    
     # └────────────────────────────────────────────────────────────────┘
