@@ -4,21 +4,19 @@ Gestion de la base de données SQLite et des rôles utilisateurs
 
 Ce module configure :
 - SQLAlchemy : ORM (Object-Relational Mapping) pour Python
-- SQLite : Base de données fichier léger
-- Modèle UserRole : Table pour stocker email et rôle de chaque utilisateur
+- SQLite : Base de données fichier léger (database/db_oceens.db)
+- Fonction get_or_create_user : Récupère ou crée un utilisateur dans la table Users
 
-Rôles supportés : "etudiant", "professeur", "admin"
+Rôles supportés : "Etudiant" (défaut), "Admin", "RP-RM:..." (responsable pédagogique)
 """
 
-from sqlalchemy import create_engine, Column, String
+from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # ┌─ Configuration de la base de données ──────────────────────────────────────┐
-# DATABASE_URL = "sqlite:///./roles.db" signifie :
-#   - sqlite : utilise SQLite
-#   - ./roles.db : crée un fichier roles.db dans le répertoire courant
-#   - check_same_thread=False : autorise les appels depuis plusieurs threads
-DATABASE_URL = "sqlite:///./roles.db"
+# On utilise désormais la base de données principale du projet
+# au lieu d'une base séparée (roles.db)
+DATABASE_URL = "sqlite:///./database/db_oceens.db"
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False}  # Nécessaire pour Uvicorn (multi-thread)
@@ -26,73 +24,78 @@ engine = create_engine(
 # └───────────────────────────────────────────────────────────────────────────┘
 
 # ┌─ Déclaration du modèle de base ───────────────────────────────────────────┐
-# Base = classe parent pour tous les modèles SQLAlchemy
 Base = declarative_base()
 
 
-class UserRole(Base):
+class UserAuth(Base):
     """
-    Modèle de table SQLAlchemy pour les utilisateurs et leurs rôles
-    
+    Modèle SQLAlchemy miroir de la table Users existante dans db_oceens.db
+
     Colonnes :
-    - email (STRING, PK) : Adresse email unique (clé primaire)
-    - role (STRING) : Rôle de l'utilisateur (par défaut: "etudiant")
-    
+    - Id_User (INTEGER, PK, auto-increment) : Identifiant unique
+    - Mail (STRING) : Adresse email de l'utilisateur
+    - Role (STRING) : Rôle de l'utilisateur (défaut: "Etudiant")
+
     Exemple :
-        mail@example.com  →  professeur
-        test@example.com  →  etudiant
-        admin@example.com →  admin
+        julien@epfedu.fr   →  Etudiant
+        admin@epfedu.fr    →  Admin
+        prof@epfedu.fr     →  RP-RM:MDE_P2027-MIN_P2027
     """
-    __tablename__ = "roles"
-    
-    email = Column(String, primary_key=True)
-        # Clé primaire : chaque email est unique et non-null
-    role = Column(String, default="etudiant")
-        # Rôle par défaut : "etudiant" si non spécifié
+    __tablename__ = "Users"
 
-
-# Crée les tables dans la base de données (si elles n'existent pas)
-Base.metadata.create_all(engine)
+    id_user = Column("Id_User", Integer, primary_key=True, autoincrement=True)
+    mail = Column("Mail", String)
+    role = Column("Role", String, default="Etudiant")
 # └───────────────────────────────────────────────────────────────────────────┘
 
 # ┌─ Session factory pour les requêtes à la BDD ──────────────────────────────┐
-# SessionLocal est une "fabrique" qui crée des connections à la BDD
-# Utilisation : db = SessionLocal() pour ouvrir une connexion
 SessionLocal = sessionmaker(bind=engine)
 # └───────────────────────────────────────────────────────────────────────────┘
 
 
-def get_role(email: str) -> str:
+def get_or_create_user(email: str) -> str:
     """
-    Récupère le rôle d'un utilisateur à partir de son email
-    
+    Récupère le rôle d'un utilisateur, ou le crée automatiquement.
+
     Logique :
-    1. Ouvre une connexion à la BDD
-    2. Cherche l'utilisateur par email (case-insensitive)
-    3. Retourne son rôle, ou "etudiant" par défaut
-    
+    1. Ouvre une connexion à la BDD (database/db_oceens.db)
+    2. Cherche l'utilisateur par email (case-insensitive) dans la table Users
+    3. Si trouvé → retourne son rôle
+    4. Si non trouvé → insère un nouvel utilisateur avec le rôle "Etudiant"
+    5. Retourne le rôle
+
     Args :
-        email : Adresse email de l'utilisateur
-    
+        email : Adresse email de l'utilisateur (provenant de Microsoft Graph)
+
     Return :
-        String : "admin", "professeur", "etudiant", ou "etudiant" (défaut)
-    
+        String : "Admin", "Etudiant", "RP-RM:...", ou "Etudiant" (si créé)
+
     Exemple :
-        role = get_role("julien@epfedu.fr")  # → "professeur"
-        role = get_role("unknown@example.fr")  # → "etudiant" (par défaut)
+        role = get_or_create_user("julien@epfedu.fr")  # → "Etudiant" (créé)
+        role = get_or_create_user("admin@epfedu.fr")    # → "Admin" (existant)
     """
-    # Ouvre une connexion à la base de données
     db = SessionLocal()
-    
+
     try:
         # Requête : cherche l'utilisateur par email (case-insensitive)
-        user = db.query(UserRole).filter(
-            UserRole.email == email.lower()  # Normalise l'email en minuscules
-        ).first()  # .first() retourne le premier résultat ou None
-        
-        # Retourne le rôle trouvé, ou "etudiant" par défaut
-        return user.role if user else "etudiant"
-    
+        user = db.query(UserAuth).filter(
+            UserAuth.mail == email.lower()
+        ).first()
+
+        if user:
+            # Utilisateur trouvé → retourne son rôle
+            return user.role if user.role else "Etudiant"
+
+        # Utilisateur non trouvé → auto-inscription avec rôle par défaut
+        new_user = UserAuth(
+            mail=email.lower(),
+            role="Etudiant"
+        )
+        db.add(new_user)
+        db.commit()
+
+        return "Etudiant"
+
     finally:
-        # Ferme proprement la connexion (important pour libérer les ressources)
+        # Ferme proprement la connexion
         db.close()
