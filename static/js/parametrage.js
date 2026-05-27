@@ -24,6 +24,8 @@ const Parametrage = {
     nextId: 9000,
     isLoading: false,
     loadError: null,
+    importedFile: null,     // Fichier .xlsx sélectionné (pas encore envoyé)
+    _notifTimer: null,      // Timer pour auto-dismiss de la notification
 
     // ─── Init ───────────────────────────────────────────
     init(containerId, initialData = {}) {
@@ -107,10 +109,33 @@ const Parametrage = {
             
             <div id="param-ue-container"></div>
 
+            <div class="dropzone-section">
+                <h3>📋 Importer la liste des étudiants</h3>
+                <div class="dropzone" id="dropzone-etudiants">
+                    <input type="file" id="dropzone-file-input" accept=".xlsx">
+                    ${this.importedFile ? `
+                        <span class="dropzone__icon">✅</span>
+                        <div class="dropzone__text">Fichier prêt à envoyer</div>
+                        <div class="dropzone__file-info">
+                            <span>📄 ${this.esc(this.importedFile.name)}</span>
+                            <button class="file-remove" onclick="event.stopPropagation(); Parametrage.removeFile();" title="Retirer le fichier">&times;</button>
+                        </div>
+                    ` : `
+                        <span class="dropzone__icon">📥</span>
+                        <div class="dropzone__text">
+                            <strong>Glissez-déposez</strong> votre fichier Excel ici<br>
+                            ou <strong>cliquez</strong> pour sélectionner
+                            <small>Format accepté : .xlsx uniquement</small>
+                        </div>
+                    `}
+                </div>
+            </div>
+
             <button class="btn-publish" onclick="Parametrage.publish()" ${!this.selectedFiliereId ? 'disabled' : ''}>Publier le sondage</button>
         `;
 
         this.renderUEContainer();
+        this.bindDropzone();
     },
 
     // ─── Campus change ──────────────────────────────────
@@ -487,7 +512,124 @@ const Parametrage = {
         this.renderUEs();
     },
 
-    // ─── Publication (simulée) ──────────────────────────
+    // ─── Drag & Drop : liaisons événements ────────────────
+    bindDropzone() {
+        const dropzone = document.getElementById('dropzone-etudiants');
+        const fileInput = document.getElementById('dropzone-file-input');
+        if (!dropzone || !fileInput) return;
+
+        // Empêcher le clic sur l'input de remonter au dropzone (cause du double-open)
+        fileInput.addEventListener('click', (e) => e.stopPropagation());
+
+        // Clic sur la zone → ouvrir le sélecteur de fichier
+        dropzone.addEventListener('click', (e) => {
+            // Ne pas re-déclencher si le clic vient déjà de l'input
+            if (e.target === fileInput) return;
+            fileInput.click();
+        });
+
+        // Sélection via l'input
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                this.handleFile(e.target.files[0]);
+            }
+        });
+
+        // Drag events
+        dropzone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dropzone--dragover');
+        });
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dropzone--dragover');
+        });
+
+        dropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dropzone--dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dropzone--dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                this.handleFile(e.dataTransfer.files[0]);
+            }
+        });
+    },
+
+    // ─── Fichier : validation et stockage ────────────────
+    handleFile(file) {
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            this.showNotification('Format invalide. Seuls les fichiers .xlsx sont acceptés.', 'error');
+            return;
+        }
+        this.importedFile = file;
+        this.render();
+        this.showNotification(`Fichier "${file.name}" prêt pour l'import.`, 'info');
+    },
+
+    removeFile() {
+        this.importedFile = null;
+        this.render();
+    },
+
+    // ─── Upload du fichier vers le backend ───────────────
+    async uploadStudentFile(id_sondage, id_template) {
+        if (!this.importedFile) return null;
+
+        const formData = new FormData();
+        formData.append('file', this.importedFile);
+        formData.append('id_sondage', id_sondage);
+        formData.append('id_template', id_template);
+
+        const response = await fetch('/api/import-etudiants', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || `Erreur serveur (${response.status})`);
+        }
+        return result;
+    },
+
+    // ─── Notification (banner en bas de l'écran) ─────────
+    showNotification(message, type = 'info') {
+        // Supprimer l'ancienne notification si présente
+        const existing = document.getElementById('import-notification');
+        if (existing) existing.remove();
+        if (this._notifTimer) clearTimeout(this._notifTimer);
+
+        const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+        const el = document.createElement('div');
+        el.id = 'import-notification';
+        el.className = `import-notification import-notification--${type}`;
+        el.innerHTML = `
+            <span class="import-notification__icon">${icons[type] || icons.info}</span>
+            <span>${message}</span>
+            <button class="import-notification__close" onclick="this.parentElement.classList.remove('show'); setTimeout(() => this.parentElement.remove(), 400);">&times;</button>
+        `;
+        document.body.appendChild(el);
+
+        // Trigger l'animation
+        requestAnimationFrame(() => el.classList.add('show'));
+
+        // Auto-dismiss après 6 secondes
+        this._notifTimer = setTimeout(() => {
+            el.classList.remove('show');
+            setTimeout(() => el.remove(), 400);
+        }, 6000);
+    },
+
+    // ─── Publication ─────────────────────────────────────
     publish() {
         if (!this.selectedTemplateId) {
             this.selectedTemplateId = this.templatesList[0]?.id;
@@ -525,27 +667,63 @@ const Parametrage = {
             }))
         };
 
+        // Désactiver le bouton pendant le traitement
+        const btn = document.querySelector('.btn-publish');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Publication en cours...';
+        }
+
+        // Étape 1 : Créer le sondage
         fetch('/api/sondage', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Erreur réseau');
-            }
+            if (!response.ok) throw new Error('Erreur réseau lors de la création du sondage');
             return response.json();
         })
-        .then(result => {
-            alert(result.message + '\nLien du questionnaire : ' + window.location.origin + result.questionnaire_url);
-            // Rediriger vers le questionnaire généré
-            window.location.href = result.questionnaire_url;
+        .then(async (result) => {
+            const id_sondage = result.id_sondage;
+            const questionnaire_url = result.questionnaire_url;
+
+            // Étape 2 : Si un fichier .xlsx est présent, importer les étudiants
+            if (this.importedFile) {
+                try {
+                    if (btn) btn.textContent = 'Import des étudiants...';
+
+                    const importResult = await this.uploadStudentFile(id_sondage, this.selectedTemplateId);
+
+                    this.showNotification(
+                        `Sondage publié ! ${importResult.nb_emails_lus} étudiant(s) traité(s) — ` +
+                        `${importResult.nb_users_crees} nouveau(x), ${importResult.nb_repondre_inseres} assigné(s).`,
+                        'success'
+                    );
+                } catch (importError) {
+                    // Le sondage est créé, mais l'import a échoué
+                    this.showNotification(
+                        `Sondage publié, mais l'import des étudiants a échoué : ${importError.message}`,
+                        'error'
+                    );
+                    console.error('Import étudiants échoué :', importError);
+                }
+            } else {
+                this.showNotification('Sondage publié avec succès !', 'success');
+            }
+
+            // Attendre un peu pour lire la notification, puis rediriger
+            setTimeout(() => {
+                window.location.href = questionnaire_url;
+            }, 2500);
         })
         .catch(error => {
             alert('Erreur lors de la création du sondage : ' + error.message);
             console.error(error);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Publier le sondage';
+            }
         });
     },
 
