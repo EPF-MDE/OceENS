@@ -26,11 +26,12 @@
       /* Variables de couleur copiées de l'index */
       --red: #df231d;
       --purple: #470a68;
+      --white: #ffffff;
     }
 
     body {
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #ffffff;
+      background: #eee5e5;
       color: #333333;
       min-height: 100vh;
       display: flex;
@@ -40,9 +41,8 @@
     /* === 2. HEADER  === */
 
     header {
-      background-color: var(--purple);
-      /* Utilise la variable purple */
-      color: white;
+      background-color: var(--white);
+      color: var(--purple);
       padding: 0 24px;
       height: 60px;
       display: flex;
@@ -77,10 +77,10 @@
 
     /* Style du bouton déconnexion conservé */
     header nav a.logout-btn {
-      color: white;
+      color: #470a68;
       text-decoration: none;
       padding: 6px 16px;
-      border: 1px solid rgba(255, 255, 255, 0.6);
+      border: 1px solid var(--red);
       border-radius: 6px;
       transition: background 0.2s ease;
       font-weight: 500;
@@ -89,6 +89,51 @@
     header nav a.logout-btn:hover {
       background: rgba(255, 255, 255, 0.2);
     }
+
+        .banner {
+      background: linear-gradient(135deg, #470a68 0%, #df231d 100%);
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 12px;
+      margin: 24px 24px 20px;
+      overflow: hidden;
+    }
+
+    .banner-badge {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .banner-greeting {
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .btn-banner {
+      background: white;
+      color: #470a68;
+      border: none;
+      border-radius: 24px;
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
 
     /* === 3. MAIN  === */
     main {
@@ -256,6 +301,13 @@
     </nav>
   </header>
 
+  <div class="banner">
+    <div>
+      <div class="banner-badge">Étudiant</div>
+      <div class="banner-greeting">Bonjour, {{ user.name }} !</div>
+    </div>
+  </div>
+
   <main>
     <div class="hero-content">
       <h1 class="logo-title">
@@ -266,7 +318,6 @@
       <section class="questionnaire-section-with-incentive">
 
         <div class="incentive-text">
-          <h1>Bonjour, {{ user.name }} </h1>
           <p class="welcome">Merci de compléter le questionnaire de fin de semestre pour le cours suivant :</p>
         </div>
 

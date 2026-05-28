@@ -136,6 +136,9 @@ class ReponseItem(BaseModel):
 class QuestionnaireSubmission(BaseModel):
     reponses: List[ReponseItem]
 
+class RoleUpdate(BaseModel):
+    role: str
+
 
 # └────────────────────────────────────────────────────────────────────────┘
 
@@ -947,23 +950,15 @@ def create_app():
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ Route : Dashboards par rôle ────────────────────────────────────┐
-    @app.get("/dashboard/{role}", response_class=HTMLResponse)
-    async def dashboard(request: Request, role: str):
-        """
-        Route du tableau de bord principal (dashboard)
 
-        Sécurité :
-        1. Vérifier que l'utilisateur est connecté
-        2. Vérifier que le slug de rôle demandé existe
-        3. Vérifier que l'utilisateur a le droit d'accéder à ce dashboard
-        """
+    @app.get("/dashboard/{role}", response_class=HTMLResponse)
+    async def dashboard(request: Request, role: str, session: SessionDep):
         user = get_current_user(request)
         if not user:
             return RedirectResponse(url="/")
         if role not in VALID_ROLES:
             return RedirectResponse(url="/")
 
-        # Compare le slug du rôle de l'utilisateur avec le slug demandé
         user_slug = role_to_dashboard_slug(user.get("role", ""))
         if user_slug != role:
             return RedirectResponse(url=f"/dashboard/{user_slug}")
@@ -971,21 +966,61 @@ def create_app():
         template_map = {
             "admin": "dashboard/admin.html",
             "etudiant": "dashboard/etudiant.html",
-            "rprm": "dashboard/rprm.html",
+            "rprm": "dashboard/RPRM.html",
         }
 
-        # Pour RP-RM, extraire les filières du rôle complet (si présentes)
         filieres = []
         full_role = user.get("role", "")
         if full_role.startswith("RP-RM:") and ":" in full_role:
             filieres = full_role.split(":", 1)[1].split("-")
 
+        context = {"user": user, "filieres": filieres}
+
+        if role == "admin":
+            db_users = session.exec(select(User)).all()
+            context["users"] = [
+                {"id_user": u.id_user, "mail": u.mail, "role": u.role}
+                for u in db_users
+            ]
+
         return templates.TemplateResponse(
             request=request,
             name=template_map[role],
-            context={"user": user, "filieres": filieres},
+            context=context,
         )
+    # └────────────────────────────────────────────────────────────────┘
 
+    # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
+    VALID_USER_ROLES = {"Admin", "Etudiant", "RP-RM"}
+
+    @app.get("/api/users")
+    def get_users(session: SessionDep):
+        users = session.exec(select(User)).all()
+        return [
+            {"id_user": u.id_user, "mail": u.mail, "role": u.role}
+            for u in users
+        ]
+
+    @app.put("/api/users/{id_user}/role")
+    def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
+        if body.role not in VALID_USER_ROLES:
+            return JSONResponse(
+                content={"detail": f"Rôle invalide : '{body.role}'"},
+                status_code=422,
+            )
+        user = session.get(User, id_user)
+        if not user:
+            return JSONResponse(
+                content={"detail": f"Utilisateur {id_user} introuvable"},
+                status_code=404,
+            )
+        user.role = body.role
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+        return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
+   
     # └────────────────────────────────────────────────────────────────┘
 
     return app
