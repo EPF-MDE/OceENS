@@ -10,6 +10,7 @@ Combine :
 """
 
 from dotenv import load_dotenv
+from requests import request
 
 
 import os
@@ -18,7 +19,11 @@ from typing import Annotated, Dict, List, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 
+<<<<<<< HEAD
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
+=======
+from fastapi import Depends, FastAPI, HTTPException, Request
+>>>>>>> 704f6f7 (modif dans le get "/")
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -356,11 +361,32 @@ def create_app():
         Page d'accueil. Si l'utilisateur est déjà connecté avec un rôle
         valide, redirection vers son dashboard. Sinon, affichage du login.
         """
+
+    try:
+        # On essaie de récupérer l'utilisateur
         user = get_current_user(request)
+<<<<<<< HEAD
         if user and user.get("role"):
             slug = role_to_dashboard_slug(user["role"])
             return RedirectResponse(url=f"/dashboard/{slug}")
         return templates.TemplateResponse(request=request, name="index.html")
+=======
+
+        # Si ça fonctionne ET que le rôle est bon, on redirige
+        if user and user.get("role") in VALID_ROLES:
+            return RedirectResponse(url=f"/dashboard/{user['role']}")
+
+    except HTTPException as e:
+        # Si get_current_user a levé une erreur 401, on la capture !
+        # On ne plante pas, on passe juste à la suite pour afficher le login
+        user = None
+    except Exception:
+        user = None
+
+    # Maintenant, si l'utilisateur n'était pas connecté, la route ne crache plus,
+    # elle affiche bien ton fichier index.html !
+    return templates.TemplateResponse(request=request, name="index.html")
+>>>>>>> 704f6f7 (modif dans le get "/")
 
     # └────────────────────────────────────────────────────────────────┘
 
