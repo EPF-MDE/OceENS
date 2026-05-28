@@ -210,7 +210,6 @@ terminado==0.18.1
 tinycss2==1.4.0
 together==2.16.0
 toml==0.10.2
-torch==2.9.0
 tornado==6.5.5
 tqdm==4.67.3
 traitlets==5.14.3
