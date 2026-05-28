@@ -380,7 +380,7 @@ def create_app():
     def parametrage(
         request: Request,
         session: SessionDep,
-        user: dict = Depends(require_role("RP-RM", "admin")),
+        user: dict = Depends(require_role("RP-RM", "Admin")),
     ):
         data = build_parametrage_data(session)
         return templates.TemplateResponse(
@@ -408,7 +408,7 @@ def create_app():
     # ┌─ API : Données de paramétrage ───────────────────────────────────┐
     @app.get("/api/parametrage")
     def parametrage_api(
-        session: SessionDep, user: dict = Depends(require_role("RP-RM", "admin"))
+        session: SessionDep, user: dict = Depends(require_role("RP-RM", "Admin"))
     ):
         return JSONResponse(content=build_parametrage_data(session))
 
@@ -534,7 +534,7 @@ def create_app():
     def create_sondage(
         sondage: SondageFullCreate,
         session: SessionDep,
-        user: dict = Depends(require_role("RP-RM", "admin")),
+        user: dict = Depends(require_role("RP-RM", "Admin")),
     ):
         with session.begin():
             with session.no_autoflush:

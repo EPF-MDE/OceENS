@@ -19,7 +19,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 DATABASE_URL = "sqlite:///./database/db_oceens.db"
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Nécessaire pour Uvicorn (multi-thread)
+    connect_args={"check_same_thread": False},  # Nécessaire pour Uvicorn (multi-thread)
 )
 # └───────────────────────────────────────────────────────────────────────────┘
 
@@ -41,11 +41,14 @@ class UserAuth(Base):
         admin@epfedu.fr    →  Admin
         prof@epfedu.fr     →  RP-RM:MDE_P2027-MIN_P2027
     """
+
     __tablename__ = "Users"
 
     id_user = Column("Id_User", Integer, primary_key=True, autoincrement=True)
     mail = Column("Mail", String)
     role = Column("Role", String, default="Etudiant")
+
+
 # └───────────────────────────────────────────────────────────────────────────┘
 
 # ┌─ Session factory pour les requêtes à la BDD ──────────────────────────────┐
@@ -55,20 +58,18 @@ SessionLocal = sessionmaker(bind=engine)
 
 def get_or_create_user(email: str) -> str:
     """
-    Récupère le rôle d'un utilisateur, ou le crée automatiquement.
+    Récupère le rôle d'un utilisateur à partir de son email
 
     Logique :
-    1. Ouvre une connexion à la BDD (database/db_oceens.db)
-    2. Cherche l'utilisateur par email (case-insensitive) dans la table Users
-    3. Si trouvé → retourne son rôle
-    4. Si non trouvé → insère un nouvel utilisateur avec le rôle "Etudiant"
-    5. Retourne le rôle
+    1. Ouvre une connexion à la BDD
+    2. Cherche l'utilisateur par email (case-insensitive)
+    3. Retourne son rôle, ou "etudiant" par défaut
 
     Args :
-        email : Adresse email de l'utilisateur (provenant de Microsoft Graph)
+        email : Adresse email de l'utilisateur
 
     Return :
-        String : "Admin", "Etudiant", "RP-RM:...", ou "Etudiant" (si créé)
+        String : "admin", "professeur", "etudiant", ou "etudiant" (défaut)
 
     Exemple :
         role = get_or_create_user("julien@epfedu.fr")  # → "Etudiant" (créé)
@@ -78,19 +79,14 @@ def get_or_create_user(email: str) -> str:
 
     try:
         # Requête : cherche l'utilisateur par email (case-insensitive)
-        user = db.query(UserAuth).filter(
-            UserAuth.mail == email.lower()
-        ).first()
+        user = db.query(UserAuth).filter(UserAuth.mail == email.lower()).first()
 
         if user:
             # Utilisateur trouvé → retourne son rôle
             return user.role if user.role else "Etudiant"
 
         # Utilisateur non trouvé → auto-inscription avec rôle par défaut
-        new_user = UserAuth(
-            mail=email.lower(),
-            role="Etudiant"
-        )
+        new_user = UserAuth(mail=email.lower(), role="Etudiant")
         db.add(new_user)
         db.commit()
 
