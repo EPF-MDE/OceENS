@@ -1005,6 +1005,7 @@ def create_app():
         user = get_current_user(request)
         if not user:
             return RedirectResponse(url="/")
+
         if role not in VALID_ROLES:
             return RedirectResponse(url="/")
 
