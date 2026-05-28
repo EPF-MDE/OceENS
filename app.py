@@ -385,8 +385,12 @@ def create_app():
 
     # Maintenant, si l'utilisateur n'était pas connecté, la route ne crache plus,
     # elle affiche bien ton fichier index.html !
+<<<<<<< HEAD
     return templates.TemplateResponse(request=request, name="index.html")
 >>>>>>> 704f6f7 (modif dans le get "/")
+=======
+    return templates.TemplateResponse("index.html", {"request": get_current_user})
+>>>>>>> 95c603f (fix(index))
 
     # └────────────────────────────────────────────────────────────────┘
 
