@@ -763,9 +763,9 @@
       <!-- Filter tabs -->
       <div class="filter-tabs">
         <button class="filter-tab active" data-filter="all">Tous</button>
-        <button class="filter-tab" data-filter="Etudiant">Étudiants</button>
-        <button class="filter-tab" data-filter="Admin">Admins</button>
-        <button class="filter-tab" data-filter="RP-RM">RP-RM</button>
+        <button class="filter-tab" data-filter="student">Étudiants</button>
+        <button class="filter-tab" data-filter="admin">Admins</button>
+        <button class="filter-tab" data-filter="rprm">RP-RM</button>
       </div>
 
       <!-- Table -->
@@ -802,15 +802,15 @@
       <div class="modal-body">
         <span class="role-select-label">Quel est son rôle?</span>
         <div class="role-options">
-          <div class="role-option" data-role="Etudiant">
+          <div class="role-option" data-role="student">
             <div class="ro-icon"></div>
             <div class="ro-name">Étudiant</div>
           </div>
-          <div class="role-option" data-role="Admin">
+          <div class="role-option" data-role="admin">
             <div class="ro-icon"></div>
             <div class="ro-name">Admin</div>
           </div>
-          <div class="role-option" data-role="RP-RM">
+          <div class="role-option" data-role="rprm">
             <div class="ro-icon"></div>
             <div class="ro-name">RP-RM</div>
           </div>
@@ -844,9 +844,210 @@
 
   <script>
     // ── Sample data ──
-    const ALL_USERS = {{ users | tojson }};
+    const USERS = [
+      { id: 1, nom: 'Martin', prenom: 'Sophie', email: 's.martin@epf.fr', role: 'student', rprmTypes: [] },
+      { id: 2, nom: 'Dupont', prenom: 'Thomas', email: 't.dupont@epf.fr', role: 'admin', rprmTypes: [] },
+      { id: 3, nom: 'Leroy', prenom: 'Camille', email: 'c.leroy@epf.fr', role: 'rprm', rprmTypes: ['Génie Civil', 'Informatique'] },
+      { id: 4, nom: 'Bernard', prenom: 'Lucas', email: 'l.bernard@epf.fr', role: 'student', rprmTypes: [] },
+      { id: 5, nom: 'Moreau', prenom: 'Élise', email: 'e.moreau@epf.fr', role: 'rprm', rprmTypes: ['Électronique'] },
+      { id: 6, nom: 'Fontaine', prenom: 'Hugo', email: 'h.fontaine@epf.fr', role: 'student', rprmTypes: [] },
+      { id: 7, nom: 'Girard', prenom: 'Inès', email: 'i.girard@epf.fr', role: 'admin', rprmTypes: [] },
+      { id: 8, nom: 'Rousseau', prenom: 'Mathieu', email: 'm.rousseau@epf.fr', role: 'student', rprmTypes: [] },
+      { id: 9, nom: 'Petit', prenom: 'Anaïs', email: 'a.petit@epf.fr', role: 'rprm', rprmTypes: ['Mécanique', 'Thermique'] },
+      { id: 10, nom: 'Roux', prenom: 'Nicolas', email: 'n.roux@epf.fr', role: 'student', rprmTypes: [] },
+    ];
+
+    const AVATAR_COLORS = ['#7b2fa0', '#df231d', '#1565c0', '#2e7d32', '#e65100', '#ad1457', '#0277bd', '#558b2f'];
+
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let editingUserId = null;
+    let selectedRole = null;
+
+    function getAvatarColor(id) { return AVATAR_COLORS[id % AVATAR_COLORS.length]; }
+    function getInitials(u) { return (u.prenom[0] + u.nom[0]).toUpperCase(); }
+
+    function getRoleBadge(user) {
+      if (user.role === 'student') return `<span class="role-badge student"><span class="role-dot"></span>Étudiant</span>`;
+      if (user.role === 'admin') return `<span class="role-badge admin"><span class="role-dot"></span>Administrateur</span>`;
+      if (user.role === 'rprm') {
+        const types = user.rprmTypes.length ? user.rprmTypes.join(' ; ') : '–';
+        return `<span class="role-badge rprm"><span class="role-dot"></span>RP-RM : ${types}</span>`;
+      }
+    }
+
+    function filteredUsers() {
+      return USERS.filter(u => {
+        const q = searchQuery.toLowerCase();
+        const matchSearch = !q || `${u.prenom} ${u.nom} ${u.email}`.toLowerCase().includes(q);
+        const matchFilter = currentFilter === 'all' || u.role === currentFilter;
+        return matchSearch && matchFilter;
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('users-tbody');
+      const empty = document.getElementById('empty-state');
+      const countLbl = document.getElementById('count-label');
+      const list = filteredUsers();
+
+      countLbl.textContent = `${list.length} affiché(s)`;
+
+      if (!list.length) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      tbody.innerHTML = list.map(u => `
+        <tr data-id="${u.id}">
+            <td>
+                <div class="user-info">
+                    <div class="avatar" style="background:${getAvatarColor(u.id)}">${getInitials(u)}</div>
+                    <div>
+                        <div class="user-name">${u.prenom} ${u.nom}</div>
+                        <div class="user-email">${u.email}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${getRoleBadge(u)}</td>
+            <td class="td-actions"><button class="btn-edit" data-id="${u.id}">Modifier</button></td>
+        </tr>
+    `).join('');
+
+      tbody.querySelectorAll('tr').forEach(tr => {
+        tr.addEventListener('click', e => {
+          const id = parseInt(tr.dataset.id);
+          openModal(id);
+        });
+      });
+    }
+
+    function updateStats() {
+      document.getElementById('stat-total').textContent = USERS.length;
+      document.getElementById('stat-admin').textContent = USERS.filter(u => u.role === 'admin').length;
+      document.getElementById('stat-rprm').textContent = USERS.filter(u => u.role === 'rprm').length;
+    }
+
+    // ── Modal ──
+    function openModal(userId) {
+      const user = USERS.find(u => u.id === userId);
+      if (!user) return;
+      editingUserId = userId;
+      selectedRole = user.role;
+
+      document.getElementById('modal-title').textContent = `${user.prenom} ${user.nom}`;
+      document.getElementById('modal-subtitle').textContent = user.email;
+
+      // Set role option selected
+      document.querySelectorAll('.role-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.role === selectedRole);
+      });
+
+      // RPRM
+      const rprmSection = document.getElementById('rprm-section');
+      const rprmCards = document.getElementById('rprm-cards');
+      rprmCards.innerHTML = '';
+
+      if (user.role === 'rprm') {
+        rprmSection.classList.add('visible');
+        (user.rprmTypes.length ? user.rprmTypes : ['']).forEach(t => addRprmCard(t));
+      } else {
+        rprmSection.classList.remove('visible');
+      }
+
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      editingUserId = null;
+    }
+
+    function addRprmCard(value = '') {
+      const cards = document.getElementById('rprm-cards');
+      const div = document.createElement('div');
+      div.className = 'rprm-card';
+      div.innerHTML = `
+        <div class="rprm-card-header">Type RP-RM</div>
+        <input type="text" placeholder="ex : Génie Civil, Informatique…" value="${value}">
+        <button class="btn-remove-rprm" title="Supprimer">×</button>
+    `;
+      div.querySelector('.btn-remove-rprm').addEventListener('click', e => {
+        e.stopPropagation();
+        div.remove();
+      });
+      cards.appendChild(div);
+    }
+
+    document.querySelectorAll('.role-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        document.querySelectorAll('.role-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        selectedRole = opt.dataset.role;
+        const rprmSection = document.getElementById('rprm-section');
+        const rprmCards = document.getElementById('rprm-cards');
+        if (selectedRole === 'rprm') {
+          rprmSection.classList.add('visible');
+          if (!rprmCards.children.length) addRprmCard();
+        } else {
+          rprmSection.classList.remove('visible');
+        }
+      });
+    });
+
+    document.getElementById('btn-add-rprm').addEventListener('click', () => addRprmCard());
+
+    document.getElementById('btn-save').addEventListener('click', () => {
+      const user = USERS.find(u => u.id === editingUserId);
+      if (!user) return;
+
+      user.role = selectedRole;
+      if (selectedRole === 'rprm') {
+        const inputs = document.querySelectorAll('#rprm-cards input[type="text"]');
+        user.rprmTypes = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+      } else {
+        user.rprmTypes = [];
+      }
+
+      closeModal();
+      renderTable();
+      updateStats();
+      showToast(`Rôle de ${user.prenom} ${user.nom} mis à jour`);
+    });
+
+    document.getElementById('btn-cancel').addEventListener('click', closeModal);
+    document.getElementById('modal-overlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('modal-overlay')) closeModal();
+    });
+
+    // ── Search & filter ──
+    document.getElementById('search-input').addEventListener('input', e => {
+      searchQuery = e.target.value;
+      renderTable();
+    });
+
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderTable();
+      });
+    });
+
+    // ── Toast ──
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ── Init ──
+    renderTable();
+    updateStats();
   </script>
-  <script src="{{ url_for('static', path='js/admin.js') }}"></script>
 </body>
 
 </html>
