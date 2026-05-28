@@ -10,7 +10,7 @@ Ce module configure :
 Rôles supportés : "Etudiant" (défaut), "Admin", "RP-RM:..." (responsable pédagogique)
 """
 
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String, func
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # ┌─ Configuration de la base de données ──────────────────────────────────────┐
