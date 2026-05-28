@@ -63,13 +63,13 @@ def get_or_create_user(email: str) -> str:
     Logique :
     1. Ouvre une connexion à la BDD
     2. Cherche l'utilisateur par email (case-insensitive)
-    3. Retourne son rôle, ou "etudiant" par défaut
+    3. Retourne son rôle mappé, ou "Etudiant" par défaut
 
     Args :
         email : Adresse email de l'utilisateur
 
     Return :
-        String : "admin", "professeur", "etudiant", ou "etudiant" (défaut)
+        String : "Admin", "RP-RM", ou "Etudiant" (défaut)
 
     Exemple :
         role = get_or_create_user("julien@epfedu.fr")  # → "Etudiant" (créé)
