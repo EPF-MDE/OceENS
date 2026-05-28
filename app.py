@@ -19,11 +19,7 @@ from typing import Annotated, Dict, List, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-<<<<<<< HEAD
-from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
-=======
-from fastapi import Depends, FastAPI, HTTPException, Request
->>>>>>> 704f6f7 (modif dans le get "/")
+from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -50,7 +46,6 @@ from auth import (
     require_role,
 )
 
-<<<<<<< HEAD
 load_dotenv()
 # ┌─ Configuration ────────────────────────────────────────────────────────┐
 # Les trois slugs de dashboard reconnus par l'application
@@ -72,9 +67,8 @@ def role_to_dashboard_slug(role: str) -> str:
         return "rprm"
     else:
         return "etudiant"
-=======
-VALID_ROLES = {"Admin", "Etudiant", "RP-RM"}
->>>>>>> 75f943f (Modification du role professeur en RP-RM)
+
+
 # └────────────────────────────────────────────────────────────────────────┘
 
 
@@ -148,6 +142,7 @@ class ReponseItem(BaseModel):
 
 class QuestionnaireSubmission(BaseModel):
     reponses: List[ReponseItem]
+
 
 class RoleUpdate(BaseModel):
     role: str
@@ -362,52 +357,21 @@ def create_app():
         valide, redirection vers son dashboard. Sinon, affichage du login.
         """
         try:
-            # On essaie de récupérer l'utilisateur
+            # 1. On essaie de récupérer l'utilisateur (Sécurisé par le try)
             user = get_current_user(request)
 
-<<<<<<< HEAD
-    try:
-        # On essaie de récupérer l'utilisateur
-        user = get_current_user(request)
-<<<<<<< HEAD
-        if user and user.get("role"):
-            slug = role_to_dashboard_slug(user["role"])
-            return RedirectResponse(url=f"/dashboard/{slug}")
-        return templates.TemplateResponse(request=request, name="index.html")
-=======
-=======
-            # Si ça fonctionne ET que le rôle est bon, on redirige
+            # 2. Si l'utilisateur est connecté ET que son rôle est valide
             if user and user.get("role") in VALID_ROLES:
-                return RedirectResponse(
-                    url=f"/dashboard/{user['role']}", status_code=303
-                )
->>>>>>> cde88e6 (fix(index))
+                # On récupère le slug propre (Idée de la Version 2)
+                slug = role_to_dashboard_slug(user["role"])
+                return RedirectResponse(url=f"/dashboard/{slug}", status_code=303)
 
         except Exception:
-            # Si get_current_user lève une erreur (ex: non authentifié),
-            # on l'ignore proprement pour afficher la page de login en dessous
+            # Si pas de token ou token expiré, on ne crash pas : on l'envoie vers le login
             user = None
 
-<<<<<<< HEAD
-    except HTTPException as e:
-        # Si get_current_user a levé une erreur 401, on la capture !
-        # On ne plante pas, on passe juste à la suite pour afficher le login
-        user = None
-    except Exception:
-        user = None
-
-    # Maintenant, si l'utilisateur n'était pas connecté, la route ne crache plus,
-    # elle affiche bien ton fichier index.html !
-<<<<<<< HEAD
-    return templates.TemplateResponse(request=request, name="index.html")
->>>>>>> 704f6f7 (modif dans le get "/")
-=======
-    return templates.TemplateResponse("index.html", {"request": get_current_user})
->>>>>>> 95c603f (fix(index))
-=======
-        # CORRECTION ICI : On passe bien l'objet 'request', pas la fonction 'get_current_user'
-        return templates.TemplateResponse("index.html", {"request": request})
->>>>>>> cde88e6 (fix(index))
+        # 3. Affichage sécurisé de la page d'accueil / login
+        return templates.TemplateResponse(request=request, name="index.html")
 
     # └────────────────────────────────────────────────────────────────┘
 
@@ -634,7 +598,9 @@ def create_app():
         # 1. Validation du type de fichier
         if not file.filename or not file.filename.lower().endswith(".xlsx"):
             return JSONResponse(
-                content={"error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."},
+                content={
+                    "error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."
+                },
                 status_code=400,
             )
 
@@ -646,7 +612,9 @@ def create_app():
             )
         ).first()
         if not sondage:
-            print(f"[IMPORT] Sondage introuvable : id_template={id_template}, id_sondage={id_sondage}")
+            print(
+                f"[IMPORT] Sondage introuvable : id_template={id_template}, id_sondage={id_sondage}"
+            )
             return JSONResponse(
                 content={"error": "Sondage introuvable."},
                 status_code=404,
@@ -682,10 +650,14 @@ def create_app():
                     emails.append(cell_str.lower())
                 elif cell_str and row_count <= 3:
                     # Log les premières lignes pour déboguer si aucun email n'est trouvé
-                    print(f"[IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'")
+                    print(
+                        f"[IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'"
+                    )
 
             wb.close()
-            print(f"[IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s) trouvé(s)")
+            print(
+                f"[IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s) trouvé(s)"
+            )
 
         except Exception as e:
             print(f"[IMPORT] Erreur lecture Excel : {type(e).__name__}: {e}")
@@ -697,7 +669,9 @@ def create_app():
         if not emails:
             print(f"[IMPORT] Aucun email trouvé sur {row_count} ligne(s)")
             return JSONResponse(
-                content={"error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."},
+                content={
+                    "error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."
+                },
                 status_code=400,
             )
 
@@ -719,9 +693,7 @@ def create_app():
                 # Récupérer tous les users existants en un seul SELECT
                 existing_users = session.exec(select(User)).all()
                 existing_email_map = {
-                    u.mail.lower(): u.id_user
-                    for u in existing_users
-                    if u.mail
+                    u.mail.lower(): u.id_user for u in existing_users if u.mail
                 }
                 print(f"[IMPORT] {len(existing_email_map)} user(s) existant(s) en BDD")
 
@@ -744,7 +716,9 @@ def create_app():
                         existing_email_map[email] = max_id
                         nb_crees += 1
 
-                print(f"[IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)")
+                print(
+                    f"[IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)"
+                )
 
                 # 4b. Batch Repondre : INSERT uniquement (pas d'écrasement)
                 existing_repondre = session.exec(
@@ -753,9 +727,7 @@ def create_app():
                         Repondre.id_sondage == id_sondage,
                     )
                 ).all()
-                existing_repondre_user_ids = {
-                    r.id_user for r in existing_repondre
-                }
+                existing_repondre_user_ids = {r.id_user for r in existing_repondre}
 
                 for user_id in email_to_user_id.values():
                     if user_id not in existing_repondre_user_ids:
@@ -771,7 +743,9 @@ def create_app():
                     else:
                         nb_repondre_existants += 1
 
-                print(f"[IMPORT] Repondre : {nb_repondre_inseres} inséré(s), {nb_repondre_existants} déjà assigné(s)")
+                print(
+                    f"[IMPORT] Repondre : {nb_repondre_inseres} inséré(s), {nb_repondre_existants} déjà assigné(s)"
+                )
 
             session.commit()
             print(f"[IMPORT] Commit réussi !")
@@ -780,9 +754,12 @@ def create_app():
             session.rollback()
             print(f"[IMPORT] ERREUR SQL : {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             return JSONResponse(
-                content={"error": f"Erreur lors de l'import en base de données : {str(e)}"},
+                content={
+                    "error": f"Erreur lors de l'import en base de données : {str(e)}"
+                },
                 status_code=500,
             )
 
@@ -929,9 +906,7 @@ def create_app():
             )
 
         # 2. Résoudre l'Id_User depuis l'email de l'utilisateur connecté
-        db_user = session.exec(
-            select(User).where(User.mail == user["email"])
-        ).first()
+        db_user = session.exec(select(User).where(User.mail == user["email"])).first()
         if not db_user:
             return JSONResponse(
                 content={"error": "Utilisateur non trouvé dans la base de données."},
@@ -961,14 +936,18 @@ def create_app():
         ).first()
         if not repondre:
             return JSONResponse(
-                content={"error": "Vous n'êtes pas autorisé ou assigné à répondre à ce sondage."},
+                content={
+                    "error": "Vous n'êtes pas autorisé ou assigné à répondre à ce sondage."
+                },
                 status_code=403,
             )
 
         # 5. Vérifier que l'élève n'a pas déjà soumis ses réponses
         if repondre.repondu:
             return JSONResponse(
-                content={"error": "Vous avez déjà soumis vos réponses pour ce sondage."},
+                content={
+                    "error": "Vous avez déjà soumis vos réponses pour ce sondage."
+                },
                 status_code=409,
             )
 
@@ -979,7 +958,9 @@ def create_app():
             with session.begin_nested():
                 # Calculer le prochain Id_Reponse
                 existing_reponses = session.exec(select(Reponse)).all()
-                next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
+                next_id_reponse = (
+                    max([r.id_reponse for r in existing_reponses] + [0]) + 1
+                )
 
                 # Insérer chaque réponse individuelle dans la table Reponses
                 for rep in submission.reponses:
@@ -1047,8 +1028,7 @@ def create_app():
         if role == "admin":
             db_users = session.exec(select(User)).all()
             context["users"] = [
-                {"id_user": u.id_user, "mail": u.mail, "role": u.role}
-                for u in db_users
+                {"id_user": u.id_user, "mail": u.mail, "role": u.role} for u in db_users
             ]
 
         return templates.TemplateResponse(
@@ -1056,6 +1036,7 @@ def create_app():
             name=template_map[role],
             context=context,
         )
+
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
@@ -1064,10 +1045,7 @@ def create_app():
     @app.get("/api/users")
     def get_users(session: SessionDep):
         users = session.exec(select(User)).all()
-        return [
-            {"id_user": u.id_user, "mail": u.mail, "role": u.role}
-            for u in users
-        ]
+        return [{"id_user": u.id_user, "mail": u.mail, "role": u.role} for u in users]
 
     @app.put("/api/users/{id_user}/role")
     def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
@@ -1088,7 +1066,7 @@ def create_app():
         session.refresh(user)
 
         return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
-   
+
     # └────────────────────────────────────────────────────────────────┘
 
     return app
