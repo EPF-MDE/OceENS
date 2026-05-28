@@ -359,8 +359,8 @@ def create_app():
         try:
             # 1. On essaie de récupérer l'utilisateur (Sécurisé par le try)
             user = get_current_user(request)
-
-            # 2. Si l'utilisateur est connecté ET que son rôle est valide
+            print(f"\n[DEBUG COOKIE] Utilisateur détecté : {user}\n")
+            # Si ça fonctionne ET que le rôle est bon, on redirige
             if user and user.get("role") in VALID_ROLES:
                 # On récupère le slug propre (Idée de la Version 2)
                 slug = role_to_dashboard_slug(user["role"])
