@@ -361,7 +361,11 @@ def create_app():
         Page d'accueil. Si l'utilisateur est déjà connecté avec un rôle
         valide, redirection vers son dashboard. Sinon, affichage du login.
         """
+        try:
+            # On essaie de récupérer l'utilisateur
+            user = get_current_user(request)
 
+<<<<<<< HEAD
     try:
         # On essaie de récupérer l'utilisateur
         user = get_current_user(request)
@@ -371,11 +375,20 @@ def create_app():
             return RedirectResponse(url=f"/dashboard/{slug}")
         return templates.TemplateResponse(request=request, name="index.html")
 =======
+=======
+            # Si ça fonctionne ET que le rôle est bon, on redirige
+            if user and user.get("role") in VALID_ROLES:
+                return RedirectResponse(
+                    url=f"/dashboard/{user['role']}", status_code=303
+                )
+>>>>>>> cde88e6 (fix(index))
 
-        # Si ça fonctionne ET que le rôle est bon, on redirige
-        if user and user.get("role") in VALID_ROLES:
-            return RedirectResponse(url=f"/dashboard/{user['role']}")
+        except Exception:
+            # Si get_current_user lève une erreur (ex: non authentifié),
+            # on l'ignore proprement pour afficher la page de login en dessous
+            user = None
 
+<<<<<<< HEAD
     except HTTPException as e:
         # Si get_current_user a levé une erreur 401, on la capture !
         # On ne plante pas, on passe juste à la suite pour afficher le login
@@ -391,6 +404,10 @@ def create_app():
 =======
     return templates.TemplateResponse("index.html", {"request": get_current_user})
 >>>>>>> 95c603f (fix(index))
+=======
+        # CORRECTION ICI : On passe bien l'objet 'request', pas la fonction 'get_current_user'
+        return templates.TemplateResponse("index.html", {"request": request})
+>>>>>>> cde88e6 (fix(index))
 
     # └────────────────────────────────────────────────────────────────┘
 
