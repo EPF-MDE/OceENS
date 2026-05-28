@@ -18,7 +18,7 @@ client = TestClient(app)
     "role, access_granted",
     [
         ("admin", True),  # L'admin doit passer la barrière de sécurité
-        ("professeur", True),  # Le prof doit être bloqué (403)
+        ("RP-RM", True),  # Le prof doit être bloqué (403)
         ("etudiant", False),  # L'étudiant doit être bloqué (403)
     ],
 )
@@ -57,7 +57,7 @@ def test_api_sondage_auth_matrix(role, access_granted):
     "role, access_granted",
     [
         ("admin", True),  # L'admin a accès
-        ("professeur", True),  # Le professeur a accès aussi !
+        ("RP-RM", True),  # Le RP-RM a accès aussi !
         ("etudiant", False),  # L'étudiant est rejeté (403)
     ],
 )

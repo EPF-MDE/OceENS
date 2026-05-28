@@ -224,7 +224,7 @@ def test_scenario_3_accueil_redirect_etudiant(client):
 
 def test_scenario_4_accueil_redirect_professeur(client):
     """Scénario 4 : Un professeur connecté arrive sur / -> redirigé vers son dashboard."""
-    with mock_auth(role="professeur"):
+    with mock_auth(role="RP-RM"):
         response = client.get("/")
         assert response.status_code in [302, 307]
         assert response.headers["location"] == "/dashboard/professeur"
@@ -253,7 +253,7 @@ def test_scenario_6_role_inexistant(client):
 
 def test_scenario_7_acces_legitime_dashboard(client):
     """Scénario 7 : Un professeur accède à son propre dashboard -> Succès (200)."""
-    with mock_auth(role="professeur"):
+    with mock_auth(role="RP-RM"):
         response = client.get("/dashboard/professeur")
         assert response.status_code == 200
 

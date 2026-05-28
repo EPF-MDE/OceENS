@@ -45,6 +45,7 @@ from auth import (
     require_role,
 )
 
+<<<<<<< HEAD
 load_dotenv()
 # ┌─ Configuration ────────────────────────────────────────────────────────┐
 # Les trois slugs de dashboard reconnus par l'application
@@ -66,12 +67,15 @@ def role_to_dashboard_slug(role: str) -> str:
         return "rprm"
     else:
         return "etudiant"
+=======
+VALID_ROLES = {"Admin", "Etudiant", "RP-RM"}
+>>>>>>> 75f943f (Modification du role professeur en RP-RM)
 # └────────────────────────────────────────────────────────────────────────┘
 
 
 # ┌─ Configuration de la base de données ──────────────────────────────────┐
-sqlite_file_name = "database/db_oceens_rempli.db"
-sqlite_url = f"sqlite:///C:\\Users\\j_blo\\Desktop\\OceENS II\\projet-OceENS\\OceENS\\{sqlite_file_name}"
+sqlite_file_name = "database/db_oceens.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
 
 connect_args = {"check_same_thread": False, "timeout": 15}
 engine = create_engine(sqlite_url, connect_args=connect_args)
@@ -334,7 +338,7 @@ def create_app():
     app.add_middleware(
         SessionMiddleware,
         secret_key=os.environ.get("SECRET_KEY", "changeme"),
-        https_only=False,  # à mettre à True en production avec HTTPS et el False pour le local
+        https_only=True,  # à mettre à True en production avec HTTPS et el False pour le local
         same_site="lax",
     )
 
@@ -365,7 +369,7 @@ def create_app():
     def parametrage(
         request: Request,
         session: SessionDep,
-        user: dict = Depends(require_role("professeur", "admin")),
+        user: dict = Depends(require_role("RP-RM", "admin")),
     ):
         data = build_parametrage_data(session)
         return templates.TemplateResponse(
@@ -393,7 +397,7 @@ def create_app():
     # ┌─ API : Données de paramétrage ───────────────────────────────────┐
     @app.get("/api/parametrage")
     def parametrage_api(
-        session: SessionDep, user: dict = Depends(require_role("professeur", "admin"))
+        session: SessionDep, user: dict = Depends(require_role("RP-RM", "admin"))
     ):
         return JSONResponse(content=build_parametrage_data(session))
 
@@ -519,7 +523,7 @@ def create_app():
     def create_sondage(
         sondage: SondageFullCreate,
         session: SessionDep,
-        user: dict = Depends(require_role("professeur", "admin")),
+        user: dict = Depends(require_role("RP-RM", "admin")),
     ):
         with session.begin():
             with session.no_autoflush:
