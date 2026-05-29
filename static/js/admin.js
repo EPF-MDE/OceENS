@@ -1,4 +1,5 @@
 const AVATAR_COLORS = ['#7b2fa0', '#df231d', '#1565c0', '#2e7d32', '#e65100', '#ad1457', '#0277bd', '#558b2f'];
+
 function parseMail(mail) {
     const parts = mail.split('@')[0].split('.');
     const cap = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -11,14 +12,16 @@ function getInitials(mail) {
 }
 
 function getRoleBadge(role) {
-    const map = {
-        'Etudiant': ['etudiant', 'Étudiant'],
-        'Admin': ['admin', 'Administrateur'],
-        'RP-RM': ['rprm', 'RP-RM'],
-        'Enseignant': ['enseignant', 'Enseignant'],
-    };
-    const [cls, label] = map[role] || ['etudiant', role];
-    return `<span class="role-badge ${cls}"><span class="role-dot"></span>${label}</span>`;
+    if (!role) return '';
+    if (role === 'Etudiant') return `<span class="role-badge etudiant"><span class="role-dot"></span>Étudiant</span>`;
+    if (role === 'Admin') return `<span class="role-badge admin"><span class="role-dot"></span>Administrateur</span>`;
+    if (role === 'Enseignant') return `<span class="role-badge enseignant"><span class="role-dot"></span>Enseignant</span>`;
+    if (role.startsWith('RP-RM')) {
+        const parts = role.split(':');
+        const label = parts.length > 1 ? `RP-RM : ${parts[1]}` : 'RP-RM';
+        return `<span class="role-badge rprm"><span class="role-dot"></span>${label}</span>`;
+    }
+    return `<span class="role-badge rprm"><span class="role-dot"></span>${role}</span>`;
 }
 
 // ── État global ──
@@ -26,7 +29,25 @@ let currentFilter = 'all';
 let searchQuery = '';
 let editingUserId = null;
 let selectedRole = null;
+let selectedFormations = [];   // ← NOUVEAU : formations RP-RM sélectionnées
 let localUsers = ALL_USERS.map(u => ({ ...u }));
+
+// ── NOUVEAU : Extraire toutes les formations existantes depuis les rôles RP-RM ──
+function getExistingFormations() {
+    const formations = new Set();
+    localUsers.forEach(u => {
+        if (u.role && u.role.startsWith('RP-RM:')) {
+            const after = u.role.split(':')[1];
+            if (after) {
+                after.split(',').forEach(f => {
+                    const t = f.trim();
+                    if (t) formations.add(t);
+                });
+            }
+        }
+    });
+    return Array.from(formations).sort();
+}
 
 // ── Filtrage ──
 function filteredUsers() {
@@ -34,7 +55,14 @@ function filteredUsers() {
     return localUsers.filter(u => {
         const { prenom, nom } = parseMail(u.mail);
         const matchSearch = !q || `${prenom} ${nom} ${u.mail}`.toLowerCase().includes(q);
-        const matchFilter = currentFilter === 'all' || u.role === currentFilter;
+        let matchFilter = currentFilter === 'all';
+        if (!matchFilter) {
+            if (currentFilter === 'RP-RM') {
+                matchFilter = u.role && u.role.startsWith('RP-RM');
+            } else {
+                matchFilter = u.role === currentFilter;
+            }
+        }
         return matchSearch && matchFilter;
     });
 }
@@ -81,12 +109,65 @@ function renderTable() {
     });
 }
 
+// ── NOUVEAU : Rendu des tags formations ──
+function renderFormationTags() {
+    const container = document.getElementById('formations-tags');
+    container.innerHTML = selectedFormations.map(f => `
+        <span class="formation-tag">
+            ${f}
+            <button class="formation-tag-remove" data-formation="${f}" title="Retirer">×</button>
+        </span>
+    `).join('');
+
+    container.querySelectorAll('.formation-tag-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectedFormations = selectedFormations.filter(f => f !== btn.dataset.formation);
+            renderFormationTags();
+        });
+    });
+}
+
+// ── NOUVEAU : Rafraîchir le dropdown des formations ──
+function refreshFormationsDropdown() {
+    const select = document.getElementById('formations-select');
+    const existing = getExistingFormations();
+    select.innerHTML = `<option value="">-- Sélectionner une formation --</option>`;
+    existing.forEach(f => {
+        if (!selectedFormations.includes(f)) {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            select.appendChild(opt);
+        }
+    });
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ Créer une nouvelle formation';
+    select.appendChild(newOpt);
+}
+
+// ── NOUVEAU : Afficher/masquer la section formations ──
+function toggleRprmSection(show) {
+    document.getElementById('rprm-formations-section').classList.toggle('visible', show);
+}
+
 // ── Modale ──
 function openModal(userId) {
     const user = localUsers.find(u => u.id_user === userId);
     if (!user) return;
     editingUserId = userId;
-    selectedRole = user.role;
+
+    // MODIFIÉ : détecter si RP-RM et extraire les formations
+    if (user.role && user.role.startsWith('RP-RM')) {
+        selectedRole = 'RP-RM';
+        const parts = user.role.split(':');
+        selectedFormations = parts.length > 1
+            ? parts[1].split(',').map(f => f.trim()).filter(Boolean)
+            : [];
+    } else {
+        selectedRole = user.role || 'Etudiant';
+        selectedFormations = [];
+    }
 
     const { prenom, nom } = parseMail(user.mail);
     document.getElementById('modal-title').textContent = `${prenom} ${nom}`;
@@ -96,12 +177,20 @@ function openModal(userId) {
         el.classList.toggle('selected', el.dataset.role === selectedRole);
     });
 
+    // NOUVEAU : initialiser la section formations
+    toggleRprmSection(selectedRole === 'RP-RM');
+    renderFormationTags();
+    refreshFormationsDropdown();
+    document.getElementById('new-formation-row').classList.remove('visible');
+
     document.getElementById('btn-save').disabled = false;
     document.getElementById('modal-overlay').classList.add('open');
 }
 
 function closeModal() {
     document.getElementById('modal-overlay').classList.remove('open');
+    document.getElementById('new-formation-row').classList.remove('visible');
+    document.getElementById('new-formation-input').value = '';
     editingUserId = null;
 }
 
@@ -111,13 +200,78 @@ document.querySelectorAll('.role-option').forEach(opt => {
         document.querySelectorAll('.role-option').forEach(o => o.classList.remove('selected'));
         opt.classList.add('selected');
         selectedRole = opt.dataset.role;
+
+        // NOUVEAU : afficher/masquer section formations
+        if (selectedRole === 'RP-RM') {
+            toggleRprmSection(true);
+            refreshFormationsDropdown();
+        } else {
+            toggleRprmSection(false);
+            selectedFormations = [];
+        }
     });
+});
+
+// ── NOUVEAU : Ajouter une formation depuis le dropdown ──
+document.getElementById('btn-add-formation').addEventListener('click', () => {
+    const select = document.getElementById('formations-select');
+    const val = select.value;
+    if (!val) return;
+
+    if (val === '__new__') {
+        document.getElementById('new-formation-row').classList.add('visible');
+        document.getElementById('new-formation-input').focus();
+        select.value = '';
+        return;
+    }
+
+    if (!selectedFormations.includes(val)) {
+        selectedFormations.push(val);
+        renderFormationTags();
+        refreshFormationsDropdown();
+    }
+    select.value = '';
+});
+
+// ── NOUVEAU : Confirmer la nouvelle formation ──
+document.getElementById('btn-confirm-formation').addEventListener('click', () => {
+    const input = document.getElementById('new-formation-input');
+    const val = input.value.trim();
+    if (!val) return;
+
+    if (!selectedFormations.includes(val)) {
+        selectedFormations.push(val);
+        renderFormationTags();
+        refreshFormationsDropdown();
+    }
+    input.value = '';
+    document.getElementById('new-formation-row').classList.remove('visible');
+});
+
+// ── NOUVEAU : Annuler nouvelle formation ──
+document.getElementById('btn-cancel-new-formation').addEventListener('click', () => {
+    document.getElementById('new-formation-input').value = '';
+    document.getElementById('new-formation-row').classList.remove('visible');
+});
+
+// ── NOUVEAU : Entrée clavier sur le champ nouvelle formation ──
+document.getElementById('new-formation-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-confirm-formation').click(); }
+    if (e.key === 'Escape') { document.getElementById('btn-cancel-new-formation').click(); }
 });
 
 // ── Sauvegarde ──
 document.getElementById('btn-save').addEventListener('click', async () => {
     const user = localUsers.find(u => u.id_user === editingUserId);
     if (!user || !selectedRole) return;
+
+    // MODIFIÉ : construire le rôle final avec les formations
+    let finalRole = selectedRole;
+    if (selectedRole === 'RP-RM') {
+        finalRole = selectedFormations.length > 0
+            ? `RP-RM:${selectedFormations.join(',')}`
+            : 'RP-RM';
+    }
 
     const btn = document.getElementById('btn-save');
     btn.disabled = true;
@@ -127,13 +281,13 @@ document.getElementById('btn-save').addEventListener('click', async () => {
         const resp = await fetch(`/api/users/${editingUserId}/role`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: selectedRole }),
+            body: JSON.stringify({ role: finalRole }),
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
             throw new Error(err.detail || `HTTP ${resp.status}`);
         }
-        user.role = selectedRole;
+        user.role = finalRole;
         closeModal();
         renderTable();
         const { prenom, nom } = parseMail(user.mail);

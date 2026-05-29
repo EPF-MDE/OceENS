@@ -419,7 +419,12 @@ main {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
     transform: translateY(20px) scale(0.97);
     transition: transform 0.25s;
-    overflow: hidden;
+    overflow: visible;
+    /* ← CORRECTION */
+    max-height: 90vh;
+    /* ← empêche débordement écran */
+    overflow-y: auto;
+    /* ← scroll si contenu trop long */
 }
 
 .modal-overlay.open .modal {
@@ -445,6 +450,9 @@ main {
 
 .modal-body {
     padding: 24px;
+    overflow-y: auto;
+    max-height: 60vh;
+
 }
 
 .role-select-label {
