@@ -39,7 +39,7 @@ function getExistingFormations() {
         if (u.role && u.role.startsWith('RP-RM:')) {
             const after = u.role.split(':')[1];
             if (after) {
-                after.split(',').forEach(f => {
+                after.split(';').forEach(f => {
                     const t = f.trim();
                     if (t) formations.add(t);
                 });
@@ -162,7 +162,7 @@ function openModal(userId) {
         selectedRole = 'RP-RM';
         const parts = user.role.split(':');
         selectedFormations = parts.length > 1
-            ? parts[1].split(',').map(f => f.trim()).filter(Boolean)
+            ? parts[1].split(';').map(f => f.trim()).filter(Boolean)
             : [];
     } else {
         selectedRole = user.role || 'Etudiant';
@@ -269,7 +269,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     let finalRole = selectedRole;
     if (selectedRole === 'RP-RM') {
         finalRole = selectedFormations.length > 0
-            ? `RP-RM:${selectedFormations.join(',')}`
+            ? `RP-RM:${selectedFormations.join(';')}`
             : 'RP-RM';
     }
 
