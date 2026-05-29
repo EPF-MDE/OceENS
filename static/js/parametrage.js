@@ -48,7 +48,12 @@ const Parametrage = {
         this.anneesScolaires = initialData.anneesScolaires || [];
         this.selectedAnneeScolaire = initialData.selectedAnneeScolaire || '';
         this.isRprm = initialData.isRprm || false;
-        this.filieresList = this.selectedCampusId ? this.allFilieres.filter(f => f.campus_id === this.selectedCampusId) : [];
+        // Pour les RP-RM, afficher toutes les filières autorisées sans filtrage par campus
+        if (this.isRprm) {
+            this.filieresList = this.allFilieres;
+        } else {
+            this.filieresList = this.selectedCampusId ? this.allFilieres.filter(f => f.campus_id === this.selectedCampusId) : [];
+        }
 
         this.render();
 
@@ -101,7 +106,7 @@ const Parametrage = {
                 <div class="param-field">
                     <label>Filière</label>
                     <div class="param-select-group">
-                        <select id="param-filiere" onchange="Parametrage.onFiliereChange()" ${!this.selectedCampusId ? 'disabled' : ''}>
+                        <select id="param-filiere" onchange="Parametrage.onFiliereChange()" ${!this.isRprm && !this.selectedCampusId ? 'disabled' : ''}>
                             <option value="">-- Sélectionnez une filière --</option>
                             ${this.filieresList.map(f => `<option value="${f.id}" ${this.selectedFiliereId === f.id ? 'selected' : ''}>${f.nom}</option>`).join('')}
                         </select>
@@ -159,7 +164,10 @@ const Parametrage = {
         this.selectedCampusId = sel.value ? parseInt(sel.value) : null;
         this.selectedFiliereId = null;
 
-        if (this.selectedCampusId) {
+        if (this.isRprm) {
+            // RP-RM : toujours afficher toutes les filières autorisées
+            this.filieresList = this.allFilieres;
+        } else if (this.selectedCampusId) {
             this.filieresList = this.allFilieres.filter(f => f.campus_id === this.selectedCampusId);
         } else {
             this.filieresList = [];
@@ -182,17 +190,16 @@ const Parametrage = {
             return;
         }
 
-        if (!this.selectedCampusId && !this.selectedFiliereId) {
-            container.innerHTML = `<p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>`;
-            return;
-        }
-
-        if (this.selectedCampusId && !this.selectedFiliereId) {
-            if (this.filieresList.length === 0) {
+        if (!this.selectedFiliereId) {
+            if (this.isRprm) {
+                container.innerHTML = `<p class="param-empty">Sélectionnez une filière pour configurer les cours et professeurs.</p>`;
+            } else if (!this.selectedCampusId) {
+                container.innerHTML = `<p class="param-empty">Sélectionnez un campus et une filière pour configurer les cours et professeurs.</p>`;
+            } else if (this.filieresList.length === 0) {
                 container.innerHTML = `<p class="param-empty">Aucune filière disponible pour ce campus.</p>`;
-                return;
+            } else {
+                container.innerHTML = `<p class="param-empty">Sélectionnez une filière pour configurer les cours et professeurs.</p>`;
             }
-            container.innerHTML = `<p class="param-empty">Sélectionnez une filière pour configurer les cours et professeurs.</p>`;
             return;
         }
 
@@ -229,7 +236,10 @@ const Parametrage = {
             if (data.anneesScolaires) this.anneesScolaires = data.anneesScolaires;
             if (data.selectedAnneeScolaire && !this.selectedAnneeScolaire) this.selectedAnneeScolaire = data.selectedAnneeScolaire;
 
-            if (this.selectedCampusId) {
+            if (this.isRprm) {
+                // RP-RM : toujours afficher toutes les filières autorisées
+                this.filieresList = this.allFilieres;
+            } else if (this.selectedCampusId) {
                 this.filieresList = this.allFilieres.filter(f => f.campus_id === this.selectedCampusId);
             } else {
                 this.filieresList = [];
