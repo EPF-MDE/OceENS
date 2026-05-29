@@ -26,6 +26,7 @@ const Parametrage = {
     loadError: null,
     importedFile: null,     // Fichier .xlsx sélectionné (pas encore envoyé)
     _notifTimer: null,      // Timer pour auto-dismiss de la notification
+    isRprm: false,           // True si l'utilisateur est RP-RM (pas de création de filière)
 
     // ─── Init ───────────────────────────────────────────
     init(containerId, initialData = {}) {
@@ -46,6 +47,7 @@ const Parametrage = {
         this.semestreAnnee = initialData.semestreAnnee || '';
         this.anneesScolaires = initialData.anneesScolaires || [];
         this.selectedAnneeScolaire = initialData.selectedAnneeScolaire || '';
+        this.isRprm = initialData.isRprm || false;
         this.filieresList = this.selectedCampusId ? this.allFilieres.filter(f => f.campus_id === this.selectedCampusId) : [];
 
         this.render();
@@ -103,7 +105,7 @@ const Parametrage = {
                             <option value="">-- Sélectionnez une filière --</option>
                             ${this.filieresList.map(f => `<option value="${f.id}" ${this.selectedFiliereId === f.id ? 'selected' : ''}>${f.nom}</option>`).join('')}
                         </select>
-                        <button class="btn-icon" onclick="Parametrage.addFiliere()" title="Créer une nouvelle filière" ${!this.selectedCampusId ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>+</button>
+                        ${!this.isRprm ? `<button class="btn-icon" onclick="Parametrage.addFiliere()" title="Créer une nouvelle filière" ${!this.selectedCampusId ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>+</button>` : ''}
                     </div>
                 </div>
             </div>
@@ -257,6 +259,7 @@ const Parametrage = {
     },
 
     addFiliere() {
+        if (this.isRprm) return;  // Les RP-RM ne peuvent pas créer de filière
         if (!this.selectedCampusId) return alert("Veuillez d'abord sélectionner ou créer un campus.");
         const nom = prompt('Nom de la nouvelle filière :');
         if (!nom || !nom.trim()) return;
