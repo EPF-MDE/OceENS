@@ -972,7 +972,7 @@ def create_app():
         filieres = []
         full_role = user.get("role", "")
         if full_role.startswith("RP-RM:") and ":" in full_role:
-            filieres = full_role.split(":", 1)[1].split("-")
+            filieres = [f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()]
 
         context = {"user": user, "filieres": filieres}
 
@@ -983,6 +983,27 @@ def create_app():
                 for u in db_users
             ]
 
+        if role == "rprm":
+            all_sondages = session.exec(select(Sondage)).all()
+            if filieres:
+                sondages_filtres = [
+                    s for s in all_sondages if s.formation in filieres
+                ]
+            else:
+                sondages_filtres = list(all_sondages)
+            context["sondages"] = [
+                {
+                    "id_template": s.id_template,
+                    "id_sondage": s.id_sondage,
+                    "campus": s.campus,
+                    "formation": s.formation,
+                    "semestre": s.semestre,
+                    "annee_scolaire": s.annee_scolaire,
+                    "url": s.url,
+                }
+                for s in sondages_filtres
+            ]
+
         return templates.TemplateResponse(
             request=request,
             name=template_map[role],
@@ -991,7 +1012,13 @@ def create_app():
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
-    VALID_USER_ROLES = {"Admin", "Etudiant", "RP-RM"}
+    def _is_valid_role(role: str) -> bool:
+        """Accepte 'Admin', 'Etudiant', 'RP-RM' ou 'RP-RM:filière1;filière2;...'"""
+        if role in {"Admin", "Etudiant"}:
+            return True
+        if role == "RP-RM" or role.startswith("RP-RM:"):
+            return True
+        return False
 
     @app.get("/api/users")
     def get_users(session: SessionDep):
@@ -1003,7 +1030,7 @@ def create_app():
 
     @app.put("/api/users/{id_user}/role")
     def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
-        if body.role not in VALID_USER_ROLES:
+        if not _is_valid_role(body.role):
             return JSONResponse(
                 content={"detail": f"Rôle invalide : '{body.role}'"},
                 status_code=422,

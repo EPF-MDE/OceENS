@@ -267,6 +267,13 @@
     {% endfor %}
   </div>
 
+  <script>
+    // Stockage des filières du RP-RM en sessionStorage
+    // Disponible côté JS pour le paramétrage et le filtrage
+    const filieres = {{ filieres | tojson }};
+    sessionStorage.setItem('rprm_filieres', JSON.stringify(filieres));
+  </script>
+
 </body>
 
 </html>
