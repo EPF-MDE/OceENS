@@ -291,7 +291,7 @@ def get_current_user(request: Request) -> dict | None:
 
 
 @router.get("/logout")
-async def logout(request: Request, user: dict = Depends(get_current_user)):
+async def logout(request: Request):
     """
     Déconnexion de l'utilisateur
 

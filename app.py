@@ -376,11 +376,14 @@ def create_app():
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ Route : Paramétrage (version du main conservée) ────────────────┐
-    @app.get("/parametrage", response_class=HTMLResponse)
+    @app.get(
+        "/parametrage",
+        response_class=HTMLResponse,
+        dependencies=[Depends(require_role("RP-RM", "Admin"))],
+    )
     def parametrage(
         request: Request,
         session: SessionDep,
-        user: dict = Depends(require_role("RP-RM", "Admin")),
     ):
         data = build_parametrage_data(session)
         return templates.TemplateResponse(
@@ -406,16 +409,19 @@ def create_app():
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Données de paramétrage ───────────────────────────────────┐
-    @app.get("/api/parametrage")
+    @app.get("/api/parametrage", dependencies=[Depends(require_role("RP-RM", "Admin"))])
     def parametrage_api(
-        session: SessionDep, user: dict = Depends(require_role("RP-RM", "Admin"))
+        session: SessionDep,
     ):
         return JSONResponse(content=build_parametrage_data(session))
 
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Modules du sondage de l'année précédente ─────────────────┐
-    @app.get("/api/modules-precedents")
+    @app.get(
+        "/api/modules-precedents",
+        dependencies=[Depends(require_role("RP-RM", "Admin"))],
+    )
     def modules_precedents_api(
         session: SessionDep,
         semestre: str = "",
@@ -530,11 +536,10 @@ def create_app():
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Création d'un sondage ────────────────────────────────────┐
-    @app.post("/api/sondage")
+    @app.post("/api/sondage", dependencies=[Depends(require_role("RP-RM", "Admin"))])
     def create_sondage(
         sondage: SondageFullCreate,
         session: SessionDep,
-        user: dict = Depends(require_role("RP-RM", "Admin")),
     ):
         with session.begin():
             with session.no_autoflush:
@@ -588,7 +593,9 @@ def create_app():
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Import d'étudiants via fichier .xlsx ─────────────────────┐
-    @app.post("/api/import-etudiants")
+    @app.post(
+        "/api/import-etudiants", dependencies=[Depends(require_role("RP-RM", "Admin"))]
+    )
     async def import_etudiants(
         session: SessionDep,
         file: UploadFile = File(...),
@@ -1043,12 +1050,15 @@ def create_app():
     # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
     VALID_USER_ROLES = {"Admin", "Etudiant", "RP-RM"}
 
-    @app.get("/api/users")
+    @app.get("/api/users", dependencies=[Depends(require_role("RP-RM", "Admin"))])
     def get_users(session: SessionDep):
         users = session.exec(select(User)).all()
         return [{"id_user": u.id_user, "mail": u.mail, "role": u.role} for u in users]
 
-    @app.put("/api/users/{id_user}/role")
+    @app.put(
+        "/api/users/{id_user}/role",
+        dependencies=[Depends(require_role("RP-RM", "Admin"))],
+    )
     def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
         if body.role not in VALID_USER_ROLES:
             return JSONResponse(
