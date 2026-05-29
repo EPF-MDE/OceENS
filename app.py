@@ -73,9 +73,12 @@ def parse_rprm_formations(role: str) -> list[str]:
     "RP-RM"                       → []
     "Admin"                       → []
     """
-    if not role or not role.startswith("RP-RM:"):
+    if not role or not isinstance(role, str):
         return []
-    after_colon = role.split(":", 1)[1]
+    role_upper = role.strip()
+    if not role_upper.startswith("RP-RM:"):
+        return []
+    after_colon = role_upper.split(":", 1)[1]
     return [f.strip() for f in after_colon.split(";") if f.strip()]
 # └────────────────────────────────────────────────────────────────────────┘
 
@@ -386,15 +389,34 @@ def create_app():
         user = get_current_user(request)
         allowed_formations = None
         is_rprm = False
+        role = ""
+
         if user:
-            role = user.get("role", "")
-            if role.startswith("RP-RM:"):
-                allowed_formations = parse_rprm_formations(role)
-                is_rprm = True
-            elif role.startswith("RP-RM"):
-                is_rprm = True
+            role = user.get("role", "") or ""
+            print(f"[PARAMETRAGE] Session user trouvé : email={user.get('email')}, role={role!r}")
+        else:
+            # Fallback : lire le rôle depuis la BDD si la session est vide
+            print("[PARAMETRAGE] Pas de session user, tentative fallback BDD...")
+            # Chercher parmi les users RP-RM dans la BDD
+            db_users = session.exec(select(User)).all()
+            rprm_users = [u for u in db_users if u.role and u.role.startswith("RP-RM")]
+            if rprm_users:
+                # En dev, on prend le premier RP-RM trouvé
+                role = rprm_users[0].role or ""
+                print(f"[PARAMETRAGE] Fallback BDD : user={rprm_users[0].mail}, role={role!r}")
+
+        if role.startswith("RP-RM:"):
+            allowed_formations = parse_rprm_formations(role)
+            is_rprm = True
+            print(f"[PARAMETRAGE] FORMATIONS EXTRAITES: {allowed_formations}")
+        elif role.startswith("RP-RM"):
+            is_rprm = True
+            print(f"[PARAMETRAGE] RP-RM sans formations spécifiques")
+
+        print(f"[PARAMETRAGE] is_rprm={is_rprm}, allowed_formations={allowed_formations}")
 
         data = build_parametrage_data(session, allowed_formations=allowed_formations)
+        print(f"[PARAMETRAGE] filieres renvoyées: {data['filieres']}")
         return templates.TemplateResponse(
             request=request,
             name="parametrage.html",
@@ -424,10 +446,20 @@ def create_app():
         # Filtrer les filières pour les RP-RM
         user = get_current_user(request)
         allowed_formations = None
+        role = ""
+
         if user:
-            role = user.get("role", "")
-            if role.startswith("RP-RM:"):
-                allowed_formations = parse_rprm_formations(role)
+            role = user.get("role", "") or ""
+        else:
+            # Fallback BDD
+            db_users = session.exec(select(User)).all()
+            rprm_users = [u for u in db_users if u.role and u.role.startswith("RP-RM")]
+            if rprm_users:
+                role = rprm_users[0].role or ""
+
+        if role.startswith("RP-RM:"):
+            allowed_formations = parse_rprm_formations(role)
+
         return JSONResponse(content=build_parametrage_data(session, allowed_formations=allowed_formations))
 
     # └────────────────────────────────────────────────────────────────┘

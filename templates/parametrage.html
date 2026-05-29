@@ -258,10 +258,6 @@
                                     endif %}>{{ filiere.nom }}</option>
                                 {% endfor %}
                             </select>
-                            {% if not is_rprm %}
-                            <button class="btn-icon" title="Créer une nouvelle filière" {% if not selected_campus_id
-                                %}style="opacity:0.5;cursor:not-allowed;" disabled{% endif %}>+</button>
-                            {% endif %}
                         </div>
                     </div>
                 </div>

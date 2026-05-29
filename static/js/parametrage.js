@@ -110,7 +110,6 @@ const Parametrage = {
                             <option value="">-- Sélectionnez une filière --</option>
                             ${this.filieresList.map(f => `<option value="${f.id}" ${this.selectedFiliereId === f.id ? 'selected' : ''}>${f.nom}</option>`).join('')}
                         </select>
-                        ${!this.isRprm ? `<button class="btn-icon" onclick="Parametrage.addFiliere()" title="Créer une nouvelle filière" ${!this.selectedCampusId ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>+</button>` : ''}
                     </div>
                 </div>
             </div>
@@ -268,19 +267,7 @@ const Parametrage = {
         await this._tryFetchModulesPrecedents();
     },
 
-    addFiliere() {
-        if (this.isRprm) return;  // Les RP-RM ne peuvent pas créer de filière
-        if (!this.selectedCampusId) return alert("Veuillez d'abord sélectionner ou créer un campus.");
-        const nom = prompt('Nom de la nouvelle filière :');
-        if (!nom || !nom.trim()) return;
-        const newId = ++this.nextId;
-        const newFiliere = { id: newId, nom: nom.trim(), campus_id: this.selectedCampusId };
-        this.allFilieres.push(newFiliere);
-        this.filieresList.push(newFiliere);
-        this.selectedFiliereId = newId;
-        this.ues = [];
-        this.render();
-    },
+
 
     addAnneeScolaire() {
         const nouvelleAnnee = prompt("Saisissez la nouvelle année scolaire (ex: 2024-2025) :");
