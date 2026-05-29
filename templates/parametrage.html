@@ -258,8 +258,6 @@
                                     endif %}>{{ filiere.nom }}</option>
                                 {% endfor %}
                             </select>
-                            <button class="btn-icon" title="Créer une nouvelle filière" {% if not selected_campus_id
-                                %}style="opacity:0.5;cursor:not-allowed;" disabled{% endif %}>+</button>
                         </div>
                     </div>
                 </div>
@@ -290,7 +288,8 @@
         "selectedCampusId": {{ selected_campus_id | tojson }},
         "selectedFiliereId": {{ selected_filiere_id | tojson }},
         "semestreAnnee": {{ semestre_annee | tojson }},
-        "selectedAnneeScolaire": {{ selected_annee_scolaire | tojson }}
+        "selectedAnneeScolaire": {{ selected_annee_scolaire | tojson }},
+        "isRprm": {{ is_rprm | tojson }}
     }
     </script>
     <script>

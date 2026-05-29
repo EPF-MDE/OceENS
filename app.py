@@ -62,6 +62,24 @@ def role_to_dashboard_slug(role: str) -> str:
         return "rprm"
     else:
         return "etudiant"
+
+
+def parse_rprm_formations(role: str) -> list[str]:
+    """
+    Extrait la liste des formations autorisées depuis une chaîne de rôle RP-RM.
+
+    "RP-RM:FORMATION1;FORMATION2" → ["FORMATION1", "FORMATION2"]
+    "RP-RM:FORMATION1"            → ["FORMATION1"]
+    "RP-RM"                       → []
+    "Admin"                       → []
+    """
+    if not role or not isinstance(role, str):
+        return []
+    role_upper = role.strip()
+    if not role_upper.startswith("RP-RM:"):
+        return []
+    after_colon = role_upper.split(":", 1)[1]
+    return [f.strip() for f in after_colon.split(";") if f.strip()]
 # └────────────────────────────────────────────────────────────────────────┘
 
 
@@ -153,7 +171,7 @@ def parse_name(full_name: Optional[str], fallback_id: int) -> Dict[str, Optional
     return {"id": fallback_id, "prenom": parts[0], "nom": " ".join(parts[1:])}
 
 
-def build_parametrage_data(session: Session) -> Dict[str, object]:
+def build_parametrage_data(session: Session, allowed_formations: list[str] | None = None) -> Dict[str, object]:
     templates = session.exec(select(Template)).all()
     sondages = session.exec(select(Sondage)).all()
     modules = session.exec(select(Module)).all()
@@ -174,6 +192,14 @@ def build_parametrage_data(session: Session) -> Dict[str, object]:
             semestres.append(sondage.semestre)
         if sondage.annee_scolaire and sondage.annee_scolaire not in annees_scolaires:
             annees_scolaires.append(sondage.annee_scolaire)
+
+    # Filtrer les filières si l'utilisateur RP-RM n'a accès qu'à certaines formations
+    if allowed_formations is not None:
+        filiere_names = [f for f in filiere_names if f in allowed_formations]
+        # Ajouter les formations autorisées absentes des sondages existants
+        for af in allowed_formations:
+            if af not in filiere_names:
+                filiere_names.append(af)
 
     default_campuses = ["Paris-Cachan", "Montpellier", "Troyes", "St-Nazaire"]
     for dc in default_campuses:
@@ -359,9 +385,40 @@ def create_app():
     # ┌─ Route : Paramétrage (version du main conservée) ────────────────┐
     @app.get("/parametrage", response_class=HTMLResponse)
     def parametrage(request: Request, session: SessionDep):
-        data = build_parametrage_data(session)
+        # Déterminer les formations autorisées pour un RP-RM
+        user = get_current_user(request)
+        allowed_formations = None
+        is_rprm = False
+        role = ""
+
+        if user:
+            role = user.get("role", "") or ""
+            print(f"[PARAMETRAGE] Session user trouvé : email={user.get('email')}, role={role!r}")
+        else:
+            # Fallback : lire le rôle depuis la BDD si la session est vide
+            print("[PARAMETRAGE] Pas de session user, tentative fallback BDD...")
+            # Chercher parmi les users RP-RM dans la BDD
+            db_users = session.exec(select(User)).all()
+            rprm_users = [u for u in db_users if u.role and u.role.startswith("RP-RM")]
+            if rprm_users:
+                # En dev, on prend le premier RP-RM trouvé
+                role = rprm_users[0].role or ""
+                print(f"[PARAMETRAGE] Fallback BDD : user={rprm_users[0].mail}, role={role!r}")
+
+        if role.startswith("RP-RM:"):
+            allowed_formations = parse_rprm_formations(role)
+            is_rprm = True
+            print(f"[PARAMETRAGE] FORMATIONS EXTRAITES: {allowed_formations}")
+        elif role.startswith("RP-RM"):
+            is_rprm = True
+            print(f"[PARAMETRAGE] RP-RM sans formations spécifiques")
+
+        print(f"[PARAMETRAGE] is_rprm={is_rprm}, allowed_formations={allowed_formations}")
+
+        data = build_parametrage_data(session, allowed_formations=allowed_formations)
+        print(f"[PARAMETRAGE] filieres renvoyées: {data['filieres']}")
         return templates.TemplateResponse(
-            request=request,  # modification liée à versions récentes de FastAPI/Starlette
+            request=request,
             name="parametrage.html",
             context={
                 "request": request,
@@ -377,6 +434,7 @@ def create_app():
                 "selected_filiere_id": data["selectedFiliereId"],
                 "semestre_annee": data["semestreAnnee"],
                 "selected_annee_scolaire": data["selectedAnneeScolaire"],
+                "is_rprm": is_rprm,
             },
         )
 
@@ -384,8 +442,25 @@ def create_app():
 
     # ┌─ API : Données de paramétrage ───────────────────────────────────┐
     @app.get("/api/parametrage")
-    def parametrage_api(session: SessionDep):
-        return JSONResponse(content=build_parametrage_data(session))
+    def parametrage_api(request: Request, session: SessionDep):
+        # Filtrer les filières pour les RP-RM
+        user = get_current_user(request)
+        allowed_formations = None
+        role = ""
+
+        if user:
+            role = user.get("role", "") or ""
+        else:
+            # Fallback BDD
+            db_users = session.exec(select(User)).all()
+            rprm_users = [u for u in db_users if u.role and u.role.startswith("RP-RM")]
+            if rprm_users:
+                role = rprm_users[0].role or ""
+
+        if role.startswith("RP-RM:"):
+            allowed_formations = parse_rprm_formations(role)
+
+        return JSONResponse(content=build_parametrage_data(session, allowed_formations=allowed_formations))
 
     # └────────────────────────────────────────────────────────────────┘
 
@@ -506,7 +581,19 @@ def create_app():
 
     # ┌─ API : Création d'un sondage ────────────────────────────────────┐
     @app.post("/api/sondage")
-    def create_sondage(sondage: SondageFullCreate, session: SessionDep):
+    def create_sondage(request: Request, sondage: SondageFullCreate, session: SessionDep):
+        # ── Sécurité : vérifier que la formation est autorisée pour le RP-RM ──
+        user = get_current_user(request)
+        if user:
+            role = user.get("role", "")
+            if role.startswith("RP-RM:"):
+                allowed = parse_rprm_formations(role)
+                if sondage.formation not in allowed:
+                    return JSONResponse(
+                        content={"error": f"Formation '{sondage.formation}' non autorisée pour votre rôle."},
+                        status_code=403,
+                    )
+
         with session.begin():
             with session.no_autoflush:
                 existing_sondages = session.exec(
