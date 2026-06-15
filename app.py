@@ -22,7 +22,7 @@ from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine, select, delete
 import uvicorn
 
 # ┌─ Importation des modèles et du module d'authentification ─────────────┐
@@ -678,7 +678,6 @@ def create_app():
         nb_crees = 0
         nb_existants = 0
         nb_repondre_inseres = 0
-        nb_repondre_existants = 0
 
         try:
             with session.begin():
@@ -758,18 +757,16 @@ def create_app():
 
                         print(f"[SONDAGE+IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)")
 
-                        existing_repondre = session.exec(
-                            select(Repondre).where(
-                                Repondre.id_template == sondage.id_template,
-                                Repondre.id_sondage == next_id_sondage,
-                            )
-                        ).all()
-                        existing_repondre_user_ids = {
-                            r.id_user for r in existing_repondre
-                        }
+                        user_ids = list(email_to_user_id.values())
+                        if user_ids:
+                            # Nettoyage préalable (DELETE) : Supprime toutes les lignes de la table Repondre
+                            # où la valeur Id_User correspond à un des élèves présents
+                            stmt = delete(Repondre).where(Repondre.id_user.in_(user_ids))
+                            res = session.exec(stmt)
+                            print(f"[SONDAGE+IMPORT] Nettoyage préalable : {res.rowcount} anciennes lignes supprimées de Repondre.")
 
-                        for user_id in email_to_user_id.values():
-                            if user_id not in existing_repondre_user_ids:
+                            # Insertion (INSERT) : Uniquement après le nettoyage
+                            for user_id in user_ids:
                                 new_repondre = Repondre(
                                     id_template=sondage.id_template,
                                     id_sondage=next_id_sondage,
@@ -779,10 +776,8 @@ def create_app():
                                 )
                                 session.add(new_repondre)
                                 nb_repondre_inseres += 1
-                            else:
-                                nb_repondre_existants += 1
 
-                        print(f"[SONDAGE+IMPORT] Repondre : {nb_repondre_inseres} inséré(s), {nb_repondre_existants} déjà assigné(s)")
+                        print(f"[SONDAGE+IMPORT] Repondre : {nb_repondre_inseres} inséré(s) (et nettoyés des conflits)")
 
             # Si on arrive ici, le COMMIT a été fait par le context manager
             print(f"[SONDAGE+IMPORT] Transaction COMMIT réussie !")
@@ -807,7 +802,6 @@ def create_app():
                 "nb_users_crees": nb_crees,
                 "nb_users_existants": nb_existants,
                 "nb_repondre_inseres": nb_repondre_inseres,
-                "nb_repondre_deja_assignes": nb_repondre_existants,
             })
         return result
 
