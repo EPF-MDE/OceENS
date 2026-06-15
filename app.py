@@ -1059,7 +1059,15 @@ def create_app():
         filieres = []
         full_role = user.get("role", "")
         if full_role.startswith("RP-RM:") and ":" in full_role:
+<<<<<<< HEAD
+<<<<<<< HEAD
             filieres = [f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()]
+=======
+            filieres = full_role.split(":", 1)[1].split(",")
+>>>>>>> 240ed7a (Modification du fichier admin.html et création du fichier css (ajout de la fonctionnalité : selection de la formation par RP/RM))
+=======
+            filieres = full_role.split(":", 1)[1].split(";")
+>>>>>>> 29e08e9 (modification admin.css pour rendre visible la fonctionnalité filière)
 
         context = {"user": user, "filieres": filieres}
 
@@ -1114,12 +1122,18 @@ def create_app():
             {"id_user": u.id_user, "mail": u.mail, "role": u.role}
             for u in users
         ]
-
+    
     @app.put("/api/users/{id_user}/role")
     def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
+<<<<<<< HEAD
         if not _is_valid_role(body.role):
+=======
+        role = body.role
+        valid_simple = {"Admin", "Etudiant", "RP-RM"}
+        if role not in valid_simple and not role.startswith("RP-RM"):
+>>>>>>> 240ed7a (Modification du fichier admin.html et création du fichier css (ajout de la fonctionnalité : selection de la formation par RP/RM))
             return JSONResponse(
-                content={"detail": f"Rôle invalide : '{body.role}'"},
+                content={"detail": f"Rôle invalide : '{role}'"},
                 status_code=422,
             )
         user = session.get(User, id_user)
@@ -1128,12 +1142,12 @@ def create_app():
                 content={"detail": f"Utilisateur {id_user} introuvable"},
                 status_code=404,
             )
-        user.role = body.role
+        user.role = role
         session.add(user)
         session.commit()
         session.refresh(user)
-
         return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
+
    
     # └────────────────────────────────────────────────────────────────┘
 
