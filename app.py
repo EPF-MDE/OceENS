@@ -22,7 +22,7 @@ from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine, select, delete
 import uvicorn
 
 # ┌─ Importation des modèles et du module d'authentification ─────────────┐
@@ -157,6 +157,7 @@ class QuestionnaireSubmission(BaseModel):
 class RoleUpdate(BaseModel):
     role: str
 
+import json
 
 # └────────────────────────────────────────────────────────────────────────┘
 
@@ -579,9 +580,28 @@ def create_app():
 
     # └────────────────────────────────────────────────────────────────┘
 
-    # ┌─ API : Création d'un sondage ────────────────────────────────────┐
+    # ┌─ API : Création d'un sondage (atomique avec import étudiants) ──┐
     @app.post("/api/sondage")
-    def create_sondage(request: Request, sondage: SondageFullCreate, session: SessionDep):
+    async def create_sondage(
+        request: Request,
+        session: SessionDep,
+        sondage_data: str = Form(...),
+        file: Optional[UploadFile] = File(None),
+    ):
+        """
+        Crée un sondage ET importe les étudiants en une seule transaction.
+        Si l'import Excel échoue, le sondage est annulé (ROLLBACK).
+        """
+        # ── Parse le JSON du sondage envoyé en FormData ──
+        try:
+            sondage_dict = json.loads(sondage_data)
+            sondage = SondageFullCreate(**sondage_dict)
+        except Exception as e:
+            return JSONResponse(
+                content={"error": f"Données du sondage invalides : {str(e)}"},
+                status_code=400,
+            )
+
         # ── Sécurité : vérifier que la formation est autorisée pour le RP-RM ──
         user = get_current_user(request)
         if user:
@@ -594,229 +614,196 @@ def create_app():
                         status_code=403,
                     )
 
-        with session.begin():
-            with session.no_autoflush:
-                existing_sondages = session.exec(
-                    select(Sondage).where(Sondage.id_template == sondage.id_template)
-                ).all()
-                next_id_sondage = (
-                    max([s.id_sondage for s in existing_sondages] + [0]) + 1
-                )
+        # ── Pré-lecture du fichier Excel (avant la transaction) ──
+        emails = []
+        has_file = file is not None and file.filename and file.filename.lower().endswith(".xlsx")
 
-                questionnaire_url = (
-                    f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
-                )
-
-                new_sondage = Sondage(
-                    id_template=sondage.id_template,
-                    id_sondage=next_id_sondage,
-                    campus=sondage.campus,
-                    formation=sondage.formation,
-                    semestre=sondage.semestre,
-                    annee_scolaire=sondage.annee_scolaire,
-                    url=questionnaire_url,
-                    statut=1,
-                )
-                session.add(new_sondage)
-
-                for ue in sondage.ues:
-                    for module_data in ue.modules:
-                        prof_names = [
-                            f"{p.prenom} {p.nom}" for p in module_data.professeurs
-                        ]
-                        enseignant_str = ", ".join(prof_names) if prof_names else None
-
-                        new_module = Module(
-                            nom=module_data.nom,
-                            enseignant=enseignant_str,
-                            ue=ue.nom,
-                            ue_optionnelle=ue.optionnel,
-                            choix_enseignant=module_data.choix_enseignant_exclusif,
-                            id_template=sondage.id_template,
-                            id_sondage=next_id_sondage,
-                        )
-                        session.add(new_module)
-
-        return {
-            "message": "Sondage cree avec succes",
-            "id_sondage": next_id_sondage,
-            "questionnaire_url": questionnaire_url,
-        }
-
-    # └────────────────────────────────────────────────────────────────┘
-
-    # ┌─ API : Import d'étudiants via fichier .xlsx ─────────────────────┐
-    @app.post("/api/import-etudiants")
-    async def import_etudiants(
-        session: SessionDep,
-        file: UploadFile = File(...),
-        id_sondage: int = Form(...),
-        id_template: int = Form(...),
-    ):
-        # 1. Validation du type de fichier
-        if not file.filename or not file.filename.lower().endswith(".xlsx"):
-            return JSONResponse(
-                content={"error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."},
-                status_code=400,
-            )
-
-        # 2. Vérifier que le sondage existe
-        sondage = session.exec(
-            select(Sondage).where(
-                Sondage.id_template == id_template,
-                Sondage.id_sondage == id_sondage,
-            )
-        ).first()
-        if not sondage:
-            print(f"[IMPORT] Sondage introuvable : id_template={id_template}, id_sondage={id_sondage}")
-            return JSONResponse(
-                content={"error": "Sondage introuvable."},
-                status_code=404,
-            )
-
-        # 3. Lire le fichier Excel avec openpyxl
-        try:
-            from openpyxl import load_workbook
-
-            contents = await file.read()
-            print(f"[IMPORT] Fichier reçu : {file.filename} ({len(contents)} octets)")
-
-            if len(contents) == 0:
+        if file is not None and file.filename:
+            if not file.filename.lower().endswith(".xlsx"):
                 return JSONResponse(
-                    content={"error": "Le fichier est vide."},
+                    content={"error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."},
                     status_code=400,
                 )
 
-            wb = load_workbook(filename=io.BytesIO(contents), read_only=True)
-            ws = wb.active
-            print(f"[IMPORT] Feuille active : {ws.title}")
+        if has_file:
+            try:
+                from openpyxl import load_workbook
 
-            emails = []
-            row_count = 0
-            for row in ws.iter_rows(min_col=1, max_col=1, values_only=True):
-                row_count += 1
-                cell_value = row[0]
-                if cell_value is None:
-                    continue
-                # Convertir en string (openpyxl peut renvoyer des types variés)
-                cell_str = str(cell_value).strip()
-                if cell_str and "@" in cell_str:
-                    emails.append(cell_str.lower())
-                elif cell_str and row_count <= 3:
-                    # Log les premières lignes pour déboguer si aucun email n'est trouvé
-                    print(f"[IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'")
+                contents = await file.read()
+                print(f"[SONDAGE+IMPORT] Fichier reçu : {file.filename} ({len(contents)} octets)")
 
-            wb.close()
-            print(f"[IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s) trouvé(s)")
+                if len(contents) == 0:
+                    return JSONResponse(
+                        content={"error": "Le fichier Excel est vide."},
+                        status_code=400,
+                    )
 
-        except Exception as e:
-            print(f"[IMPORT] Erreur lecture Excel : {type(e).__name__}: {e}")
-            return JSONResponse(
-                content={"error": f"Erreur de lecture du fichier Excel : {str(e)}"},
-                status_code=400,
-            )
+                wb = load_workbook(filename=io.BytesIO(contents), read_only=True)
+                ws = wb.active
+                print(f"[SONDAGE+IMPORT] Feuille active : {ws.title}")
 
-        if not emails:
-            print(f"[IMPORT] Aucun email trouvé sur {row_count} ligne(s)")
-            return JSONResponse(
-                content={"error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."},
-                status_code=400,
-            )
+                row_count = 0
+                for row in ws.iter_rows(min_col=1, max_col=1, values_only=True):
+                    row_count += 1
+                    cell_value = row[0]
+                    if cell_value is None:
+                        continue
+                    cell_str = str(cell_value).strip()
+                    if cell_str and "@" in cell_str:
+                        emails.append(cell_str.lower())
+                    elif cell_str and row_count <= 3:
+                        print(f"[SONDAGE+IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'")
 
-        # Dédupliquer les emails
-        emails = list(dict.fromkeys(emails))
-        print(f"[IMPORT] {len(emails)} email(s) unique(s) à traiter")
+                wb.close()
+                print(f"[SONDAGE+IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s)")
 
-        # 4. Traitement batch en une seule transaction
+                if not emails:
+                    return JSONResponse(
+                        content={"error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."},
+                        status_code=400,
+                    )
+
+                # Dédupliquer
+                emails = list(dict.fromkeys(emails))
+                print(f"[SONDAGE+IMPORT] {len(emails)} email(s) unique(s) à traiter")
+
+            except Exception as e:
+                print(f"[SONDAGE+IMPORT] Erreur lecture Excel : {type(e).__name__}: {e}")
+                return JSONResponse(
+                    content={"error": f"Erreur de lecture du fichier Excel : {str(e)}"},
+                    status_code=400,
+                )
+
+        # ── Transaction unique : Sondage + Modules + Users + Repondre ──
         nb_crees = 0
         nb_existants = 0
         nb_repondre_inseres = 0
-        nb_repondre_existants = 0
 
         try:
-            with session.begin_nested():
-                # 4a. Batch Users : récupérer ou créer
-                email_to_user_id: Dict[str, int] = {}
-
-                # Récupérer tous les users existants en un seul SELECT
-                existing_users = session.exec(select(User)).all()
-                existing_email_map = {
-                    u.mail.lower(): u.id_user
-                    for u in existing_users
-                    if u.mail
-                }
-                print(f"[IMPORT] {len(existing_email_map)} user(s) existant(s) en BDD")
-
-                # Calculer le prochain id_user pour les nouveaux
-                max_id = max([u.id_user for u in existing_users] + [0])
-
-                for email in emails:
-                    if email in existing_email_map:
-                        email_to_user_id[email] = existing_email_map[email]
-                        nb_existants += 1
-                    else:
-                        max_id += 1
-                        new_user = User(
-                            id_user=max_id,
-                            mail=email,
-                            role="Etudiant",
-                        )
-                        session.add(new_user)
-                        email_to_user_id[email] = max_id
-                        existing_email_map[email] = max_id
-                        nb_crees += 1
-
-                print(f"[IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)")
-
-                # 4b. Batch Repondre : INSERT uniquement (pas d'écrasement)
-                existing_repondre = session.exec(
-                    select(Repondre).where(
-                        Repondre.id_template == id_template,
-                        Repondre.id_sondage == id_sondage,
+            with session.begin():
+                with session.no_autoflush:
+                    # ── Étape 1 : Créer le sondage ──
+                    existing_sondages = session.exec(
+                        select(Sondage).where(Sondage.id_template == sondage.id_template)
+                    ).all()
+                    next_id_sondage = (
+                        max([s.id_sondage for s in existing_sondages] + [0]) + 1
                     )
-                ).all()
-                existing_repondre_user_ids = {
-                    r.id_user for r in existing_repondre
-                }
 
-                for user_id in email_to_user_id.values():
-                    if user_id not in existing_repondre_user_ids:
-                        new_repondre = Repondre(
-                            id_template=id_template,
-                            id_sondage=id_sondage,
-                            id_user=user_id,
-                            repondu=False,
-                            date_soumission=None,
-                        )
-                        session.add(new_repondre)
-                        nb_repondre_inseres += 1
-                    else:
-                        nb_repondre_existants += 1
+                    questionnaire_url = (
+                        f"/questionnaire/{sondage.id_template}/{next_id_sondage}"
+                    )
 
-                print(f"[IMPORT] Repondre : {nb_repondre_inseres} inséré(s), {nb_repondre_existants} déjà assigné(s)")
+                    new_sondage = Sondage(
+                        id_template=sondage.id_template,
+                        id_sondage=next_id_sondage,
+                        campus=sondage.campus,
+                        formation=sondage.formation,
+                        semestre=sondage.semestre,
+                        annee_scolaire=sondage.annee_scolaire,
+                        url=questionnaire_url,
+                        statut=1,
+                    )
+                    session.add(new_sondage)
 
-            session.commit()
-            print(f"[IMPORT] Commit réussi !")
+                    # ── Étape 2 : Créer les modules ──
+                    for ue in sondage.ues:
+                        for module_data in ue.modules:
+                            prof_names = [
+                                f"{p.prenom} {p.nom}" for p in module_data.professeurs
+                            ]
+                            enseignant_str = ", ".join(prof_names) if prof_names else None
+
+                            new_module = Module(
+                                nom=module_data.nom,
+                                enseignant=enseignant_str,
+                                ue=ue.nom,
+                                ue_optionnelle=ue.optionnel,
+                                choix_enseignant=module_data.choix_enseignant_exclusif,
+                                id_template=sondage.id_template,
+                                id_sondage=next_id_sondage,
+                            )
+                            session.add(new_module)
+
+                    # ── Étape 3 : Importer les étudiants (si fichier fourni) ──
+                    if emails:
+                        email_to_user_id: Dict[str, int] = {}
+
+                        existing_users = session.exec(select(User)).all()
+                        existing_email_map = {
+                            u.mail.lower(): u.id_user
+                            for u in existing_users
+                            if u.mail
+                        }
+                        print(f"[SONDAGE+IMPORT] {len(existing_email_map)} user(s) existant(s) en BDD")
+
+                        max_id = max([u.id_user for u in existing_users] + [0])
+
+                        for email in emails:
+                            if email in existing_email_map:
+                                email_to_user_id[email] = existing_email_map[email]
+                                nb_existants += 1
+                            else:
+                                max_id += 1
+                                new_user = User(
+                                    id_user=max_id,
+                                    mail=email,
+                                    role="Etudiant",
+                                )
+                                session.add(new_user)
+                                email_to_user_id[email] = max_id
+                                existing_email_map[email] = max_id
+                                nb_crees += 1
+
+                        print(f"[SONDAGE+IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)")
+
+                        user_ids = list(email_to_user_id.values())
+                        if user_ids:
+                            # Nettoyage préalable (DELETE) : Supprime toutes les lignes de la table Repondre
+                            # où la valeur Id_User correspond à un des élèves présents
+                            stmt = delete(Repondre).where(Repondre.id_user.in_(user_ids))
+                            res = session.exec(stmt)
+                            print(f"[SONDAGE+IMPORT] Nettoyage préalable : {res.rowcount} anciennes lignes supprimées de Repondre.")
+
+                            # Insertion (INSERT) : Uniquement après le nettoyage
+                            for user_id in user_ids:
+                                new_repondre = Repondre(
+                                    id_template=sondage.id_template,
+                                    id_sondage=next_id_sondage,
+                                    id_user=user_id,
+                                    repondu=False,
+                                    date_soumission=None,
+                                )
+                                session.add(new_repondre)
+                                nb_repondre_inseres += 1
+
+                        print(f"[SONDAGE+IMPORT] Repondre : {nb_repondre_inseres} inséré(s) (et nettoyés des conflits)")
+
+            # Si on arrive ici, le COMMIT a été fait par le context manager
+            print(f"[SONDAGE+IMPORT] Transaction COMMIT réussie !")
 
         except Exception as e:
-            session.rollback()
-            print(f"[IMPORT] ERREUR SQL : {type(e).__name__}: {e}")
+            print(f"[SONDAGE+IMPORT] ERREUR — ROLLBACK : {type(e).__name__}: {e}")
             import traceback
             traceback.print_exc()
             return JSONResponse(
-                content={"error": f"Erreur lors de l'import en base de données : {str(e)}"},
+                content={"error": f"Erreur lors de la création du sondage : {str(e)}"},
                 status_code=500,
             )
 
-        print(f"[IMPORT] Import terminé avec succès")
-        return {
-            "message": "Import réussi",
-            "nb_emails_lus": len(emails),
-            "nb_users_crees": nb_crees,
-            "nb_users_existants": nb_existants,
-            "nb_repondre_inseres": nb_repondre_inseres,
-            "nb_repondre_deja_assignes": nb_repondre_existants,
+        result = {
+            "message": "Sondage créé avec succès",
+            "id_sondage": next_id_sondage,
+            "questionnaire_url": questionnaire_url,
         }
+        if emails:
+            result.update({
+                "nb_emails_lus": len(emails),
+                "nb_users_crees": nb_crees,
+                "nb_users_existants": nb_existants,
+                "nb_repondre_inseres": nb_repondre_inseres,
+            })
+        return result
 
     # └────────────────────────────────────────────────────────────────┘
 
@@ -1097,6 +1084,67 @@ def create_app():
             name=template_map[role],
             context=context,
         )
+    # └────────────────────────────────────────────────────────────────┘
+
+    # ┌─ API : Questionnaire assigné à l'étudiant connecté ──────────────┐
+    @app.get("/api/etudiant/questionnaire")
+    def get_etudiant_questionnaire(request: Request, session: SessionDep):
+        """
+        Retourne le questionnaire assigné à l'étudiant connecté.
+        Interroge la table Repondre pour récupérer id_sondage, id_template
+        et le statut Repondu (0=False, 1=True).
+        """
+        user = get_current_user(request)
+        if not user:
+            return JSONResponse(
+                content={"error": "Authentification requise."},
+                status_code=401,
+            )
+
+        # Résoudre l'id_user depuis l'email
+        db_user = session.exec(
+            select(User).where(User.mail == user["email"])
+        ).first()
+        if not db_user:
+            return JSONResponse(
+                content={"error": "Utilisateur non trouvé en base de données."},
+                status_code=404,
+            )
+
+        # Chercher les entrées Repondre pour cet utilisateur
+        repondre_entries = session.exec(
+            select(Repondre).where(Repondre.id_user == db_user.id_user)
+        ).all()
+
+        if not repondre_entries:
+            return JSONResponse(
+                content={"questionnaire": None, "message": "Aucun questionnaire assigné."},
+                status_code=200,
+            )
+
+        # Prendre le premier questionnaire non répondu, sinon le dernier
+        non_repondu = [r for r in repondre_entries if not r.repondu]
+        entry = non_repondu[0] if non_repondu else repondre_entries[-1]
+
+        # Récupérer les infos du sondage pour le contexte
+        sondage = session.exec(
+            select(Sondage).where(
+                Sondage.id_template == entry.id_template,
+                Sondage.id_sondage == entry.id_sondage,
+            )
+        ).first()
+
+        return {
+            "questionnaire": {
+                "id_template": entry.id_template,
+                "id_sondage": entry.id_sondage,
+                "repondu": bool(entry.repondu),
+                "url": f"/questionnaire/{entry.id_template}/{entry.id_sondage}",
+                "formation": sondage.formation if sondage else None,
+                "semestre": sondage.semestre if sondage else None,
+            }
+        }
+
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
