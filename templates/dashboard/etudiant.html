@@ -241,11 +241,35 @@
       text-align: center;
     }
 
-    .questionnaire-btn:hover {
+    .questionnaire-btn:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(249, 115, 22, 0.3);
     }
 
+    .questionnaire-btn:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .questionnaire-btn:disabled:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .questionnaire-btn.loading {
+      background-color: #ccc;
+      color: #666;
+      cursor: wait;
+    }
+
+    .questionnaire-info {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
 
     /* === 5. RESPONSIVE  === */
     @media (max-width: 768px) {
@@ -318,17 +342,84 @@
       <section class="questionnaire-section-with-incentive">
 
         <div class="incentive-text">
-          <p class="welcome">Merci de compléter le questionnaire de fin de semestre pour le cours suivant :</p>
+          <p class="welcome" id="incentive-message">Chargement de votre questionnaire...</p>
         </div>
 
         <div class="questionnaire-section">
-          <a href="/questionnaire" class="questionnaire-btn"></a>
+          <div id="questionnaire-info" class="questionnaire-info" style="display:none;"></div>
+          <button id="questionnaire-btn" class="questionnaire-btn loading" disabled>
+            Chargement...
+          </button>
         </div>
 
       </section>
 
     </div>
   </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async function() {
+      const btn = document.getElementById('questionnaire-btn');
+      const infoEl = document.getElementById('questionnaire-info');
+      const incentiveMsg = document.getElementById('incentive-message');
+
+      try {
+        const response = await fetch('/api/etudiant/questionnaire', { cache: 'no-store' });
+        const data = await response.json();
+
+        if (!response.ok) {
+          // Erreur serveur (401, 404, etc.)
+          btn.textContent = 'Questionnaire indisponible';
+          btn.classList.remove('loading');
+          btn.disabled = true;
+          incentiveMsg.textContent = data.error || 'Une erreur est survenue.';
+          return;
+        }
+
+        if (!data.questionnaire) {
+          // Aucun questionnaire assigné
+          btn.textContent = 'Aucun questionnaire assigné';
+          btn.classList.remove('loading');
+          btn.disabled = true;
+          incentiveMsg.textContent = 'Vous n\'avez aucun questionnaire à compléter pour le moment.';
+          return;
+        }
+
+        const q = data.questionnaire;
+
+        // Afficher les infos de contexte (formation, semestre)
+        if (q.formation || q.semestre) {
+          const parts = [];
+          if (q.formation) parts.push(q.formation);
+          if (q.semestre) parts.push(q.semestre);
+          infoEl.textContent = parts.join(' — ');
+          infoEl.style.display = 'block';
+        }
+
+        if (q.repondu) {
+          // Déjà répondu → bouton désactivé
+          btn.textContent = 'Questionnaire déjà complété ✓';
+          btn.classList.remove('loading');
+          btn.disabled = true;
+          incentiveMsg.textContent = 'Vous avez déjà soumis vos réponses. Merci pour votre participation !';
+        } else {
+          // Pas encore répondu → bouton actif avec redirection
+          btn.textContent = 'Répondre au questionnaire';
+          btn.classList.remove('loading');
+          btn.disabled = false;
+          btn.onclick = function() { window.location.href = q.url; };
+          incentiveMsg.textContent = 'Merci de compléter le questionnaire de fin de semestre pour le cours suivant :';
+        }
+
+      } catch (err) {
+        console.error('Erreur chargement questionnaire:', err);
+        btn.textContent = 'Erreur de chargement';
+        btn.classList.remove('loading');
+        btn.disabled = true;
+        incentiveMsg.textContent = 'Impossible de charger votre questionnaire. Veuillez réessayer.';
+      }
+    });
+  </script>
 
 </body>
 

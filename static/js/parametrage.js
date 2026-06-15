@@ -669,27 +669,6 @@ const Parametrage = {
         this.render();
     },
 
-    // ─── Upload du fichier vers le backend ───────────────
-    async uploadStudentFile(id_sondage, id_template) {
-        if (!this.importedFile) return null;
-
-        const formData = new FormData();
-        formData.append('file', this.importedFile);
-        formData.append('id_sondage', id_sondage);
-        formData.append('id_template', id_template);
-
-        const response = await fetch('/api/import-etudiants', {
-            method: 'POST',
-            body: formData,
-        });
-
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || `Erreur serveur (${response.status})`);
-        }
-        return result;
-    },
-
     // ─── Notification (banner en bas de l'écran) ─────────
     showNotification(message, type = 'info') {
         // Supprimer l'ancienne notification si présente
@@ -718,8 +697,8 @@ const Parametrage = {
         }, 6000);
     },
 
-    // ─── Publication ─────────────────────────────────────
-    publish() {
+    // ─── Publication (atomique : sondage + import en une seule requête) ──
+    async publish() {
         if (!this.selectedTemplateId) {
             this.selectedTemplateId = this.templatesList[0]?.id;
         }
@@ -728,12 +707,13 @@ const Parametrage = {
         if (!this.semestreAnnee || !this.semestreAnnee.trim()) return alert("Veuillez sélectionner un semestre.");
         if (!this.selectedAnneeScolaire || !this.selectedAnneeScolaire.trim()) return alert("Veuillez sélectionner une année scolaire.");
         if (this.ues.length === 0) return alert('Le sondage doit contenir au moins une UE.');
+        if (!this.importedFile) return alert('Veuillez importer la liste des étudiants (fichier .xlsx) avant de publier.');
 
         const campusNom = this.campusList.find(c => c.id === this.selectedCampusId)?.nom || '';
         const filiereNom = this.filieresList.find(f => f.id === this.selectedFiliereId)?.nom || '';
 
-        // Préparer les données avec les UEs, modules et professeurs
-        const data = {
+        // Préparer les données du sondage en JSON
+        const sondageData = {
             id_template: this.selectedTemplateId,
             campus: campusNom,
             formation: filiereNom,
@@ -763,57 +743,53 @@ const Parametrage = {
             btn.textContent = 'Publication en cours...';
         }
 
-        // Étape 1 : Créer le sondage
-        fetch('/api/sondage', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Erreur réseau lors de la création du sondage');
-            return response.json();
-        })
-        .then(async (result) => {
-            const id_sondage = result.id_sondage;
-            const questionnaire_url = result.questionnaire_url;
+        // Construire le FormData avec le JSON + fichier optionnel
+        const formData = new FormData();
+        formData.append('sondage_data', JSON.stringify(sondageData));
+        if (this.importedFile) {
+            formData.append('file', this.importedFile);
+        }
 
-            // Étape 2 : Si un fichier .xlsx est présent, importer les étudiants
-            if (this.importedFile) {
-                try {
-                    if (btn) btn.textContent = 'Import des étudiants...';
+        try {
+            const response = await fetch('/api/sondage', {
+                method: 'POST',
+                body: formData,
+            });
 
-                    const importResult = await this.uploadStudentFile(id_sondage, this.selectedTemplateId);
+            const result = await response.json();
 
-                    this.showNotification(
-                        `Sondage publié ! ${importResult.nb_emails_lus} étudiant(s) traité(s) — ` +
-                        `${importResult.nb_users_crees} nouveau(x), ${importResult.nb_repondre_inseres} assigné(s).`,
-                        'success'
-                    );
-                } catch (importError) {
-                    // Le sondage est créé, mais l'import a échoué
-                    this.showNotification(
-                        `Sondage publié, mais l'import des étudiants a échoué : ${importError.message}`,
-                        'error'
-                    );
-                    console.error('Import étudiants échoué :', importError);
-                }
+            if (!response.ok) {
+                throw new Error(result.error || `Erreur serveur (${response.status})`);
+            }
+
+            // Succès — construire le message
+            if (result.nb_emails_lus) {
+                this.showNotification(
+                    `Sondage publié ! ${result.nb_emails_lus} étudiant(s) traité(s) — ` +
+                    `${result.nb_users_crees} nouveau(x), ${result.nb_repondre_inseres} assigné(s).`,
+                    'success'
+                );
             } else {
                 this.showNotification('Sondage publié avec succès !', 'success');
             }
 
             // Attendre un peu pour lire la notification, puis rediriger
+            const questionnaire_url = result.questionnaire_url;
             setTimeout(() => {
                 window.location.href = questionnaire_url;
             }, 2500);
-        })
-        .catch(error => {
-            alert('Erreur lors de la création du sondage : ' + error.message);
+
+        } catch (error) {
+            this.showNotification(
+                'Erreur lors de la création du sondage : ' + error.message,
+                'error'
+            );
             console.error(error);
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = 'Publier le sondage';
             }
-        });
+        }
     },
 
     // ─── Utils ──────────────────────────────────────────
