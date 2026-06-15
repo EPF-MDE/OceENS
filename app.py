@@ -1115,13 +1115,13 @@ def create_app():
             {"id_user": u.id_user, "mail": u.mail, "role": u.role}
             for u in users
         ]
-    
+
     @app.put("/api/users/{id_user}/role")
     def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
         role = body.role
         if not _is_valid_role(role):
             return JSONResponse(
-                content={"detail": f"Rôle invalide : '{role}'"},
+                content={"detail": f"Rôle invalide : '{body.role}'"},
                 status_code=422,
             )
         user = session.get(User, id_user)
@@ -1130,12 +1130,12 @@ def create_app():
                 content={"detail": f"Utilisateur {id_user} introuvable"},
                 status_code=404,
             )
-        user.role = role
+        user.role = body.role
         session.add(user)
         session.commit()
         session.refresh(user)
-        return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
 
+        return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
    
     # └────────────────────────────────────────────────────────────────┘
 
