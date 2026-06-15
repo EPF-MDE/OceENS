@@ -29,7 +29,6 @@ function getRoleBadge(role) {
     if (!role) return '';
     if (role === 'Etudiant') return '<span class="role-badge etudiant"><span class="role-dot"></span>Étudiant</span>';
     if (role === 'Admin') return '<span class="role-badge admin"><span class="role-dot"></span>Administrateur</span>';
-    if (role === 'Enseignant') return '<span class="role-badge enseignant"><span class="role-dot"></span>Enseignant</span>';
     if (role.startsWith('RP-RM')) {
         var parts = role.split(':');
         var label = parts.length > 1 ? 'RP-RM : ' + parts[1].replace(/;/g, ', ') : 'RP-RM';
