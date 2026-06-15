@@ -1059,6 +1059,7 @@ def create_app():
         filieres = []
         full_role = user.get("role", "")
         if full_role.startswith("RP-RM:") and ":" in full_role:
+
             filieres = [f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()]
 
         context = {"user": user, "filieres": filieres}
@@ -1117,7 +1118,8 @@ def create_app():
 
     @app.put("/api/users/{id_user}/role")
     def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
-        if not _is_valid_role(body.role):
+        role = body.role
+        if not _is_valid_role(role):
             return JSONResponse(
                 content={"detail": f"Rôle invalide : '{body.role}'"},
                 status_code=422,
