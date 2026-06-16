@@ -19,7 +19,7 @@ Concrètement, l'application permet :
 - aux **étudiants** de répondre, de façon simple et guidée, à un questionnaire portant sur les Unités d'Enseignement (UE), les modules et les enseignants de leur formation ;
 - aux **administrateurs** de gérer les accès et les rôles de chaque utilisateur de la plateforme.
 
-L'application est accessible directement depuis un navigateur web, à l'adresse fournie par l'écçole ( `https://oceens.epf.fr`), et utilise le compte Microsoft professionnel de l'EPF pour l'authentification (Single Sign-On / SSO). Aucune création de compte ni gestion de mot de passe distincte n'est nécessaire. Tout est géré par Microsoft via le protocole OAuth 2.0 + OpenID Connect avec Microsoft Entra ID.
+L'application est accessible directement depuis un navigateur web, à l'adresse fournie par l'écçole ( `https://oceens.mde.epf.fr`), et utilise le compte Microsoft professionnel de l'EPF pour l'authentification (Single Sign-On / SSO). Aucune création de compte ni gestion de mot de passe distincte n'est nécessaire. Tout est géré par Microsoft via le protocole OAuth 2.0 + OpenID Connect avec Microsoft Entra ID.
 
 L'interface respecte la charte graphique de l'EPF (logo, couleurs violet/rouge, typographies) afin de garantir une expérience cohérente avec les autres outils numériques de l'école.
 
