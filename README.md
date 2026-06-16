@@ -193,6 +193,14 @@ Le flux d'authentification repose sur **Microsoft Entra ID** via la bibliothèqu
 
 ---
 
+## Maquette de la visualisation
+
+[générée par IA]
+<img width="945" height="646" alt="image" src="https://github.com/user-attachments/assets/f4654635-346c-42a5-b935-15edbdfddfe2" />
+<img width="945" height="558" alt="image" src="https://github.com/user-attachments/assets/da2d185e-efa1-4408-9aa4-230d5bacba89" />
+
+---
+
 ## Ressources
 
 - [FastAPI](https://fastapi.tiangolo.com/)
