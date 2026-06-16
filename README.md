@@ -114,7 +114,8 @@ OCEENS/
 ## Évolutions futures
 - Mise en place d'une page de **visualisation** des résultats de sondage, permettant à l'administration et aux RP-RM de consulter les statistiques et réponses agrégées par questionnaire.
 
-## Maquette des pages web
+## Maquette de visualisation
 
-Les pages HTML devront respecter les maquettes établies au préalable et validées par les clients.
-Maquette de la page web RP/RM : https://drive.google.com/file/d/1sGFz4WbXSTzSpdkj8Jjkrh9sa7GRI336/view?usp=drive_link
+Maquette de la page de visualisation: 
+
+<img width="800" height="600" alt="image" src="https://github.com/user-attachments/assets/c40fdae9-9c4a-4518-9a2a-fa3194ebeb98" />
