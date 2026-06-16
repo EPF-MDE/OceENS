@@ -71,43 +71,51 @@ Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances 
 ## Structure des Dossiers
 
 ```
-OCEENS/
+OceENS/
 │
-├── app.py                   # Point d'entrée  (démarrage du serveur et rendu des pages)
-├── models.py                # Modélisation de la base de données (tables, relations, structure des données avec SQLModel)
-├── requirements.txt         # Fichier contenant les dépendances Python 
-├── README.md                # Documentation du projet (ce fichier)
+├── database/                    # Dossier contenant la base de données
+│   └── db_oceens.db             # Fichier de la base de données principale
 │
-├── database/                # Dossier contenant la base de données (à ajouter manuellement)
-│   └── db_oceens.db         # Fichier de la base de données (à ajouter manuellement)
-│
-├── static/                  # Dossier des fichiers statiques
+├── static/                      # Dossier des fichiers statiques (CSS, Images, JS)
 │   ├── css/
-│   │   └── admin.css  # Styles CSS de la page de admin 
-│   │   └── etudiant.css # Styles CSS de la page de étudiante
-|   |   └── parametrage.css # Styles CSS de la page de paramétrage
-|   |   └── questionnaire.css # Styles CSS de la page de questionnaire
-|   |               
-│   ├── img/                 # Images et logos de l'application
-│   │   ├── epf_logo.png     # Logo officiel de l'EPF
-│   │   └── hautpage.png     # Image en haut de la page d’accueil
-│   |   └── logo.png         # Logo officiel de l'EPF
+│   │   ├── admin.css            # Styles CSS de la page admin
+│   │   ├── etudiant.css         # Styles CSS de la page étudiant
+│   │   ├── parametrage.css      # Styles CSS de la page de paramétrage
+│   │   └── questionnaire.css    # Styles CSS de la page du questionnaire
+│   │               
+│   ├── img/                     # Images et logos de l'application
+│   │   ├── epf_logo_blanc.png   # Logo officiel de l'EPF en blanc
+│   │   ├── epf_logo.png         # Logo officiel de l'EPF
+│   │   ├── hautpage.png         # Image en haut de la page d’accueil
+│   │   └── logo.png             # Logo de l'application/alternatif
+│   │
 │   └── js/
-|       └── admin.js         # Script JS gérant l'interface admin 
-|       └── etudiant.js      # Script JS gérant l'interface étudiant 
-│       └── parametrage.js   # Script JS gérant l'interface paramétrage 
-│       └── questionnaire.js # Script JS gérant l'interface questionnaire 
+│       ├── admin.js             # Script JS gérant l'interface admin 
+│       ├── etudiant.js          # Script JS gérant l'interface étudiant 
+│       ├── parametrage.js       # Script JS gérant l'interface paramétrage 
+│       └── questionnaire.js     # Script JS gérant l'interface questionnaire 
 │
-└── templates/               # Dossier des vues HTML servies par Flask
-    ├── dashboard/
-    │   └── admin.html  # Styles CSS de la page de admin 
-    │   └── etudiant.html # Styles CSS de la page de étudiante
-    |   └── parametrage.css # Styles CSS de la page de paramétrage
-    |   └── questionnaire.css # Styles CSS de la page de questionnaire
-    |
-    ├── index.html           # Structure HTML de la page d'accueil
-    └── parametrage.html     # Structure HTML de la page de création de sondage
-    └── questionnaire.html   # Structure HTML de la page de questionnaire
+├── templates/                   # Dossier des vues HTML servies par l'application
+│   ├── dashboard/
+│   │   ├── admin.html           # Structure HTML du tableau de bord admin
+│   │   ├── etudiant.html        # Structure HTML du tableau de bord étudiant
+│   │   └── RPRM.html            # Structure HTML de la page RPRM
+│   │
+│   ├── index.html               # Structure HTML de la page d'accueil
+│   ├── parametrage.html         # Structure HTML de la page de paramétrage
+│   └── questionnaire.html       # Structure HTML de la page de questionnaire
+│ 
+├── .env                         # Variables d'environnement (mots de passe, clés secrètes)
+├── .gitignore                   # Fichiers et dossiers à ignorer par Git
+├── app.py                       # Point d'entrée (démarrage du serveur et routes principales)
+├── auth.py                      # Gestion de l'authentification et des sessions
+├── database.py                  # Gestion de la base de données SQLite et des rôles utilisateurs
+├── launch.sh                    # Script bash pour lancer l'application facilement
+├── models.py                    # Modélisation de la base de données (tables, relations)
+├── README.md                    # Documentation du projet
+├── requirements.txt             # Fichier contenant les dépendances Python 
+├── STRUCTURE_PROJET.md          # Fichier décrivant la structure de votre projet
+└── Template_2025.md             # Modèle de document Markdown pour 2025
     
 ```
 
