@@ -39,7 +39,7 @@ from models import (
 )
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
-from auth import router as auth_router, get_current_user
+from auth import router as auth_router, get_current_user, require_roles
 
 load_dotenv()
 # ┌─ Configuration ────────────────────────────────────────────────────────┐
@@ -383,41 +383,31 @@ def create_app():
 
     # └────────────────────────────────────────────────────────────────┘
 
-    # ┌─ Route : Paramétrage (version du main conservée) ────────────────┐
+    # ┌─ Route : Paramétrage (accès restreint Admin + RP-RM) ──────────────┐
     @app.get("/parametrage", response_class=HTMLResponse)
     def parametrage(request: Request, session: SessionDep):
+        # ── Sécurité : vérifier que l'utilisateur est Admin ou RP-RM ──
+        user = require_roles(request, ["Admin", "RP-RM"])
+        if user is None:
+            # Utilisateur non connecté ou rôle insuffisant → redirection
+            connected_user = get_current_user(request)
+            if connected_user:
+                slug = role_to_dashboard_slug(connected_user.get("role", ""))
+                return RedirectResponse(url=f"/dashboard/{slug}")
+            return RedirectResponse(url="/")
+
         # Déterminer les formations autorisées pour un RP-RM
-        user = get_current_user(request)
         allowed_formations = None
         is_rprm = False
-        role = ""
-
-        if user:
-            role = user.get("role", "") or ""
-            print(f"[PARAMETRAGE] Session user trouvé : email={user.get('email')}, role={role!r}")
-        else:
-            # Fallback : lire le rôle depuis la BDD si la session est vide
-            print("[PARAMETRAGE] Pas de session user, tentative fallback BDD...")
-            # Chercher parmi les users RP-RM dans la BDD
-            db_users = session.exec(select(User)).all()
-            rprm_users = [u for u in db_users if u.role and u.role.startswith("RP-RM")]
-            if rprm_users:
-                # En dev, on prend le premier RP-RM trouvé
-                role = rprm_users[0].role or ""
-                print(f"[PARAMETRAGE] Fallback BDD : user={rprm_users[0].mail}, role={role!r}")
+        role = user.get("role", "") or ""
 
         if role.startswith("RP-RM:"):
             allowed_formations = parse_rprm_formations(role)
             is_rprm = True
-            print(f"[PARAMETRAGE] FORMATIONS EXTRAITES: {allowed_formations}")
         elif role.startswith("RP-RM"):
             is_rprm = True
-            print(f"[PARAMETRAGE] RP-RM sans formations spécifiques")
-
-        print(f"[PARAMETRAGE] is_rprm={is_rprm}, allowed_formations={allowed_formations}")
 
         data = build_parametrage_data(session, allowed_formations=allowed_formations)
-        print(f"[PARAMETRAGE] filieres renvoyées: {data['filieres']}")
         return templates.TemplateResponse(
             request=request,
             name="parametrage.html",
@@ -441,22 +431,20 @@ def create_app():
 
     # └────────────────────────────────────────────────────────────────┘
 
-    # ┌─ API : Données de paramétrage ───────────────────────────────────┐
+    # ┌─ API : Données de paramétrage (accès restreint Admin + RP-RM) ────┐
     @app.get("/api/parametrage")
     def parametrage_api(request: Request, session: SessionDep):
-        # Filtrer les filières pour les RP-RM
-        user = get_current_user(request)
-        allowed_formations = None
-        role = ""
+        # ── Sécurité : vérifier que l'utilisateur est Admin ou RP-RM ──
+        user = require_roles(request, ["Admin", "RP-RM"])
+        if user is None:
+            return JSONResponse(
+                content={"error": "Accès refusé. Rôle Admin ou RP-RM requis."},
+                status_code=403,
+            )
 
-        if user:
-            role = user.get("role", "") or ""
-        else:
-            # Fallback BDD
-            db_users = session.exec(select(User)).all()
-            rprm_users = [u for u in db_users if u.role and u.role.startswith("RP-RM")]
-            if rprm_users:
-                role = rprm_users[0].role or ""
+        # Filtrer les filières pour les RP-RM
+        allowed_formations = None
+        role = user.get("role", "") or ""
 
         if role.startswith("RP-RM:"):
             allowed_formations = parse_rprm_formations(role)
@@ -580,7 +568,7 @@ def create_app():
 
     # └────────────────────────────────────────────────────────────────┘
 
-    # ┌─ API : Création d'un sondage (atomique avec import étudiants) ──┐
+    # ┌─ API : Création d'un sondage (accès restreint Admin + RP-RM) ────┐
     @app.post("/api/sondage")
     async def create_sondage(
         request: Request,
@@ -592,6 +580,14 @@ def create_app():
         Crée un sondage ET importe les étudiants en une seule transaction.
         Si l'import Excel échoue, le sondage est annulé (ROLLBACK).
         """
+        # ── Sécurité : vérifier que l'utilisateur est Admin ou RP-RM ──
+        user = require_roles(request, ["Admin", "RP-RM"])
+        if user is None:
+            return JSONResponse(
+                content={"error": "Accès refusé. Rôle Admin ou RP-RM requis."},
+                status_code=403,
+            )
+
         # ── Parse le JSON du sondage envoyé en FormData ──
         try:
             sondage_dict = json.loads(sondage_data)
@@ -603,16 +599,14 @@ def create_app():
             )
 
         # ── Sécurité : vérifier que la formation est autorisée pour le RP-RM ──
-        user = get_current_user(request)
-        if user:
-            role = user.get("role", "")
-            if role.startswith("RP-RM:"):
-                allowed = parse_rprm_formations(role)
-                if sondage.formation not in allowed:
-                    return JSONResponse(
-                        content={"error": f"Formation '{sondage.formation}' non autorisée pour votre rôle."},
-                        status_code=403,
-                    )
+        role = user.get("role", "")
+        if role.startswith("RP-RM:"):
+            allowed = parse_rprm_formations(role)
+            if sondage.formation not in allowed:
+                return JSONResponse(
+                    content={"error": f"Formation '{sondage.formation}' non autorisée pour votre rôle."},
+                    status_code=403,
+                )
 
         # ── Pré-lecture du fichier Excel (avant la transaction) ──
         emails = []
@@ -1146,7 +1140,7 @@ def create_app():
 
     # └────────────────────────────────────────────────────────────────┘
 
-    # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
+    # ┌─ API : Gestion des rôles utilisateurs (accès restreint Admin) ────┐
     def _is_valid_role(role: str) -> bool:
         """Accepte 'Admin', 'Etudiant', 'RP-RM' ou 'RP-RM:filière1;filière2;...'"""
         if role in {"Admin", "Etudiant"}:
@@ -1156,7 +1150,14 @@ def create_app():
         return False
 
     @app.get("/api/users")
-    def get_users(session: SessionDep):
+    def get_users(request: Request, session: SessionDep):
+        # ── Sécurité : seul un Admin peut lister tous les utilisateurs ──
+        user = require_roles(request, ["Admin"])
+        if user is None:
+            return JSONResponse(
+                content={"error": "Accès refusé. Rôle Admin requis."},
+                status_code=403,
+            )
         users = session.exec(select(User)).all()
         return [
             {"id_user": u.id_user, "mail": u.mail, "role": u.role}
@@ -1164,7 +1165,14 @@ def create_app():
         ]
 
     @app.put("/api/users/{id_user}/role")
-    def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
+    def update_user_role(request: Request, id_user: int, body: RoleUpdate, session: SessionDep):
+        # ── Sécurité : seul un Admin peut modifier les rôles ──
+        admin = require_roles(request, ["Admin"])
+        if admin is None:
+            return JSONResponse(
+                content={"error": "Accès refusé. Rôle Admin requis."},
+                status_code=403,
+            )
         if not _is_valid_role(body.role):
             return JSONResponse(
                 content={"detail": f"Rôle invalide : '{body.role}'"},

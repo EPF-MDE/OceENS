@@ -279,6 +279,55 @@ def get_current_user(request: Request) -> dict | None:
 
 # └───────────────────────────────────────────────────────────────────────────┘
 
+# ┌─ Fonction utilitaire : Vérification des rôles autorisés ────────────────────┐
+
+
+def require_roles(request: Request, allowed_roles: list[str]) -> dict | None:
+    """
+    Vérifie que l'utilisateur connecté possède un rôle autorisé.
+
+    Logique :
+    1. Récupère l'utilisateur via get_current_user()
+    2. Si pas connecté → retourne None
+    3. Vérifie si le rôle de l'utilisateur correspond à un des rôles autorisés
+       - "Admin" → match exact avec "Admin"
+       - "RP-RM" → match si le rôle commence par "RP-RM" (couvre "RP-RM:MDE_P2027")
+       - "Etudiant" → match exact avec "Etudiant"
+    4. Si le rôle ne correspond pas → retourne None
+    5. Si le rôle correspond → retourne le dict utilisateur
+
+    Args :
+        request : L'objet Request FastAPI
+        allowed_roles : Liste de rôles autorisés, ex: ["Admin", "RP-RM"]
+
+    Return :
+        dict avec {"name", "email", "role"} si autorisé, None sinon
+
+    Exemple :
+        user = require_roles(request, ["Admin", "RP-RM"])
+        if user is None:
+            return RedirectResponse(url="/dashboard/etudiant")
+    """
+    user = get_current_user(request)
+    if not user:
+        return None
+
+    user_role = user.get("role", "")
+
+    for allowed in allowed_roles:
+        if allowed == "Admin" and user_role == "Admin":
+            return user
+        if allowed == "RP-RM" and user_role.startswith("RP-RM"):
+            return user
+        if allowed == "Etudiant" and user_role == "Etudiant":
+            return user
+
+    # Aucun rôle autorisé ne correspond
+    return None
+
+
+# └───────────────────────────────────────────────────────────────────────────┘
+
 # ┌─ Route 3/3 : Déconnexion ──────────────────────────────────────────────────┐
 
 
