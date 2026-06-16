@@ -7,6 +7,13 @@ L'application **OcéEns II** est structurée autour d’un frontend et d’un ba
 Elle permet aux utilisateurs, notamment à l’administration et à la scolarité, de créer et gérer des sondages pour différentes filières de l’EPF.
 Visuellement, l'application est habillée de la charte graphique de l'EPF.
 
+## Environnements déployés
+
+L'application est déployée sur deux environnements distincts, hébergés sur des VM dédiées avec la base de données SQLite directement intégrée sur chaque VM :
+
+- **Préproduction** : [https://oceens-preprod.mde.epf.fr](https://oceens-preprod.mde.epf.fr/) — environnement de test utilisé pour valider les nouvelles fonctionnalités avant leur mise en production.
+- **Production** : [https://oceens.mde.epf.fr](https://oceens.mde.epf.fr/) — environnement utilisé par les clients (administration et scolarité de l'EPF).
+
 ## Architecture
 Le projet repose sur un serveur local basé sur FastAPI et Uvicorn, qui gère à la fois le rendu des pages HTML et les endpoints API.
 Une base de données SQLite est utilisée via SQLModel pour stocker et manipuler les données.
@@ -20,6 +27,14 @@ La page gère également des cas dynamiques, notamment pour les modules et ensei
 Un système de progression visuelle guide l’utilisateur, et les réponses sont envoyées au backend pour être enregistrées en base de données.
 
 ## Installation et Démarrage Local
+
+⚠️ **Note importante** : depuis le déploiement de l'application sur les environnements de préproduction et de production, il n'est plus possible de tester l'application localement de la même manière qu'auparavant, pour deux raisons :
+- La base de données `db_oceens.db` est désormais hébergée directement sur les VM de préproduction et de production, et n'est plus distribuée pour un usage local.
+- L'authentification Azure Entra ID (`auth.py`) repose sur une URL de callback OAuth fixe, configurée pour les domaines `oceens-preprod.mde.epf.fr` et `oceens.mde.epf.fr`. La connexion ne fonctionne donc pas depuis un environnement local (`localhost`).
+
+Pour toute modification ou test, il est recommandé de travailler directement sur la VM de préproduction (voir section [Environnements déployés](#environnements-déployés)).
+
+Les étapes ci-dessous restent valables pour une installation locale à des fins de développement hors authentification (ex : travail sur le frontend, les templates, ou la logique ne dépendant pas de la connexion utilisateur) :
 
 Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances sont minimalistes.
 
@@ -45,7 +60,7 @@ Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances 
    ```
 
 4. **Ajouter la base de données**
-  Créer un dossier database/ puis y coller le fichier db_oceens.db
+  Créer un dossier database/ puis y coller un fichier db_oceens.db (à demander à l'équipe, ou créer une base vide localement pour les tests hors authentification)
 5. **Lancez l'application** :
    ```bash
    fastapi dev
@@ -56,11 +71,11 @@ Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances 
 ## Structure des Dossiers
 
 ```
-test_web_app/
+OCEENS/
 │
-├── app.py                   # Point d'entrée Flask (démarrage du serveur et rendu des pages)
+├── app.py                   # Point d'entrée  (démarrage du serveur et rendu des pages)
 ├── models.py                # Modélisation de la base de données (tables, relations, structure des données avec SQLModel)
-├── requirements.txt         # Fichier contenant les dépendances Python (uniquement Flask)
+├── requirements.txt         # Fichier contenant les dépendances Python 
 ├── README.md                # Documentation du projet (ce fichier)
 │
 ├── database/                # Dossier contenant la base de données (à ajouter manuellement)
@@ -68,17 +83,28 @@ test_web_app/
 │
 ├── static/                  # Dossier des fichiers statiques
 │   ├── css/
-│   │   └── parametrage.css  # Styles CSS de la page de paramétrage  
-│   │   └── questionnaire.css # Styles CSS de la page de questionnaire              
+│   │   └── admin.css  # Styles CSS de la page de admin 
+│   │   └── etudiant.css # Styles CSS de la page de étudiante
+|   |   └── parametrage.css # Styles CSS de la page de paramétrage
+|   |   └── questionnaire.css # Styles CSS de la page de questionnaire
+|   |               
 │   ├── img/                 # Images et logos de l'application
 │   │   ├── epf_logo.png     # Logo officiel de l'EPF
 │   │   └── hautpage.png     # Image en haut de la page d’accueil
 │   |   └── logo.png         # Logo officiel de l'EPF
 │   └── js/
-│       └── parametrage.js   # Script JS gérant l'interface de paramétrage (avec données simulées)
-│       └── questionnaire.js # Script JS gérant l'interface de questionnaire (avec données simulées)
+|       └── admin.js         # Script JS gérant l'interface admin 
+|       └── etudiant.js      # Script JS gérant l'interface étudiant 
+│       └── parametrage.js   # Script JS gérant l'interface paramétrage 
+│       └── questionnaire.js # Script JS gérant l'interface questionnaire 
 │
 └── templates/               # Dossier des vues HTML servies par Flask
+    ├── dashboard/
+    │   └── admin.html  # Styles CSS de la page de admin 
+    │   └── etudiant.html # Styles CSS de la page de étudiante
+    |   └── parametrage.css # Styles CSS de la page de paramétrage
+    |   └── questionnaire.css # Styles CSS de la page de questionnaire
+    |
     ├── index.html           # Structure HTML de la page d'accueil
     └── parametrage.html     # Structure HTML de la page de création de sondage
     └── questionnaire.html   # Structure HTML de la page de questionnaire
@@ -86,10 +112,7 @@ test_web_app/
 ```
 
 ## Évolutions futures
-Dans sa version finale, ce projet est destiné à accueillir un backend complet en Python.
-- Le fichier `app.py` sera enrichi avec des routes API (`/api/campus`, `/api/sondages`, etc.).
-- Les données simulées en tête du fichier `static/js/parametrage.js` seront supprimées et remplacées par des appels AJAX (`fetch`) vers les nouvelles routes du backend.
-- Les modèles de base de données (ex: SQLite ou PostgreSQL) seront réintégrés.
+- Mise en place d'une page de **visualisation** des résultats de sondage, permettant à l'administration et aux RP-RM de consulter les statistiques et réponses agrégées par questionnaire.
 
 ## Maquette des pages web
 
