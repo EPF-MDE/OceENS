@@ -39,7 +39,7 @@ class UserAuth(Base):
     Exemple :
         julien@epfedu.fr   →  Etudiant
         admin@epfedu.fr    →  Admin
-        prof@epfedu.fr     →  RP-RM:MDE_P2027-MIN_P2027
+        prof@epfedu.fr     →  RP-RM:MDE_P2027;MIN_P2027
     """
     __tablename__ = "Users"
 

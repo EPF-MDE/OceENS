@@ -3,95 +3,205 @@
 Plateforme d'évaluation des enseignements conçue pour l'école d'ingénieurs EPF.
 
 ## Aperçu
-L'application **OcéEns II** est structurée autour d’un frontend et d’un backend intégrés.
-Elle permet aux utilisateurs, notamment à l’administration et à la scolarité, de créer et gérer des sondages pour différentes filières de l’EPF.
-Visuellement, l'application est habillée de la charte graphique de l'EPF.
 
-## Architecture
-Le projet repose sur un serveur local basé sur FastAPI et Uvicorn, qui gère à la fois le rendu des pages HTML et les endpoints API.
-Une base de données SQLite est utilisée via SQLModel pour stocker et manipuler les données.
-L’architecture est conçue pour évoluer vers une base de données plus robuste et un déploiement en production.
-### Pages de l'application :
-1. **Page d'accueil** (`/`) : Hub principal avec l'image de fond et la charte graphique OcéEns II (titre bicolore, boutons arrondis). Permet d'accéder au module de paramétrage. Cette page sera modifiée ultérieurement pour mieux faire correspondre les couleurs de l'EPF ainsi que les attentes client.
-2. **Page de paramétrage** (`/parametrage`) : Interface de création de sondage. L'utilisateur peut y sélectionner l'année, le campus, la filière, puis configurer les Unités d'Enseignement (UE), ajouter des modules et y affecter des professeurs.
-3. **Page questionnaire** (`/questionnaire/{id_template}/{id_sondage}`) : Interface utilisateur permettant de répondre au sondage. Elle affiche dynamiquement les sections et les questions en fonction du template sélectionné.
-Les questions peuvent être de différents types (choix unique, choix multiple, question ouverte) et s’adaptent au contexte (campus, formation, module, enseignant).
-La page gère également des cas dynamiques, notamment pour les modules et enseignants (choix obligatoire, inclusif ou exclusif).
-Un système de progression visuelle guide l’utilisateur, et les réponses sont envoyées au backend pour être enregistrées en base de données.
+L'application **OcéEns II** permet à l'administration et à la scolarité de créer et gérer des sondages d'évaluation pour les différentes filières de l'EPF. L'interface est habillée de la charte graphique officielle de l'EPF.
 
-## Installation et Démarrage Local
+### Stack technique
 
-Ce projet nécessite Python (3.x) installé sur votre machine. Les dépendances sont minimalistes.
+| Composant | Technologie |
+|-----------|-------------|
+| **Framework** | FastAPI (Python) |
+| **Authentification** | Microsoft Entra ID (Azure AD) via OAuth2.0 / MSAL |
+| **Base de données** | SQLite (via SQLAlchemy + SQLModel) |
+| **Templating** | Jinja2 |
+| **Frontend** | HTML / CSS / JavaScript |
+| **Serveur** | Uvicorn |
 
-1. **Cloner ou télécharger le projet localement** dans le dossier de votre choix.
-2. Ouvrez une invite de commande ou le terminal (ex: `cmd`, `powershell`, ou Anaconda Prompt).
-- Créer un environnement virtuel : 
+---
+
+## Pages de l'application
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | Accueil | Hub principal avec la charte graphique EPF. Accès à l'authentification. |
+| `/parametrage` | Paramétrage | Interface de création de sondage : sélection année, campus, filière, configuration des UE, modules et professeurs. |
+| `/questionnaire/{id_template}/{id_sondage}` | Questionnaire | Interface de réponse au sondage avec affichage dynamique des sections et questions (choix unique, multiple, ouverte). |
+| `/dashboard/admin` | Dashboard Admin | Tableau de bord administrateur. |
+| `/dashboard/etudiant` | Dashboard Étudiant | Tableau de bord étudiant. |
+| `/dashboard/RPRM` | Dashboard RP/RM | Tableau de bord responsable pédagogique / responsable de module. |
+
+---
+
+## Installation et démarrage
+
+### Prérequis
+
+- Python 3.x
+- Un fichier `.env` configuré (voir section [Configuration](#configuration))
+
+### Étapes
+
+1. **Cloner le projet**
+
    ```bash
-   py -m venv env
+   git clone <url-du-repo>
+   cd OceENS
    ```
 
-   ou 
+2. **Créer et activer un environnement virtuel**
 
    ```bash
-   python3 -m venv env
+   python -m venv env
+   env/scripts/activate        # Windows
+   source env/bin/activate     # Linux / macOS
    ```
-- Activer l'environnement virtuel:
-   ```bash
-   env/scripts/activate
-   ```
-3. **Installez la dépendance principale (requirements.txt)** :
+
+3. **Installer les dépendances**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Ajouter la base de données**
   Créer un dossier database/ puis y coller le fichier db_oceens.db
+
 5. **Lancez l'application** :
    ```bash
    fastapi dev
-   ``` 
-6. Une fois le serveur lancé (vous verrez `* Running on http://127.0.0.1:8000`), ouvrez votre navigateur web et rendez-vous à l'adresse : **http://localhost:8000** ou faites directement CTRL + Clic sur le lien.
+   ```
 
 
-## Structure des Dossiers
+   Ou directement avec Uvicorn :
+
+   ```bash
+   uvicorn app:app --host 0.0.0.0 --port 8000
+   ```
+
+6. Ouvrez votre navigateur à l'adresse **http://localhost:8000**.
+
+---
+
+## Configuration
+
+Créez un fichier `.env` à la racine du projet :
+
+```env
+# Azure Entra ID
+ENTRA_CLIENT_ID=your_app_id_here
+ENTRA_CLIENT_SECRET=your_secret_here
+ENTRA_TENANT_ID=your_tenant_id_here
+REDIRECT_URI=https://localhost/auth/callback
+
+# Session
+SECRET_KEY=your_secure_random_key_here
+```
+
+> [!CAUTION]
+> Ne jamais commiter le fichier `.env`. Il est déjà listé dans le `.gitignore`.
+
+---
+
+## Structure du projet
 
 ```
-test_web_app/
-│
-├── app.py                   # Point d'entrée Flask (démarrage du serveur et rendu des pages)
-├── models.py                # Modélisation de la base de données (tables, relations, structure des données avec SQLModel)
-├── requirements.txt         # Fichier contenant les dépendances Python (uniquement Flask)
-├── README.md                # Documentation du projet (ce fichier)
+OceENS/
+├── app.py                  # Point d'entrée – routes et configuration FastAPI
+├── auth.py                 # Authentification Microsoft Entra ID (login, logout, callback)
+├── database.py             # Configuration SQLAlchemy + modèle UserRole (rôles)
+├── models.py               # Modèles SQLModel (tables, relations, structure des données)
+├── remplir_db.py           # Script d'initialisation des données
+├── launch.sh               # Script de lancement
+├── requirements.txt        # Dépendances Python
+├── .env                    # Variables d'environnement (⚠️ non commité)
+├── .gitignore              # Fichiers et dossiers ignorés par Git
 │
 ├── database/                # Dossier contenant la base de données (à ajouter manuellement)
 │   └── db_oceens.db         # Fichier de la base de données (à ajouter manuellement)
+|
+├── templates/              # Templates HTML (Jinja2)
+│   ├── index.html               # Page d'accueil / login
+│   ├── parametrage.html         # Création de sondage
+│   ├── questionnaire.html       # Réponse au sondage
+│   └── dashboard/
+│       ├── admin.html           # Dashboard administrateur
+│       ├── etudiant.html        # Dashboard étudiant
+│       └── RPRM.html            # Dashboard RP/RM
 │
-├── static/                  # Dossier des fichiers statiques
+├── static/                 # Fichiers statiques
 │   ├── css/
-│   │   └── parametrage.css  # Styles CSS de la page de paramétrage  
-│   │   └── questionnaire.css # Styles CSS de la page de questionnaire              
-│   ├── img/                 # Images et logos de l'application
-│   │   ├── epf_logo.png     # Logo officiel de l'EPF
-│   │   └── hautpage.png     # Image en haut de la page d’accueil
-│   |   └── logo.png         # Logo officiel de l'EPF
-│   └── js/
-│       └── parametrage.js   # Script JS gérant l'interface de paramétrage (avec données simulées)
-│       └── questionnaire.js # Script JS gérant l'interface de questionnaire (avec données simulées)
+│   │   ├── admin.css            # Styles dashboard admin
+│   │   ├── etudiant.css         # Styles dashboard étudiant
+│   │   ├── parametrage.css      # Styles page paramétrage
+│   │   └── questionnaire.css    # Styles page questionnaire
+│   ├── js/
+│   │   ├── admin.js             # Scripts dashboard admin
+│   │   ├── etudiant.js          # Scripts dashboard étudiant
+│   │   ├── parametrage.js       # Scripts page paramétrage
+│   │   └── questionnaire.js     # Scripts page questionnaire
+│   └── img/
+│       ├── epf_logo.png         # Logo EPF
+│       ├── epf_logo_blanc.png   # Logo EPF (blanc)
+│       ├── hautpage.png         # Image en-tête
+│       └── logo.png             # Logo application
 │
-└── templates/               # Dossier des vues HTML servies par Flask
-    ├── index.html           # Structure HTML de la page d'accueil
-    └── parametrage.html     # Structure HTML de la page de création de sondage
-    └── questionnaire.html   # Structure HTML de la page de questionnaire
-    
+└── env/                    # Environnement virtuel Python (non commité)
 ```
 
+---
+
+## Authentification (OAuth 2.0)
+
+Le flux d'authentification repose sur **Microsoft Entra ID** via la bibliothèque MSAL :
+
+```
+1. Utilisateur clique "Se connecter"
+   → FastAPI génère un state aléatoire (UUID, protection CSRF)
+   → Redirection vers la page de login Microsoft
+
+2. L'utilisateur s'authentifie chez Microsoft
+   → Microsoft redirige vers /auth/callback avec un code + state
+
+3. Le serveur échange le code contre un token d'accès
+   → Récupération des infos utilisateur
+   → Consultation de la BDD pour obtenir le rôle
+   → Création de la session {name, email, role}
+   → Redirection vers /dashboard/{role}
+
+4. À la déconnexion (/logout)
+   → Suppression de la session et des cookies
+   → Déconnexion côté Microsoft
+   → Retour à la page d'accueil
+```
+
+---
+
+## Checklist de déploiement
+
+- [ ] `.env` créé avec les vraies credentials Azure
+- [ ] Certificat SSL valide (Let's Encrypt ou équivalent)
+- [ ] `https_only=True` dans le SessionMiddleware
+- [ ] Base de données présente
+- [ ] Variables d'environnement sécurisées
+
+---
+
 ## Évolutions futures
-Dans sa version finale, ce projet est destiné à accueillir un backend complet en Python.
-- Le fichier `app.py` sera enrichi avec des routes API (`/api/campus`, `/api/sondages`, etc.).
-- Les données simulées en tête du fichier `static/js/parametrage.js` seront supprimées et remplacées par des appels AJAX (`fetch`) vers les nouvelles routes du backend.
-- Les modèles de base de données (ex: SQLite ou PostgreSQL) seront réintégrés.
 
-## Maquette des pages web
+- Fonctionnalité de visualisation des réponses des questionnaires. Un début de cette fonctionnalité a été implémenté dans la branche feat/visualisation.
+- Implémenter des tests et du CI/CD.
+- Migration vers une base de données plus robuste (PostgreSQL)
 
-Les pages HTML devront respecter les maquettes établies au préalable et validées par les clients.
-Maquette de la page web RP/RM : https://drive.google.com/file/d/1sGFz4WbXSTzSpdkj8Jjkrh9sa7GRI336/view?usp=drive_link
+---
+
+## Ressources
+
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [MSAL Python](https://github.com/AzureAD/microsoft-authentication-library-for-python)
+- [Microsoft Graph](https://learn.microsoft.com/en-us/graph/)
+- [Jinja2](https://jinja.palletsprojects.com/)
+- [SQLAlchemy](https://www.sqlalchemy.org/)
+- [SQLModel](https://sqlmodel.tiangolo.com/)
+
+---
+
+**Équipe OcéEns** — EPF
