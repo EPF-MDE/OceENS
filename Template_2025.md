@@ -6,6 +6,7 @@
 
 **1. Dans l'ensemble, par rapport à votre expérience étudiante à l'EPF sur le campus de [CAMPUS], vous êtes :**
 
+* [ ] Totalement satisfait / Totally satisfied
 * [ ] Très satisfait / Very satisfied
 * [ ] Plutôt satisfait / Somewhat satisfied
 * [ ] Plutôt pas satisfait / Somewhat dissatisfied
