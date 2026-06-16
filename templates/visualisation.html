@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Visualisation — {{ sondage.formation }}</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #F5F4F0; }
+    .header { background:#470a68; color:white; padding:20px 32px; }
+    .container { max-width: 1000px; margin: 24px auto; padding: 0 20px; }
+    .card { background:white; border-radius:10px; padding:20px; margin-bottom:20px;
+            box-shadow:0 1px 6px rgba(0,0,0,.06); }
+    .empty { text-align:center; color:#888; padding:60px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{ sondage.formation }} — {{ sondage.semestre }}</h1>
+    <p>{{ sondage.campus }} · {{ sondage.annee_scolaire }}</p>
+  </div>
+  <div class="container">
+    {% if charts %}
+      {% for key, chart_html in charts.items() %}
+        <div class="card">{{ chart_html | safe }}</div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">Aucune réponse disponible pour ce sondage pour le moment.</div>
+    {% endif %}
+  </div>
+</body>
+</html>

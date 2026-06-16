@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, SQLModel, create_engine, select
 import uvicorn
+import pandas as pd
 
 # ┌─ Importation des modèles et du module d'authentification ─────────────┐
 from models import (
@@ -40,6 +41,9 @@ from models import (
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 from auth import router as auth_router, get_current_user
+from sondage_loader import load_sondage_complet
+from visualisation_functions import generer_tous_les_graphes_du_sondage
+
 
 load_dotenv()
 # ┌─ Configuration ────────────────────────────────────────────────────────┐
@@ -62,6 +66,8 @@ def role_to_dashboard_slug(role: str) -> str:
         return "rprm"
     else:
         return "etudiant"
+
+
 # └────────────────────────────────────────────────────────────────────────┘
 
 
@@ -135,6 +141,7 @@ class ReponseItem(BaseModel):
 
 class QuestionnaireSubmission(BaseModel):
     reponses: List[ReponseItem]
+
 
 class RoleUpdate(BaseModel):
     role: str
@@ -569,7 +576,9 @@ def create_app():
         # 1. Validation du type de fichier
         if not file.filename or not file.filename.lower().endswith(".xlsx"):
             return JSONResponse(
-                content={"error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."},
+                content={
+                    "error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."
+                },
                 status_code=400,
             )
 
@@ -581,7 +590,9 @@ def create_app():
             )
         ).first()
         if not sondage:
-            print(f"[IMPORT] Sondage introuvable : id_template={id_template}, id_sondage={id_sondage}")
+            print(
+                f"[IMPORT] Sondage introuvable : id_template={id_template}, id_sondage={id_sondage}"
+            )
             return JSONResponse(
                 content={"error": "Sondage introuvable."},
                 status_code=404,
@@ -617,10 +628,14 @@ def create_app():
                     emails.append(cell_str.lower())
                 elif cell_str and row_count <= 3:
                     # Log les premières lignes pour déboguer si aucun email n'est trouvé
-                    print(f"[IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'")
+                    print(
+                        f"[IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'"
+                    )
 
             wb.close()
-            print(f"[IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s) trouvé(s)")
+            print(
+                f"[IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s) trouvé(s)"
+            )
 
         except Exception as e:
             print(f"[IMPORT] Erreur lecture Excel : {type(e).__name__}: {e}")
@@ -632,7 +647,9 @@ def create_app():
         if not emails:
             print(f"[IMPORT] Aucun email trouvé sur {row_count} ligne(s)")
             return JSONResponse(
-                content={"error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."},
+                content={
+                    "error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."
+                },
                 status_code=400,
             )
 
@@ -654,9 +671,7 @@ def create_app():
                 # Récupérer tous les users existants en un seul SELECT
                 existing_users = session.exec(select(User)).all()
                 existing_email_map = {
-                    u.mail.lower(): u.id_user
-                    for u in existing_users
-                    if u.mail
+                    u.mail.lower(): u.id_user for u in existing_users if u.mail
                 }
                 print(f"[IMPORT] {len(existing_email_map)} user(s) existant(s) en BDD")
 
@@ -679,7 +694,9 @@ def create_app():
                         existing_email_map[email] = max_id
                         nb_crees += 1
 
-                print(f"[IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)")
+                print(
+                    f"[IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)"
+                )
 
                 # 4b. Batch Repondre : INSERT uniquement (pas d'écrasement)
                 existing_repondre = session.exec(
@@ -688,9 +705,7 @@ def create_app():
                         Repondre.id_sondage == id_sondage,
                     )
                 ).all()
-                existing_repondre_user_ids = {
-                    r.id_user for r in existing_repondre
-                }
+                existing_repondre_user_ids = {r.id_user for r in existing_repondre}
 
                 for user_id in email_to_user_id.values():
                     if user_id not in existing_repondre_user_ids:
@@ -706,7 +721,9 @@ def create_app():
                     else:
                         nb_repondre_existants += 1
 
-                print(f"[IMPORT] Repondre : {nb_repondre_inseres} inséré(s), {nb_repondre_existants} déjà assigné(s)")
+                print(
+                    f"[IMPORT] Repondre : {nb_repondre_inseres} inséré(s), {nb_repondre_existants} déjà assigné(s)"
+                )
 
             session.commit()
             print(f"[IMPORT] Commit réussi !")
@@ -715,9 +732,12 @@ def create_app():
             session.rollback()
             print(f"[IMPORT] ERREUR SQL : {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             return JSONResponse(
-                content={"error": f"Erreur lors de l'import en base de données : {str(e)}"},
+                content={
+                    "error": f"Erreur lors de l'import en base de données : {str(e)}"
+                },
                 status_code=500,
             )
 
@@ -861,9 +881,7 @@ def create_app():
             )
 
         # 2. Résoudre l'Id_User depuis l'email de l'utilisateur connecté
-        db_user = session.exec(
-            select(User).where(User.mail == user["email"])
-        ).first()
+        db_user = session.exec(select(User).where(User.mail == user["email"])).first()
         if not db_user:
             return JSONResponse(
                 content={"error": "Utilisateur non trouvé dans la base de données."},
@@ -893,14 +911,18 @@ def create_app():
         ).first()
         if not repondre:
             return JSONResponse(
-                content={"error": "Vous n'êtes pas autorisé ou assigné à répondre à ce sondage."},
+                content={
+                    "error": "Vous n'êtes pas autorisé ou assigné à répondre à ce sondage."
+                },
                 status_code=403,
             )
 
         # 5. Vérifier que l'élève n'a pas déjà soumis ses réponses
         if repondre.repondu:
             return JSONResponse(
-                content={"error": "Vous avez déjà soumis vos réponses pour ce sondage."},
+                content={
+                    "error": "Vous avez déjà soumis vos réponses pour ce sondage."
+                },
                 status_code=409,
             )
 
@@ -911,7 +933,9 @@ def create_app():
             with session.begin_nested():
                 # Calculer le prochain Id_Reponse
                 existing_reponses = session.exec(select(Reponse)).all()
-                next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
+                next_id_reponse = (
+                    max([r.id_reponse for r in existing_reponses] + [0]) + 1
+                )
 
                 # Insérer chaque réponse individuelle dans la table Reponses
                 for rep in submission.reponses:
@@ -972,23 +996,22 @@ def create_app():
         filieres = []
         full_role = user.get("role", "")
         if full_role.startswith("RP-RM:") and ":" in full_role:
-            filieres = [f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()]
+            filieres = [
+                f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()
+            ]
 
         context = {"user": user, "filieres": filieres}
 
         if role == "admin":
             db_users = session.exec(select(User)).all()
             context["users"] = [
-                {"id_user": u.id_user, "mail": u.mail, "role": u.role}
-                for u in db_users
+                {"id_user": u.id_user, "mail": u.mail, "role": u.role} for u in db_users
             ]
 
         if role == "rprm":
             all_sondages = session.exec(select(Sondage)).all()
             if filieres:
-                sondages_filtres = [
-                    s for s in all_sondages if s.formation in filieres
-                ]
+                sondages_filtres = [s for s in all_sondages if s.formation in filieres]
             else:
                 sondages_filtres = list(all_sondages)
             context["sondages"] = [
@@ -1009,6 +1032,7 @@ def create_app():
             name=template_map[role],
             context=context,
         )
+
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Gestion des rôles utilisateurs ───────────────────────────┐
@@ -1023,10 +1047,7 @@ def create_app():
     @app.get("/api/users")
     def get_users(session: SessionDep):
         users = session.exec(select(User)).all()
-        return [
-            {"id_user": u.id_user, "mail": u.mail, "role": u.role}
-            for u in users
-        ]
+        return [{"id_user": u.id_user, "mail": u.mail, "role": u.role} for u in users]
 
     @app.put("/api/users/{id_user}/role")
     def update_user_role(id_user: int, body: RoleUpdate, session: SessionDep):
@@ -1047,8 +1068,39 @@ def create_app():
         session.refresh(user)
 
         return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
-   
+
     # └────────────────────────────────────────────────────────────────┘
+
+    @app.get("/visualisation/{id_template}/{id_sondage}", response_class=HTMLResponse)
+    def visualisation_page(request: Request, id_template: int, id_sondage: int):
+        user = get_current_user(request)
+        if not user:
+            return RedirectResponse(url="/")
+
+        try:
+            sondage_obj = load_sondage_complet(
+                sqlite_file_name, id_template, id_sondage
+            )
+        except ValueError:
+            return HTMLResponse(content="Sondage introuvable.", status_code=404)
+
+        df = pd.DataFrame(sondage_obj.to_flat_dataframe_records())
+        charts = generer_tous_les_graphes_du_sondage(sondage_obj, df)
+
+        return templates.TemplateResponse(
+            request=request,
+            name="visualisation.html",
+            context={"sondage": sondage_obj, "charts": charts},
+        )
+
+    @app.get("/dev-login")
+    def dev_login(request: Request):
+        request.session["user"] = {
+            "name": "Test Admin",
+            "email": "test@epf.fr",
+            "role": "Admin",  # ou "RP-RM:MDE_P2027" pour tester côté RP-RM
+        }
+        return RedirectResponse(url="/")
 
     return app
 
