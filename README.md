@@ -114,7 +114,6 @@ OceENS/
 ├── models.py                    # Modélisation de la base de données (tables, relations)
 ├── README.md                    # Documentation du projet
 ├── requirements.txt             # Fichier contenant les dépendances Python 
-├── STRUCTURE_PROJET.md          # Fichier décrivant la structure de votre projet
 └── Template_2025.md             # Modèle de document Markdown pour 2025
     
 ```
