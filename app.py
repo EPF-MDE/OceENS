@@ -403,6 +403,9 @@ def create_app():
         is_rprm = False
         role = user.get("role", "") or ""
 
+        if role.startswith("Admin:"):
+            allowed_formations = parse_rprm_formations(role)
+            is_rprm = True
         if role.startswith("RP-RM:"):
             allowed_formations = parse_rprm_formations(role)
             is_rprm = True
