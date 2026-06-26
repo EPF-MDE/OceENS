@@ -56,7 +56,7 @@ def role_to_dashboard_slug(role: str) -> str:
     "RP-RM:MDE_P2027"    → "rprm"
     "Etudiant" (ou autre) → "etudiant"
     """
-    if role == "Admin":
+    if role.startswith("Admin"):
         return "admin"
     elif role.startswith("RP-RM"):
         return "rprm"
@@ -72,11 +72,13 @@ def parse_rprm_formations(role: str) -> list[str]:
     "RP-RM:FORMATION1"            → ["FORMATION1"]
     "RP-RM"                       → []
     "Admin"                       → []
+    "Admin:FORMATION1;FORMATION2" → ["FORMATION1", "FORMATION2"]
+    "Admin:FORMATION1"            → ["FORMATION1"]
     """
     if not role or not isinstance(role, str):
         return []
     role_upper = role.strip()
-    if not role_upper.startswith("RP-RM:"):
+    if not (role_upper.startswith("RP-RM:") or role_upper.startswith("Admin:")):
         return []
     after_colon = role_upper.split(":", 1)[1]
     return [f.strip() for f in after_colon.split(";") if f.strip()]
