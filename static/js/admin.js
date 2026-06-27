@@ -45,7 +45,7 @@ function getRoleBadge(role) {
 function getAllFilieres() {
     var set = {};
     localUsers.forEach(function (u) {
-        if (u.role && (':' in u.role)) {
+        if (u.role && (u.role.includes(':'))) {
             var after = u.role.split(':')[1];
             if (after) {
                 after.split(';').forEach(function (f) {
@@ -180,7 +180,7 @@ function openModal(userId) {
     editingUserId = userId;
 
     // Détecter le rôle et extraire les filières si RP-RM
-    if (user.role && (':' in user.role)) {
+    if (user.role && (user.role.includes(':'))) {
         var parts = user.role.split(':');
         selectedRole = parts[0];
         selectedFilieres = parts.length > 1
