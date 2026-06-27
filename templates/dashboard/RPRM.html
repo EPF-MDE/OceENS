@@ -22,6 +22,10 @@
       background: #F5F4F0;
       color: #1a1a1a;
       min-height: 100vh;
+      --bg-accent: #e5f0ff;
+      --text-accent: #0056b3;
+      --border-accent: #b3d4ff;
+      --border: #eee;
     }
 
     .header {
@@ -213,32 +217,32 @@
 
     <div class="sondage-row">
       <div style="flex:1;">
-        <div class="sondage-row-name">{{ sondage['formation'] }} — {{ sondage['semestre'] }}</div>
+        <div class="sondage-row-name">
+          <a href="{{ sondage['url'] }}" style="text-decoration: none; color: inherit;">
+            {{ sondage['formation'] }} — {{ sondage['semestre'] }}
+          </a>
+        </div>
         <div class="sondage-row-meta">{{ sondage['campus'] }} · {{ sondage['annee_scolaire'] }}</div>
       </div>
-      <span class="sondage-date">--</span>
+      
+      <a href="{{ sondage['url'] }}" style="background: var(--bg-accent); color: var(--text-accent); border: 0.5px solid var(--border-accent); border-radius: 8px; padding: 5px 11px; text-decoration: none; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+        Lien questionnaire
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+      </a>
+
+      <div style="text-align: right; margin-right: 12px; margin-left: 12px; min-width: 100px;">
+        <div style="font-size: 13px; font-weight: 500; color: #111;">{{ sondage['nb_repondants'] }} / {{ sondage['nb_inscrits'] }}</div>
+        <div style="font-size: 10px; color: #aaa;">ont répondu / inscrits</div>
+        <div style="height: 4px; border-radius: 99px; width: 72px; background: var(--border); margin-top: 4px; margin-left: auto;">
+          <div style="height: 100%; border-radius: 99px; background: #470a68; width: {% if sondage['nb_inscrits'] > 0 %}{{ (sondage['nb_repondants'] / sondage['nb_inscrits']) * 100 }}{% else %}0{% endif %}%;"></div>
+        </div>
+      </div>
+
       <div class="row-actions">
         <a href="/visualisation/{{ sondage['id_template'] }}/{{ sondage['id_sondage'] }}" class="row-icon"
-          title="Visualisation">
+          title="Visualisation" style="opacity: 0.5; cursor: not-allowed; pointer-events: none;">
           <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-        </a>
-        <button class="row-icon" title="Copier le lien"
-          onclick="navigator.clipboard.writeText(window.location.origin + '{{ sondage['url'] }}')">
-          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <rect x="9" y="9" width="13" height="13" rx="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-        </button>
-        <a href="/parametrage?from={{ sondage['id_template'] }}&sondage={{ sondage['id_sondage'] }}" class="row-icon"
-          title="Dupliquer">
-          <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
           </svg>
         </a>
       </div>
