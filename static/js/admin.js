@@ -28,7 +28,11 @@ function getInitials(mail) {
 function getRoleBadge(role) {
     if (!role) return '';
     if (role === 'Etudiant') return '<span class="role-badge etudiant"><span class="role-dot"></span>Étudiant</span>';
-    if (role === 'Admin') return '<span class="role-badge admin"><span class="role-dot"></span>Administrateur</span>';
+    if (role.startsWith('Admin')) {
+        var parts = role.split(':');
+        var label = parts.length > 1 ? 'Administrateur : ' + parts[1].replace(/;/g, ', ') : 'Administrateur';
+        return '<span class="role-badge admin"><span class="role-dot"></span>' + label + '</span>';
+    }
     if (role.startsWith('RP-RM')) {
         var parts = role.split(':');
         var label = parts.length > 1 ? 'RP-RM : ' + parts[1].replace(/;/g, ', ') : 'RP-RM';
@@ -41,7 +45,7 @@ function getRoleBadge(role) {
 function getAllFilieres() {
     var set = {};
     localUsers.forEach(function (u) {
-        if (u.role && u.role.startsWith('RP-RM:')) {
+        if (u.role && (':' in u.role)) {
             var after = u.role.split(':')[1];
             if (after) {
                 after.split(';').forEach(function (f) {
@@ -64,6 +68,8 @@ function filteredUsers() {
         if (!matchFilter) {
             if (currentFilter === 'RP-RM') {
                 matchFilter = u.role && u.role.startsWith('RP-RM');
+            } else if (currentFilter === 'Admin') {
+                matchFilter = u.role && u.role.startsWith('Admin');
             } else {
                 matchFilter = u.role === currentFilter;
             }
@@ -174,9 +180,9 @@ function openModal(userId) {
     editingUserId = userId;
 
     // Détecter le rôle et extraire les filières si RP-RM
-    if (user.role && user.role.startsWith('RP-RM')) {
-        selectedRole = 'RP-RM';
+    if (user.role && (':' in user.role)) {
         var parts = user.role.split(':');
+        selectedRole = parts[0];
         selectedFilieres = parts.length > 1
             ? parts[1].split(';').map(function (f) { return f.trim(); }).filter(Boolean)
             : [];
