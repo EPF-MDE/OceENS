@@ -22,7 +22,7 @@ from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session, SQLModel, create_engine, select, delete
+from sqlmodel import Session, SQLModel, create_engine, select, delete, func
 import uvicorn
 
 # ┌─ Importation des modèles et du module d'authentification ─────────────┐
@@ -1051,16 +1051,33 @@ def create_app():
                 for u in db_users
             ]
 
-        if role == "rprm":
+        if role in ("admin", "rprm"):
             all_sondages = session.exec(select(Sondage)).all()
-            if filieres:
+            if role == "rprm" and filieres:
                 sondages_filtres = [
                     s for s in all_sondages if s.formation in filieres
                 ]
             else:
                 sondages_filtres = list(all_sondages)
-            context["sondages"] = [
-                {
+                
+            sondages_list = []
+            for s in sondages_filtres:
+                nb_inscrits = session.exec(
+                    select(func.count(Repondre.id_user)).where(
+                        Repondre.id_template == s.id_template,
+                        Repondre.id_sondage == s.id_sondage
+                    )
+                ).first() or 0
+                
+                nb_repondants = session.exec(
+                    select(func.count(Repondre.id_user)).where(
+                        Repondre.id_template == s.id_template,
+                        Repondre.id_sondage == s.id_sondage,
+                        Repondre.repondu == True
+                    )
+                ).first() or 0
+                
+                sondages_list.append({
                     "id_template": s.id_template,
                     "id_sondage": s.id_sondage,
                     "campus": s.campus,
@@ -1068,9 +1085,10 @@ def create_app():
                     "semestre": s.semestre,
                     "annee_scolaire": s.annee_scolaire,
                     "url": s.url,
-                }
-                for s in sondages_filtres
-            ]
+                    "nb_inscrits": nb_inscrits,
+                    "nb_repondants": nb_repondants,
+                })
+            context["sondages"] = sondages_list
 
         return templates.TemplateResponse(
             request=request,
