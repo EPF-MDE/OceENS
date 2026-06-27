@@ -935,11 +935,11 @@ def create_app():
 
         # 2. Résoudre l'Id_User depuis l'email de l'utilisateur connecté
         db_user = session.exec(
-            select(User).where(User.mail == user["email"])
+            select(User).where(User.mail == user["email"].casefold())
         ).first()
         if not db_user:
             return JSONResponse(
-                content={"error": "Utilisateur non trouvé dans la base de données."},
+                content={"error": "Utilisateur "+user["email"]+"non trouvé dans la base de données."},
                 status_code=403,
             )
 
