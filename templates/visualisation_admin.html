@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Globale Admin — Visualisation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --accent: #4f46e5;
+            --accent-hover: #4338ca;
+            --red-brand: #df231d;
+            --purple-brand: #470a68;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            padding-bottom: 60px;
+        }
+        
+        .nav-header {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-header a {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-header a:hover { color: var(--text-primary); }
+        
+        .hero {
+            background: linear-gradient(135deg, var(--purple-brand), var(--red-brand));
+            padding: 48px 32px;
+            color: white;
+        }
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .hero p { font-size: 15px; opacity: 0.9; }
+        
+        .container {
+            max-width: 1200px;
+            margin: -30px auto 0;
+            padding: 0 32px;
+            position: relative;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 16px 24px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        th {
+            background: #f9fafb;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+        td { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+        
+        .campus-badge {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 4px 10px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .participation-bar {
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 99px;
+            width: 100%;
+            max-width: 100px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .participation-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 99px;
+        }
+        
+        .action-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .action-link:hover { color: var(--accent-hover); text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="nav-header">
+        <a href="/dashboard/admin">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Retour au Dashboard Admin
+        </a>
+    </div>
+
+    <div class="hero">
+        <div class="hero-content">
+            <h1>Vue Globale Admin</h1>
+            <p>Vue consolidée des enquêtes de satisfaction par campus et formation.</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Campus</th>
+                        <th>Formation & Semestre</th>
+                        <th>Année Scolaire</th>
+                        <th>Participation</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sondage in sondages %}
+                    <tr>
+                        <td><span class="campus-badge">{{ sondage.campus }}</span></td>
+                        <td>{{ sondage.formation }} — {{ sondage.semestre }}</td>
+                        <td style="color: var(--text-secondary);">{{ sondage.annee_scolaire }}</td>
+                        <td>
+                            <div>{{ sondage.nb_repondants }} / {{ sondage.nb_inscrits }}</div>
+                            <div class="participation-bar">
+                                {% set pct = (sondage.nb_repondants / sondage.nb_inscrits * 100) if sondage.nb_inscrits > 0 else 0 %}
+                                <div class="participation-fill" style="width: {{ pct }}%;"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="/visualisation/{{ sondage.id_template }}/{{ sondage.id_sondage }}" class="action-link" onclick="return checkParticipation(event, this.href, {{ sondage.nb_repondants }}, {{ sondage.nb_inscrits }})">
+                                Analyser
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-secondary);">Aucune enquête disponible.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Garde-fou -->
+    <div id="safeguard-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:32px; border-radius:16px; max-width:450px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+            <div style="margin-bottom:16px; color:#df231d;">
+                <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+            <h3 style="margin-bottom:12px; font-size:20px; color:#111;">Sondage potentiellement en cours</h3>
+            <p id="safeguard-msg" style="color:#555; font-size:15px; margin-bottom:28px; line-height:1.5;"></p>
+            <div style="display:flex; gap:12px; justify-content:center;">
+                <button onclick="closeModal()" style="padding:10px 24px; border-radius:24px; border:1px solid #ccc; background:white; font-size:14px; font-weight:600; color:#555; cursor:pointer;">Annuler</button>
+                <button id="safeguard-continue" style="padding:10px 24px; border-radius:24px; border:none; background:#df231d; color:white; font-size:14px; font-weight:600; cursor:pointer;">Continuer quand même</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pendingUrl = "";
+        function checkParticipation(event, url, repondants, inscrits) {
+            if (repondants < inscrits) {
+                event.preventDefault();
+                pendingUrl = url;
+                document.getElementById('safeguard-msg').innerText = `Seulement ${repondants} élèves ont répondu sur ${inscrits} inscrits. Les données risquent d'être partielles.`;
+                document.getElementById('safeguard-modal').style.display = 'flex';
+                return false;
+            }
+            return true;
+        }
+        
+        function closeModal() {
+            document.getElementById('safeguard-modal').style.display = 'none';
+            pendingUrl = "";
+        }
+        
+        document.getElementById('safeguard-continue').addEventListener('click', () => {
+            if(pendingUrl) window.location.href = pendingUrl;
+        });
+    </script>
+</body>
+</html>
