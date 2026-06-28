@@ -451,7 +451,7 @@ def create_app():
         allowed_formations = None
         role = user.get("role", "") or ""
 
-        if role.startswith("RP-RM:"):
+        if ':' in role: #RP-RM or Admin with formations
             allowed_formations = parse_rprm_formations(role)
 
         return JSONResponse(content=build_parametrage_data(session, allowed_formations=allowed_formations))
@@ -605,7 +605,7 @@ def create_app():
 
         # ── Sécurité : vérifier que la formation est autorisée pour le RP-RM ──
         role = user.get("role", "")
-        if role.startswith("RP-RM:"):
+        if ':' in role: # RM-RP or Admin with formations
             allowed = parse_rprm_formations(role)
             if sondage.formation not in allowed:
                 return JSONResponse(
@@ -1044,7 +1044,7 @@ def create_app():
 
         filieres = []
         full_role = user.get("role", "")
-        if full_role.startswith("RP-RM:") and ":" in full_role:
+        if ":" in full_role:
             filieres = [f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()]
 
         context = {"user": user, "filieres": filieres}
@@ -1147,10 +1147,12 @@ def create_app():
 
     # ┌─ API : Gestion des rôles utilisateurs (accès restreint Admin) ────┐
     def _is_valid_role(role: str) -> bool:
-        """Accepte 'Admin', 'Etudiant', 'RP-RM' ou 'RP-RM:filière1;filière2;...'"""
-        if role in {"Admin", "Etudiant"}:
+        """Accepte 'Admin' ou 'Admin:filière1,filière2', 'Etudiant', 'RP-RM' ou 'RP-RM:filière1;filière2;...'"""
+        if role in {"Etudiant"}:
             return True
-        if role == "RP-RM" or role.startswith("RP-RM:"):
+        if role.startswith("Admin"):
+            return True
+        if role.startswith("RP-RM"):
             return True
         return False
 
