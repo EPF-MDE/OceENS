@@ -40,6 +40,9 @@ from models import (
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 from auth import router as auth_router, get_current_user, require_roles
+from sondage_loader import extract_sondage
+from services.export_csv import generate_csv_response
+from services.visualisation_data import get_visualisation_context
 
 load_dotenv()
 # ┌─ Configuration ────────────────────────────────────────────────────────┐
@@ -1209,7 +1212,143 @@ def create_app():
 
         return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
    
-    # └────────────────────────────────────────────────────────────────┘
+    # ┌─ Visualisation & Export CSV ──────────────────────────────────────┐
+    def _check_sondage_access_and_status(session: Session, id_template: int, id_sondage: int, role: str, formations_autorisees: list[str]):
+        """Helper pour vérifier les accès et le statut de participation"""
+        sondage = session.exec(
+            select(Sondage).where(
+                Sondage.id_template == id_template, Sondage.id_sondage == id_sondage
+            )
+        ).first()
+        if not sondage:
+            return None, {"error": "Sondage introuvable.", "status_code": 404}
+            
+        if role != "admin" and sondage.formation not in formations_autorisees:
+            return None, {"error": f"Formation '{sondage.formation}' non autorisée pour votre rôle.", "status_code": 403}
+            
+        nb_inscrits = session.exec(
+            select(func.count(Repondre.id_user)).where(
+                Repondre.id_template == id_template,
+                Repondre.id_sondage == id_sondage
+            )
+        ).first() or 0
+        nb_repondants = session.exec(
+            select(func.count(Repondre.id_user)).where(
+                Repondre.id_template == id_template,
+                Repondre.id_sondage == id_sondage,
+                Repondre.repondu == True
+            )
+        ).first() or 0
+        
+        warning_msg = None
+        if nb_repondants < nb_inscrits or sondage.statut == 1:
+            warning_msg = f"Attention : Le sondage est toujours en cours. Seulement {nb_repondants} élève(s) ont répondu sur {nb_inscrits} inscrits."
+                
+        return sondage, warning_msg
+
+    @app.get("/api/export/{id_template}/{id_sondage}")
+    def export_sondage_csv(request: Request, id_template: int, id_sondage: int, session: SessionDep):
+        user = require_roles(request, ["Admin", "RP-RM"])
+        if user is None:
+            return JSONResponse(content={"error": "Accès refusé."}, status_code=403)
+            
+        role = user.get("role", "") or ""
+        formations_autorisees = parse_rprm_formations(role) if role.startswith("RP-RM") else []
+        admin_role = "admin" if role == "Admin" else "rprm"
+        
+        sondage, error_or_warning = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
+        if not sondage:
+            return JSONResponse(content={"error": error_or_warning["error"]}, status_code=error_or_warning["status_code"])
+            
+        engine = session.bind
+        sondage_obj = extract_sondage(id_template, id_sondage, db_engine=engine)
+        
+        resp = generate_csv_response(sondage_obj)
+        if isinstance(error_or_warning, str):
+            resp.headers["X-Warning"] = "Sondage en cours - donnees partielles"
+            
+        return resp
+
+    @app.get("/visualisation/{id_template}/{id_sondage}", response_class=HTMLResponse)
+    def visualisation_page(request: Request, id_template: int, id_sondage: int, session: SessionDep):
+        user = require_roles(request, ["Admin", "RP-RM"])
+        if user is None:
+            return RedirectResponse(url="/")
+            
+        role = user.get("role", "") or ""
+        formations_autorisees = parse_rprm_formations(role) if role.startswith("RP-RM") else []
+        admin_role = "admin" if role == "Admin" else "rprm"
+        
+        sondage, error_or_warning = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
+        if not sondage:
+            return HTMLResponse(content=f"<h1>Erreur</h1><p>{error_or_warning['error']}</p>", status_code=error_or_warning['status_code'])
+            
+        engine = session.bind
+        sondage_obj = extract_sondage(id_template, id_sondage, db_engine=engine)
+        
+        viz_context = get_visualisation_context(sondage_obj)
+        
+        context = {
+            "user": user,
+            "sondage": sondage,
+            "warning_msg": error_or_warning if isinstance(error_or_warning, str) else None,
+            "viz_data": viz_context
+        }
+        
+        return templates.TemplateResponse(
+            request=request,
+            name="visualisation.html",
+            context=context
+        )
+
+    @app.get("/visualisation/admin", response_class=HTMLResponse)
+    def visualisation_admin_globale(request: Request, session: SessionDep):
+        user = require_roles(request, ["Admin"])
+        if user is None:
+            return RedirectResponse(url="/")
+            
+        all_sondages = session.exec(select(Sondage)).all()
+        
+        # On regroupe les sondages par campus pour la vue de Niveau 0
+        sondages_list = []
+        for s in all_sondages:
+            nb_inscrits = session.exec(
+                select(func.count(Repondre.id_user)).where(
+                    Repondre.id_template == s.id_template,
+                    Repondre.id_sondage == s.id_sondage
+                )
+            ).first() or 0
+            
+            nb_repondants = session.exec(
+                select(func.count(Repondre.id_user)).where(
+                    Repondre.id_template == s.id_template,
+                    Repondre.id_sondage == s.id_sondage,
+                    Repondre.repondu == True
+                )
+            ).first() or 0
+            
+            sondages_list.append({
+                "id_template": s.id_template,
+                "id_sondage": s.id_sondage,
+                "campus": s.campus,
+                "formation": s.formation,
+                "semestre": s.semestre,
+                "annee_scolaire": s.annee_scolaire,
+                "url": s.url,
+                "nb_inscrits": nb_inscrits,
+                "nb_repondants": nb_repondants,
+            })
+
+        context = {
+            "user": user,
+            "sondages": sondages_list
+        }
+        return templates.TemplateResponse(
+            request=request,
+            name="visualisation_admin.html",
+            context=context
+        )
+    # └───────────────────────────────────────────────────────────────────┘
 
     return app
 
