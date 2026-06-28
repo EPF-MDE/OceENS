@@ -40,7 +40,7 @@ from models import (
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 from auth import router as auth_router, get_current_user, require_roles
-from sondage_loader import extract_sondage
+from sondage_loader import load_sondage_complet
 from services.export_csv import generate_csv_response
 from services.visualisation_data import get_visualisation_context
 
@@ -1260,8 +1260,8 @@ def create_app():
         if not sondage:
             return JSONResponse(content={"error": error_or_warning["error"]}, status_code=error_or_warning["status_code"])
             
-        engine = session.bind
-        sondage_obj = extract_sondage(id_template, id_sondage, db_engine=engine)
+        # Utilisation de la BDD locale pour le loader sqlite3 natif
+        sondage_obj = load_sondage_complet("database/db_oceens.db", id_template, id_sondage)
         
         resp = generate_csv_response(sondage_obj)
         if isinstance(error_or_warning, str):
@@ -1283,8 +1283,8 @@ def create_app():
         if not sondage:
             return HTMLResponse(content=f"<h1>Erreur</h1><p>{error_or_warning['error']}</p>", status_code=error_or_warning['status_code'])
             
-        engine = session.bind
-        sondage_obj = extract_sondage(id_template, id_sondage, db_engine=engine)
+        # Utilisation de la BDD locale pour le loader sqlite3 natif
+        sondage_obj = load_sondage_complet("database/db_oceens.db", id_template, id_sondage)
         
         viz_context = get_visualisation_context(sondage_obj)
         
