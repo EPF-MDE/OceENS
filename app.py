@@ -1244,7 +1244,7 @@ def create_app():
         if nb_repondants < nb_inscrits or sondage.statut == 1:
             warning_msg = f"Attention : Le sondage est toujours en cours. Seulement {nb_repondants} élève(s) ont répondu sur {nb_inscrits} inscrits."
                 
-        return sondage, warning_msg
+        return sondage, warning_msg, nb_inscrits, nb_repondants
 
     @app.get("/api/export/{id_template}/{id_sondage}")
     def export_sondage_csv(request: Request, id_template: int, id_sondage: int, session: SessionDep):
@@ -1256,7 +1256,7 @@ def create_app():
         formations_autorisees = parse_rprm_formations(role) if role.startswith("RP-RM") else []
         admin_role = "admin" if role == "Admin" else "rprm"
         
-        sondage, error_or_warning = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
+        sondage, error_or_warning, _, _ = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
         if not sondage:
             return JSONResponse(content={"error": error_or_warning["error"]}, status_code=error_or_warning["status_code"])
             
@@ -1279,7 +1279,7 @@ def create_app():
         formations_autorisees = parse_rprm_formations(role) if role.startswith("RP-RM") else []
         admin_role = "admin" if role == "Admin" else "rprm"
         
-        sondage, error_or_warning = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
+        sondage, error_or_warning, nb_inscrits, nb_repondants = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
         if not sondage:
             return HTMLResponse(content=f"<h1>Erreur</h1><p>{error_or_warning['error']}</p>", status_code=error_or_warning['status_code'])
             
@@ -1291,6 +1291,8 @@ def create_app():
         context = {
             "user": user,
             "sondage": sondage,
+            "nb_inscrits": nb_inscrits,
+            "nb_repondants": nb_repondants,
             "warning_msg": error_or_warning if isinstance(error_or_warning, str) else None,
             "viz_data": viz_context
         }

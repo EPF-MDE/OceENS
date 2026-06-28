@@ -8,11 +8,25 @@ def get_visualisation_context(sondage_obj) -> Dict[str, Any]:
     """
     records = sondage_obj.to_flat_dataframe_records()
     
-    # Exclure les questions ouvertes pour alléger le payload
-    clean_records = [
-        r for r in records 
-        if "OUVERTE" not in str(r.get("Type_Question", "")).upper()
-    ]
+    # Remplacement des variables non résolues dans les titres de graphes
+    campus = sondage_obj.campus or ""
+    formation = sondage_obj.formation or ""
+    module_name = sondage_obj.modules[0].nom if len(sondage_obj.modules) == 1 else "ce module"
+    enseignant_name = sondage_obj.modules[0].enseignant if len(sondage_obj.modules) == 1 else "l'enseignant"
+
+    clean_records = []
+    for r in records:
+        if "OUVERTE" not in str(r.get("Type_Question", "")).upper():
+            # Correction des placeholders
+            for field in ["Section", "Question"]:
+                if r.get(field):
+                    val = str(r[field])
+                    val = val.replace("[CAMPUS]", campus)
+                    val = val.replace("[FORMATION]", formation)
+                    val = val.replace("[MODULE]", module_name)
+                    val = val.replace("[ENSEIGNANT]", enseignant_name)
+                    r[field] = val
+            clean_records.append(r)
     
     ues = list(set([m.ue for m in sondage_obj.modules if m.ue]))
     modules = [{"id": m.id_module, "nom": m.nom, "ue": m.ue} for m in sondage_obj.modules]
