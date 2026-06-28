@@ -1033,7 +1033,7 @@ def create_app():
             return RedirectResponse(url="/")
 
         user_slug = role_to_dashboard_slug(user.get("role", ""))
-        if user_slug != role:
+        if user_slug != "admin" and user_slug != role: # Admin can see all the pages
             return RedirectResponse(url=f"/dashboard/{user_slug}")
 
         template_map = {
