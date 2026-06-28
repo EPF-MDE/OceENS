@@ -18,7 +18,7 @@
       --border-accent: #b3d4ff;
       --border: #eee;
     }
-    
+
     .questionnaires-header {
       display: flex;
       align-items: center;
@@ -72,6 +72,41 @@
       justify-content: center;
       text-decoration: none;
     }
+
+    /* Tabs */
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border: none;
+      background: #eee;
+      border-radius: 4px;
+      transition: background 0.3s ease;
+    }
+
+    .tab:hover {
+      background: #ddd;
+    }
+
+    .tab.active {
+      background: #333;
+      color: #fff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
   </style>
 </head>
 
@@ -96,95 +131,120 @@
   </div>
 
   <main>
-    <div class="card" style="margin-bottom: 24px;">
-      <div class="questionnaires-header">
-        <div class="questionnaires-title">Tous les questionnaires</div>
+    <div class="tab-container">
+      <div class="tabs">
+        <button class="tab active" data-tab="users">Utilisateurs</button>
+        <button class="tab" data-tab="surveys">Sondage</button>
       </div>
-      
-      {% for sondage in sondages %}
-      <div class="sondage-row">
-        <div style="flex:1;">
-          <div class="sondage-row-name">
-            <a href="{{ sondage['url'] }}" style="text-decoration: none; color: inherit;">
-              {{ sondage['formation'] }} — {{ sondage['semestre'] }}
-            </a>
+
+
+      <div class="tab-content active" id="users">
+        <div class="card">
+          <div class="card-title">
+            Liste des utilisateurs
+            <span class="count" id="count-label">0 affiché(s)</span>
           </div>
-          <div class="sondage-row-meta">{{ sondage['campus'] }} · {{ sondage['annee_scolaire'] }}</div>
-        </div>
-        
-        <a href="{{ sondage['url'] }}" style="background: var(--bg-accent); color: var(--text-accent); border: 0.5px solid var(--border-accent); border-radius: 8px; padding: 5px 11px; text-decoration: none; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
-          Lien questionnaire
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-        </a>
-  
-        <div style="text-align: right; margin-right: 12px; margin-left: 12px; min-width: 100px;">
-          <div style="font-size: 13px; font-weight: 500; color: #111;">{{ sondage['nb_repondants'] }} / {{ sondage['nb_inscrits'] }}</div>
-          <div style="font-size: 10px; color: #aaa;">ont répondu / inscrits</div>
-          <div style="height: 4px; border-radius: 99px; width: 72px; background: var(--border); margin-top: 4px; margin-left: auto;">
-            <div style="height: 100%; border-radius: 99px; background: #470a68; width: {% if sondage['nb_inscrits'] > 0 %}{{ (sondage['nb_repondants'] / sondage['nb_inscrits']) * 100 }}{% else %}0{% endif %}%;"></div>
+
+          <div class="search-wrap">
+            <span class="search-icon">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
+            <input type="text" class="search-input" id="search-input"
+              placeholder="Rechercher par nom, prénom ou email…">
           </div>
-        </div>
-  
-        <div class="row-actions">
-          <a href="/visualisation/{{ sondage['id_template'] }}/{{ sondage['id_sondage'] }}" class="row-icon"
-            title="Visualisation" style="opacity: 0.5; cursor: not-allowed; pointer-events: none;">
-            <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">Tous</button>
+            <button class="filter-tab" data-filter="Etudiant">Étudiants</button>
+            <button class="filter-tab" data-filter="Admin">Admins</button>
+            <button class="filter-tab" data-filter="RP-RM">RP-RM</button>
+          </div>
+
+          <table class="users-table" id="users-table">
+            <thead>
+              <tr>
+                <th>Utilisateur</th>
+                <th>Rôle</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+
+          <div class="empty-state" id="empty-state" style="display:none;">
+            <svg width="48" height="48" fill="none" stroke="#470a68" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-          </a>
+            <p>Aucun utilisateur ne correspond à votre recherche.</p>
+          </div>
         </div>
       </div>
-      {% else %}
-      <div style="text-align:center; padding: 48px 0;">
-        <div style="font-size:15px; font-weight:600; color:#111; margin-bottom:8px;">Aucun questionnaire pour l'instant</div>
-        <div style="font-size:13px; color:#aaa;">Vous n'avez pas encore créé de questionnaire.</div>
-      </div>
-      {% endfor %}
-    </div>
 
-    <div class="card">
-      <div class="card-title">
-        Liste des utilisateurs
-        <span class="count" id="count-label">0 affiché(s)</span>
+      <div class="tab-content" id="surveys">
+
+        <div class="card" style="margin-bottom: 24px;">
+          <div class="questionnaires-header">
+            <div class="questionnaires-title">Tous les questionnaires</div>
+          </div>
+
+          {% for sondage in sondages %}
+          <div class="sondage-row">
+            <div style="flex:1;">
+              <div class="sondage-row-name">
+                <a href="{{ sondage['url'] }}" style="text-decoration: none; color: inherit;">
+                  {{ sondage['formation'] }} — {{ sondage['semestre'] }}
+                </a>
+              </div>
+              <div class="sondage-row-meta">{{ sondage['campus'] }} · {{ sondage['annee_scolaire'] }}</div>
+            </div>
+
+            <a href="{{ sondage['url'] }}"
+              style="background: var(--bg-accent); color: var(--text-accent); border: 0.5px solid var(--border-accent); border-radius: 8px; padding: 5px 11px; text-decoration: none; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+              Lien questionnaire
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+
+            <div style="text-align: right; margin-right: 12px; margin-left: 12px; min-width: 100px;">
+              <div style="font-size: 13px; font-weight: 500; color: #111;">{{ sondage['nb_repondants'] }} / {{
+                sondage['nb_inscrits'] }}</div>
+              <div style="font-size: 10px; color: #aaa;">ont répondu / inscrits</div>
+              <div
+                style="height: 4px; border-radius: 99px; width: 72px; background: var(--border); margin-top: 4px; margin-left: auto;">
+                <div
+                  style="height: 100%; border-radius: 99px; background: #470a68; width: {% if sondage['nb_inscrits'] > 0 %}{{ (sondage['nb_repondants'] / sondage['nb_inscrits']) * 100 }}{% else %}0{% endif %}%;">
+                </div>
+              </div>
+            </div>
+
+            <div class="row-actions">
+              <a href="/visualisation/{{ sondage['id_template'] }}/{{ sondage['id_sondage'] }}" class="row-icon"
+                title="Visualisation" style="opacity: 0.5; cursor: not-allowed; pointer-events: none;">
+                <svg width="14" height="14" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+              </a>
+            </div>
+          </div>
+          {% else %}
+          <div style="text-align:center; padding: 48px 0;">
+            <div style="font-size:15px; font-weight:600; color:#111; margin-bottom:8px;">Aucun questionnaire pour
+              l'instant</div>
+            <div style="font-size:13px; color:#aaa;">Vous n'avez pas encore créé de questionnaire.</div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
 
-      <div class="search-wrap">
-        <span class="search-icon">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </span>
-        <input type="text" class="search-input" id="search-input" placeholder="Rechercher par nom, prénom ou email…">
-      </div>
-
-      <div class="filter-tabs">
-        <button class="filter-tab active" data-filter="all">Tous</button>
-        <button class="filter-tab" data-filter="Etudiant">Étudiants</button>
-        <button class="filter-tab" data-filter="Admin">Admins</button>
-        <button class="filter-tab" data-filter="RP-RM">RP-RM</button>
-      </div>
-
-      <table class="users-table" id="users-table">
-        <thead>
-          <tr>
-            <th>Utilisateur</th>
-            <th>Rôle</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="users-tbody"></tbody>
-      </table>
-
-      <div class="empty-state" id="empty-state" style="display:none;">
-        <svg width="48" height="48" fill="none" stroke="#470a68" stroke-width="1.5" viewBox="0 0 24 24">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-        <p>Aucun utilisateur ne correspond à votre recherche.</p>
-      </div>
     </div>
   </main>
 
@@ -252,6 +312,25 @@
     const ALL_USERS = {{ users | tojson }};
   </script>
   <script src="{{ url_for('static', path='js/admin.js') }}"></script>
+  <script>
+    // Tabs
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.tab-content');
+    console.log(tabs);
+    console.log(contents);
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+
+        tabs.forEach((t) => t.classList.remove('active'));
+        contents.forEach((c) => c.classList.remove('active'));
+
+        tab.classList.add('active');
+        document.getElementById(target).classList.add('active');
+      });
+    });
+  </script>
 </body>
 
 </html>
