@@ -239,7 +239,7 @@ document.querySelectorAll('.role-option').forEach(function (opt) {
         opt.classList.add('selected');
         selectedRole = opt.dataset.role;
 
-        if (selectedRole === 'RP-RM') {
+        if (selectedRole === 'RP-RM' || selectedRole === 'Admin') {
             showFiliereSection();
             renderFiliereTags();
             refreshFiliereDropdown();
