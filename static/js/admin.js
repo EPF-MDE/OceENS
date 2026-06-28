@@ -202,7 +202,7 @@ function openModal(userId) {
     });
 
     // Section filières
-    if (selectedRole === 'RP-RM') {
+    if (selectedRole === 'RP-RM' || selectedRole === 'Admin')
         showFiliereSection();
     } else {
         hideFiliereSection();
@@ -307,6 +307,9 @@ document.getElementById('btn-save').addEventListener('click', function () {
     var finalRole = selectedRole;
     if (selectedRole === 'RP-RM' && selectedFilieres.length > 0) {
         finalRole = 'RP-RM:' + selectedFilieres.join(';');
+    }
+    if (selectedRole === 'Admin' && selectedFilieres.length > 0) {
+        finalRole = 'Admin:' + selectedFilieres.join(';');
     }
 
     var btn = document.getElementById('btn-save');
