@@ -202,7 +202,7 @@ function openModal(userId) {
     });
 
     // Section filières
-    if (selectedRole === 'RP-RM' || selectedRole === 'Admin')
+    if (selectedRole === 'RP-RM' || selectedRole === 'Admin') {
         showFiliereSection();
     } else {
         hideFiliereSection();
