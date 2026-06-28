@@ -56,7 +56,7 @@ def role_to_dashboard_slug(role: str) -> str:
     "RP-RM:MDE_P2027"    → "rprm"
     "Etudiant" (ou autre) → "etudiant"
     """
-    if role == "Admin":
+    if role.startswith("Admin"):
         return "admin"
     elif role.startswith("RP-RM"):
         return "rprm"
@@ -72,11 +72,13 @@ def parse_rprm_formations(role: str) -> list[str]:
     "RP-RM:FORMATION1"            → ["FORMATION1"]
     "RP-RM"                       → []
     "Admin"                       → []
+    "Admin:FORMATION1;FORMATION2" → ["FORMATION1", "FORMATION2"]
+    "Admin:FORMATION1"            → ["FORMATION1"]
     """
     if not role or not isinstance(role, str):
         return []
     role_upper = role.strip()
-    if not role_upper.startswith("RP-RM:"):
+    if not (role_upper.startswith("RP-RM:") or role_upper.startswith("Admin:")):
         return []
     after_colon = role_upper.split(":", 1)[1]
     return [f.strip() for f in after_colon.split(";") if f.strip()]
@@ -401,6 +403,9 @@ def create_app():
         is_rprm = False
         role = user.get("role", "") or ""
 
+        if role.startswith("Admin:"):
+            allowed_formations = parse_rprm_formations(role)
+            is_rprm = True
         if role.startswith("RP-RM:"):
             allowed_formations = parse_rprm_formations(role)
             is_rprm = True
@@ -446,7 +451,7 @@ def create_app():
         allowed_formations = None
         role = user.get("role", "") or ""
 
-        if role.startswith("RP-RM:"):
+        if ':' in role: #RP-RM or Admin with formations
             allowed_formations = parse_rprm_formations(role)
 
         return JSONResponse(content=build_parametrage_data(session, allowed_formations=allowed_formations))
@@ -600,7 +605,7 @@ def create_app():
 
         # ── Sécurité : vérifier que la formation est autorisée pour le RP-RM ──
         role = user.get("role", "")
-        if role.startswith("RP-RM:"):
+        if ':' in role: # RM-RP or Admin with formations
             allowed = parse_rprm_formations(role)
             if sondage.formation not in allowed:
                 return JSONResponse(
@@ -930,11 +935,11 @@ def create_app():
 
         # 2. Résoudre l'Id_User depuis l'email de l'utilisateur connecté
         db_user = session.exec(
-            select(User).where(User.mail == user["email"])
+            select(User).where(User.mail == user["email"].casefold())
         ).first()
         if not db_user:
             return JSONResponse(
-                content={"error": "Utilisateur non trouvé dans la base de données."},
+                content={"error": "Utilisateur "+user["email"]+"non trouvé dans la base de données."},
                 status_code=403,
             )
 
@@ -1028,7 +1033,7 @@ def create_app():
             return RedirectResponse(url="/")
 
         user_slug = role_to_dashboard_slug(user.get("role", ""))
-        if user_slug != role:
+        if user_slug != "admin" and user_slug != role: # Admin can see all the pages
             return RedirectResponse(url=f"/dashboard/{user_slug}")
 
         template_map = {
@@ -1039,7 +1044,7 @@ def create_app():
 
         filieres = []
         full_role = user.get("role", "")
-        if full_role.startswith("RP-RM:") and ":" in full_role:
+        if ":" in full_role:
             filieres = [f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()]
 
         context = {"user": user, "filieres": filieres}
@@ -1096,11 +1101,11 @@ def create_app():
 
         # Résoudre l'id_user depuis l'email
         db_user = session.exec(
-            select(User).where(User.mail == user["email"])
+            select(User).where(User.mail == user["email"].casefold())
         ).first()
         if not db_user:
             return JSONResponse(
-                content={"error": "Utilisateur non trouvé en base de données."},
+                content={"error": "Utilisateur "+user["email"]+" non trouvé en base de données."},
                 status_code=404,
             )
 
@@ -1142,10 +1147,12 @@ def create_app():
 
     # ┌─ API : Gestion des rôles utilisateurs (accès restreint Admin) ────┐
     def _is_valid_role(role: str) -> bool:
-        """Accepte 'Admin', 'Etudiant', 'RP-RM' ou 'RP-RM:filière1;filière2;...'"""
-        if role in {"Admin", "Etudiant"}:
+        """Accepte 'Admin' ou 'Admin:filière1,filière2', 'Etudiant', 'RP-RM' ou 'RP-RM:filière1;filière2;...'"""
+        if role in {"Etudiant"}:
             return True
-        if role == "RP-RM" or role.startswith("RP-RM:"):
+        if role.startswith("Admin"):
+            return True
+        if role.startswith("RP-RM"):
             return True
         return False
 

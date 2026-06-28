@@ -315,7 +315,7 @@ def require_roles(request: Request, allowed_roles: list[str]) -> dict | None:
     user_role = user.get("role", "")
 
     for allowed in allowed_roles:
-        if allowed == "Admin" and user_role == "Admin":
+        if allowed == "Admin" and user_role.startswith("Admin"):
             return user
         if allowed == "RP-RM" and user_role.startswith("RP-RM"):
             return user
