@@ -90,10 +90,12 @@ Créez un fichier `.env` à la racine du projet :
 ENTRA_CLIENT_ID=your_app_id_here
 ENTRA_CLIENT_SECRET=your_secret_here
 ENTRA_TENANT_ID=your_tenant_id_here
-REDIRECT_URI=https://localhost/auth/callback
+REDIRECT_URI=http://localhost:8000/auth/callback
+ALLOWED_DOMAINS=epf.fr,epfedu.fr
 
 # Session
 SECRET_KEY=your_secure_random_key_here
+
 ```
 
 > [!CAUTION]
