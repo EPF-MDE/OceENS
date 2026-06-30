@@ -54,6 +54,10 @@ class OptionData:
 class ReponseData:
     id_reponse: int
     valeur: str
+    id_module: int | None = None
+    ue: str = ""
+    module: str = ""
+    enseignant: str = ""
 
 
 @dataclass
@@ -110,6 +114,9 @@ class SondageComplet:
                             "Formation": self.formation,
                             "Semestre": self.semestre,
                             "Annee_Scolaire": self.annee_scolaire,
+                            "UE": reponse.ue,
+                            "Module": reponse.module,
+                            "Enseignant": reponse.enseignant,
                             "Section": section.nom,
                             "Question_ID": question.id_question,
                             "Question": question.intitule,
@@ -180,6 +187,7 @@ def load_sondage_complet(
                 enseignant=clean_mojibake(row["Enseignant"]),
             )
         )
+    modules_by_id = {module.id_module: module for module in sondage.modules}
 
     # --- C. Récupération des Sections ---
     cursor.execute(
@@ -227,14 +235,30 @@ def load_sondage_complet(
             questions_dict[q_key].options.append(opt)
 
     # --- F. Récupération des Réponses soumises ---
+
     cursor.execute(
         "SELECT * FROM Reponses WHERE Id_Template = ? AND Id_Sondage = ?",
         (id_template, id_sondage),
     )
+
     for row in cursor.fetchall():
+        id_module = row["Id_Module"]
+        module = modules_by_id.get(id_module)
+
+        #enseignant_reponse = row["Enseignant"]
+        enseignant_reponse = row["Enseignant"] if "Enseignant" in row.keys() else ""
+
+        enseignant_module = module.enseignant if module else ""
+
         rep = ReponseData(
-            id_reponse=row["Id_Reponse"], valeur=clean_mojibake(row["Valeur"])
+            id_reponse=row["Id_Reponse"],
+            valeur=clean_mojibake(row["Valeur"]),
+            id_module=id_module,
+            ue=clean_mojibake(module.ue) if module else "",
+            module=clean_mojibake(module.nom) if module else "",
+            enseignant=clean_mojibake(enseignant_reponse or enseignant_module),
         )
+
         q_key = (row["Id_Section"], row["Id_Question"])
         if q_key in questions_dict:
             questions_dict[q_key].reponses.append(rep)

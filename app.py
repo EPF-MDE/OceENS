@@ -83,6 +83,8 @@ def parse_rprm_formations(role: str) -> list[str]:
         return []
     after_colon = role_upper.split(":", 1)[1]
     return [f.strip() for f in after_colon.split(";") if f.strip()]
+
+
 # └────────────────────────────────────────────────────────────────────────┘
 
 
@@ -157,8 +159,10 @@ class ReponseItem(BaseModel):
 class QuestionnaireSubmission(BaseModel):
     reponses: List[ReponseItem]
 
+
 class RoleUpdate(BaseModel):
     role: str
+
 
 import json
 
@@ -175,7 +179,9 @@ def parse_name(full_name: Optional[str], fallback_id: int) -> Dict[str, Optional
     return {"id": fallback_id, "prenom": parts[0], "nom": " ".join(parts[1:])}
 
 
-def build_parametrage_data(session: Session, allowed_formations: list[str] | None = None) -> Dict[str, object]:
+def build_parametrage_data(
+    session: Session, allowed_formations: list[str] | None = None
+) -> Dict[str, object]:
     templates = session.exec(select(Template)).all()
     sondages = session.exec(select(Sondage)).all()
     modules = session.exec(select(Module)).all()
@@ -452,7 +458,11 @@ def create_app():
         if role.startswith("RP-RM:"):
             allowed_formations = parse_rprm_formations(role)
 
-        return JSONResponse(content=build_parametrage_data(session, allowed_formations=allowed_formations))
+        return JSONResponse(
+            content=build_parametrage_data(
+                session, allowed_formations=allowed_formations
+            )
+        )
 
     # └────────────────────────────────────────────────────────────────┘
 
@@ -607,18 +617,26 @@ def create_app():
             allowed = parse_rprm_formations(role)
             if sondage.formation not in allowed:
                 return JSONResponse(
-                    content={"error": f"Formation '{sondage.formation}' non autorisée pour votre rôle."},
+                    content={
+                        "error": f"Formation '{sondage.formation}' non autorisée pour votre rôle."
+                    },
                     status_code=403,
                 )
 
         # ── Pré-lecture du fichier Excel (avant la transaction) ──
         emails = []
-        has_file = file is not None and file.filename and file.filename.lower().endswith(".xlsx")
+        has_file = (
+            file is not None
+            and file.filename
+            and file.filename.lower().endswith(".xlsx")
+        )
 
         if file is not None and file.filename:
             if not file.filename.lower().endswith(".xlsx"):
                 return JSONResponse(
-                    content={"error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."},
+                    content={
+                        "error": "Format invalide. Seuls les fichiers .xlsx sont acceptés."
+                    },
                     status_code=400,
                 )
 
@@ -627,7 +645,9 @@ def create_app():
                 from openpyxl import load_workbook
 
                 contents = await file.read()
-                print(f"[SONDAGE+IMPORT] Fichier reçu : {file.filename} ({len(contents)} octets)")
+                print(
+                    f"[SONDAGE+IMPORT] Fichier reçu : {file.filename} ({len(contents)} octets)"
+                )
 
                 if len(contents) == 0:
                     return JSONResponse(
@@ -649,14 +669,20 @@ def create_app():
                     if cell_str and "@" in cell_str:
                         emails.append(cell_str.lower())
                     elif cell_str and row_count <= 3:
-                        print(f"[SONDAGE+IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'")
+                        print(
+                            f"[SONDAGE+IMPORT] Ligne {row_count} ignorée (pas d'email) : '{cell_str}'"
+                        )
 
                 wb.close()
-                print(f"[SONDAGE+IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s)")
+                print(
+                    f"[SONDAGE+IMPORT] {row_count} ligne(s) lues, {len(emails)} email(s) valide(s)"
+                )
 
                 if not emails:
                     return JSONResponse(
-                        content={"error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."},
+                        content={
+                            "error": f"Aucun email valide trouvé dans le fichier ({row_count} ligne(s) lue(s)). Vérifiez que les emails sont dans la première colonne."
+                        },
                         status_code=400,
                     )
 
@@ -665,7 +691,9 @@ def create_app():
                 print(f"[SONDAGE+IMPORT] {len(emails)} email(s) unique(s) à traiter")
 
             except Exception as e:
-                print(f"[SONDAGE+IMPORT] Erreur lecture Excel : {type(e).__name__}: {e}")
+                print(
+                    f"[SONDAGE+IMPORT] Erreur lecture Excel : {type(e).__name__}: {e}"
+                )
                 return JSONResponse(
                     content={"error": f"Erreur de lecture du fichier Excel : {str(e)}"},
                     status_code=400,
@@ -681,7 +709,9 @@ def create_app():
                 with session.no_autoflush:
                     # ── Étape 1 : Créer le sondage ──
                     existing_sondages = session.exec(
-                        select(Sondage).where(Sondage.id_template == sondage.id_template)
+                        select(Sondage).where(
+                            Sondage.id_template == sondage.id_template
+                        )
                     ).all()
                     next_id_sondage = (
                         max([s.id_sondage for s in existing_sondages] + [0]) + 1
@@ -709,7 +739,9 @@ def create_app():
                             prof_names = [
                                 f"{p.prenom} {p.nom}" for p in module_data.professeurs
                             ]
-                            enseignant_str = ", ".join(prof_names) if prof_names else None
+                            enseignant_str = (
+                                ", ".join(prof_names) if prof_names else None
+                            )
 
                             new_module = Module(
                                 nom=module_data.nom,
@@ -728,11 +760,11 @@ def create_app():
 
                         existing_users = session.exec(select(User)).all()
                         existing_email_map = {
-                            u.mail.lower(): u.id_user
-                            for u in existing_users
-                            if u.mail
+                            u.mail.lower(): u.id_user for u in existing_users if u.mail
                         }
-                        print(f"[SONDAGE+IMPORT] {len(existing_email_map)} user(s) existant(s) en BDD")
+                        print(
+                            f"[SONDAGE+IMPORT] {len(existing_email_map)} user(s) existant(s) en BDD"
+                        )
 
                         max_id = max([u.id_user for u in existing_users] + [0])
 
@@ -752,15 +784,21 @@ def create_app():
                                 existing_email_map[email] = max_id
                                 nb_crees += 1
 
-                        print(f"[SONDAGE+IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)")
+                        print(
+                            f"[SONDAGE+IMPORT] Users : {nb_crees} créé(s), {nb_existants} existant(s)"
+                        )
 
                         user_ids = list(email_to_user_id.values())
                         if user_ids:
                             # Nettoyage préalable (DELETE) : Supprime toutes les lignes de la table Repondre
                             # où la valeur Id_User correspond à un des élèves présents
-                            stmt = delete(Repondre).where(Repondre.id_user.in_(user_ids))
+                            stmt = delete(Repondre).where(
+                                Repondre.id_user.in_(user_ids)
+                            )
                             res = session.exec(stmt)
-                            print(f"[SONDAGE+IMPORT] Nettoyage préalable : {res.rowcount} anciennes lignes supprimées de Repondre.")
+                            print(
+                                f"[SONDAGE+IMPORT] Nettoyage préalable : {res.rowcount} anciennes lignes supprimées de Repondre."
+                            )
 
                             # Insertion (INSERT) : Uniquement après le nettoyage
                             for user_id in user_ids:
@@ -774,7 +812,9 @@ def create_app():
                                 session.add(new_repondre)
                                 nb_repondre_inseres += 1
 
-                        print(f"[SONDAGE+IMPORT] Repondre : {nb_repondre_inseres} inséré(s) (et nettoyés des conflits)")
+                        print(
+                            f"[SONDAGE+IMPORT] Repondre : {nb_repondre_inseres} inséré(s) (et nettoyés des conflits)"
+                        )
 
             # Si on arrive ici, le COMMIT a été fait par le context manager
             print(f"[SONDAGE+IMPORT] Transaction COMMIT réussie !")
@@ -782,6 +822,7 @@ def create_app():
         except Exception as e:
             print(f"[SONDAGE+IMPORT] ERREUR — ROLLBACK : {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             return JSONResponse(
                 content={"error": f"Erreur lors de la création du sondage : {str(e)}"},
@@ -794,12 +835,14 @@ def create_app():
             "questionnaire_url": questionnaire_url,
         }
         if emails:
-            result.update({
-                "nb_emails_lus": len(emails),
-                "nb_users_crees": nb_crees,
-                "nb_users_existants": nb_existants,
-                "nb_repondre_inseres": nb_repondre_inseres,
-            })
+            result.update(
+                {
+                    "nb_emails_lus": len(emails),
+                    "nb_users_crees": nb_crees,
+                    "nb_users_existants": nb_existants,
+                    "nb_repondre_inseres": nb_repondre_inseres,
+                }
+            )
         return result
 
     # └────────────────────────────────────────────────────────────────┘
@@ -932,9 +975,7 @@ def create_app():
             )
 
         # 2. Résoudre l'Id_User depuis l'email de l'utilisateur connecté
-        db_user = session.exec(
-            select(User).where(User.mail == user["email"])
-        ).first()
+        db_user = session.exec(select(User).where(User.mail == user["email"])).first()
         if not db_user:
             return JSONResponse(
                 content={"error": "Utilisateur non trouvé dans la base de données."},
@@ -964,14 +1005,18 @@ def create_app():
         ).first()
         if not repondre:
             return JSONResponse(
-                content={"error": "Vous n'êtes pas autorisé ou assigné à répondre à ce sondage."},
+                content={
+                    "error": "Vous n'êtes pas autorisé ou assigné à répondre à ce sondage."
+                },
                 status_code=403,
             )
 
         # 5. Vérifier que l'élève n'a pas déjà soumis ses réponses
         if repondre.repondu:
             return JSONResponse(
-                content={"error": "Vous avez déjà soumis vos réponses pour ce sondage."},
+                content={
+                    "error": "Vous avez déjà soumis vos réponses pour ce sondage."
+                },
                 status_code=409,
             )
 
@@ -982,7 +1027,9 @@ def create_app():
             with session.begin_nested():
                 # Calculer le prochain Id_Reponse
                 existing_reponses = session.exec(select(Reponse)).all()
-                next_id_reponse = max([r.id_reponse for r in existing_reponses] + [0]) + 1
+                next_id_reponse = (
+                    max([r.id_reponse for r in existing_reponses] + [0]) + 1
+                )
 
                 # Insérer chaque réponse individuelle dans la table Reponses
                 for rep in submission.reponses:
@@ -991,6 +1038,8 @@ def create_app():
                         id_sondage=id_sondage,
                         id_template_1=id_template,
                         id_section=rep.id_section,
+                        id_module=rep.module_id,
+                        enseignant=rep.enseignant,
                         id_question=rep.id_question,
                         id_reponse=next_id_reponse,
                         valeur=rep.valeur,
@@ -1043,54 +1092,61 @@ def create_app():
         filieres = []
         full_role = user.get("role", "")
         if full_role.startswith("RP-RM:") and ":" in full_role:
-            filieres = [f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()]
+            filieres = [
+                f.strip() for f in full_role.split(":", 1)[1].split(";") if f.strip()
+            ]
 
         context = {"user": user, "filieres": filieres}
 
         if role == "admin":
             db_users = session.exec(select(User)).all()
             context["users"] = [
-                {"id_user": u.id_user, "mail": u.mail, "role": u.role}
-                for u in db_users
+                {"id_user": u.id_user, "mail": u.mail, "role": u.role} for u in db_users
             ]
 
         if role in ("admin", "rprm"):
             all_sondages = session.exec(select(Sondage)).all()
             if role == "rprm" and filieres:
-                sondages_filtres = [
-                    s for s in all_sondages if s.formation in filieres
-                ]
+                sondages_filtres = [s for s in all_sondages if s.formation in filieres]
             else:
                 sondages_filtres = list(all_sondages)
-                
+
             sondages_list = []
             for s in sondages_filtres:
-                nb_inscrits = session.exec(
-                    select(func.count(Repondre.id_user)).where(
-                        Repondre.id_template == s.id_template,
-                        Repondre.id_sondage == s.id_sondage
-                    )
-                ).first() or 0
-                
-                nb_repondants = session.exec(
-                    select(func.count(Repondre.id_user)).where(
-                        Repondre.id_template == s.id_template,
-                        Repondre.id_sondage == s.id_sondage,
-                        Repondre.repondu == True
-                    )
-                ).first() or 0
-                
-                sondages_list.append({
-                    "id_template": s.id_template,
-                    "id_sondage": s.id_sondage,
-                    "campus": s.campus,
-                    "formation": s.formation,
-                    "semestre": s.semestre,
-                    "annee_scolaire": s.annee_scolaire,
-                    "url": s.url,
-                    "nb_inscrits": nb_inscrits,
-                    "nb_repondants": nb_repondants,
-                })
+                nb_inscrits = (
+                    session.exec(
+                        select(func.count(Repondre.id_user)).where(
+                            Repondre.id_template == s.id_template,
+                            Repondre.id_sondage == s.id_sondage,
+                        )
+                    ).first()
+                    or 0
+                )
+
+                nb_repondants = (
+                    session.exec(
+                        select(func.count(Repondre.id_user)).where(
+                            Repondre.id_template == s.id_template,
+                            Repondre.id_sondage == s.id_sondage,
+                            Repondre.repondu == True,
+                        )
+                    ).first()
+                    or 0
+                )
+
+                sondages_list.append(
+                    {
+                        "id_template": s.id_template,
+                        "id_sondage": s.id_sondage,
+                        "campus": s.campus,
+                        "formation": s.formation,
+                        "semestre": s.semestre,
+                        "annee_scolaire": s.annee_scolaire,
+                        "url": s.url,
+                        "nb_inscrits": nb_inscrits,
+                        "nb_repondants": nb_repondants,
+                    }
+                )
             context["sondages"] = sondages_list
 
         return templates.TemplateResponse(
@@ -1098,6 +1154,7 @@ def create_app():
             name=template_map[role],
             context=context,
         )
+
     # └────────────────────────────────────────────────────────────────┘
 
     # ┌─ API : Questionnaire assigné à l'étudiant connecté ──────────────┐
@@ -1116,9 +1173,7 @@ def create_app():
             )
 
         # Résoudre l'id_user depuis l'email
-        db_user = session.exec(
-            select(User).where(User.mail == user["email"])
-        ).first()
+        db_user = session.exec(select(User).where(User.mail == user["email"])).first()
         if not db_user:
             return JSONResponse(
                 content={"error": "Utilisateur non trouvé en base de données."},
@@ -1132,7 +1187,10 @@ def create_app():
 
         if not repondre_entries:
             return JSONResponse(
-                content={"questionnaire": None, "message": "Aucun questionnaire assigné."},
+                content={
+                    "questionnaire": None,
+                    "message": "Aucun questionnaire assigné.",
+                },
                 status_code=200,
             )
 
@@ -1180,13 +1238,12 @@ def create_app():
                 status_code=403,
             )
         users = session.exec(select(User)).all()
-        return [
-            {"id_user": u.id_user, "mail": u.mail, "role": u.role}
-            for u in users
-        ]
+        return [{"id_user": u.id_user, "mail": u.mail, "role": u.role} for u in users]
 
     @app.put("/api/users/{id_user}/role")
-    def update_user_role(request: Request, id_user: int, body: RoleUpdate, session: SessionDep):
+    def update_user_role(
+        request: Request, id_user: int, body: RoleUpdate, session: SessionDep
+    ):
         # ── Sécurité : seul un Admin peut modifier les rôles ──
         admin = require_roles(request, ["Admin"])
         if admin is None:
@@ -1211,9 +1268,15 @@ def create_app():
         session.refresh(user)
 
         return {"id_user": user.id_user, "mail": user.mail, "role": user.role}
-   
+
     # ┌─ Visualisation & Export CSV ──────────────────────────────────────┐
-    def _check_sondage_access_and_status(session: Session, id_template: int, id_sondage: int, role: str, formations_autorisees: list[str]):
+    def _check_sondage_access_and_status(
+        session: Session,
+        id_template: int,
+        id_sondage: int,
+        role: str,
+        formations_autorisees: list[str],
+    ):
         """Helper pour vérifier les accès et le statut de participation"""
         sondage = session.exec(
             select(Sondage).where(
@@ -1222,85 +1285,118 @@ def create_app():
         ).first()
         if not sondage:
             return None, {"error": "Sondage introuvable.", "status_code": 404}
-            
+
         if role != "admin" and sondage.formation not in formations_autorisees:
-            return None, {"error": f"Formation '{sondage.formation}' non autorisée pour votre rôle.", "status_code": 403}
-            
-        nb_inscrits = session.exec(
-            select(func.count(Repondre.id_user)).where(
-                Repondre.id_template == id_template,
-                Repondre.id_sondage == id_sondage
-            )
-        ).first() or 0
-        nb_repondants = session.exec(
-            select(func.count(Repondre.id_user)).where(
-                Repondre.id_template == id_template,
-                Repondre.id_sondage == id_sondage,
-                Repondre.repondu == True
-            )
-        ).first() or 0
-        
+            return None, {
+                "error": f"Formation '{sondage.formation}' non autorisée pour votre rôle.",
+                "status_code": 403,
+            }
+
+        nb_inscrits = (
+            session.exec(
+                select(func.count(Repondre.id_user)).where(
+                    Repondre.id_template == id_template,
+                    Repondre.id_sondage == id_sondage,
+                )
+            ).first()
+            or 0
+        )
+        nb_repondants = (
+            session.exec(
+                select(func.count(Repondre.id_user)).where(
+                    Repondre.id_template == id_template,
+                    Repondre.id_sondage == id_sondage,
+                    Repondre.repondu == True,
+                )
+            ).first()
+            or 0
+        )
+
         warning_msg = None
         if nb_repondants < nb_inscrits or sondage.statut == 1:
             warning_msg = f"Attention : Le sondage est toujours en cours. Seulement {nb_repondants} élève(s) ont répondu sur {nb_inscrits} inscrits."
-                
+
         return sondage, warning_msg, nb_inscrits, nb_repondants
 
     @app.get("/api/export/{id_template}/{id_sondage}")
-    def export_sondage_csv(request: Request, id_template: int, id_sondage: int, session: SessionDep):
+    def export_sondage_csv(
+        request: Request, id_template: int, id_sondage: int, session: SessionDep
+    ):
         user = require_roles(request, ["Admin", "RP-RM"])
         if user is None:
             return JSONResponse(content={"error": "Accès refusé."}, status_code=403)
-            
+
         role = user.get("role", "") or ""
-        formations_autorisees = parse_rprm_formations(role) if role.startswith("RP-RM") else []
+        formations_autorisees = (
+            parse_rprm_formations(role) if role.startswith("RP-RM") else []
+        )
         admin_role = "admin" if role == "Admin" else "rprm"
-        
-        sondage, error_or_warning, _, _ = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
+
+        sondage, error_or_warning, _, _ = _check_sondage_access_and_status(
+            session, id_template, id_sondage, admin_role, formations_autorisees
+        )
         if not sondage:
-            return JSONResponse(content={"error": error_or_warning["error"]}, status_code=error_or_warning["status_code"])
-            
+            return JSONResponse(
+                content={"error": error_or_warning["error"]},
+                status_code=error_or_warning["status_code"],
+            )
+
         # Utilisation de la BDD locale pour le loader sqlite3 natif
-        sondage_obj = load_sondage_complet("database/db_oceens.db", id_template, id_sondage)
-        
+        sondage_obj = load_sondage_complet(
+            "database/db_oceens.db", id_template, id_sondage
+        )
+
         resp = generate_csv_response(sondage_obj)
         if isinstance(error_or_warning, str):
             resp.headers["X-Warning"] = "Sondage en cours - donnees partielles"
-            
+
         return resp
 
     @app.get("/visualisation/{id_template}/{id_sondage}", response_class=HTMLResponse)
-    def visualisation_page(request: Request, id_template: int, id_sondage: int, session: SessionDep):
+    def visualisation_page(
+        request: Request, id_template: int, id_sondage: int, session: SessionDep
+    ):
         user = require_roles(request, ["Admin", "RP-RM"])
         if user is None:
             return RedirectResponse(url="/")
-            
+
         role = user.get("role", "") or ""
-        formations_autorisees = parse_rprm_formations(role) if role.startswith("RP-RM") else []
+        formations_autorisees = (
+            parse_rprm_formations(role) if role.startswith("RP-RM") else []
+        )
         admin_role = "admin" if role == "Admin" else "rprm"
-        
-        sondage, error_or_warning, nb_inscrits, nb_repondants = _check_sondage_access_and_status(session, id_template, id_sondage, admin_role, formations_autorisees)
+
+        sondage, error_or_warning, nb_inscrits, nb_repondants = (
+            _check_sondage_access_and_status(
+                session, id_template, id_sondage, admin_role, formations_autorisees
+            )
+        )
         if not sondage:
-            return HTMLResponse(content=f"<h1>Erreur</h1><p>{error_or_warning['error']}</p>", status_code=error_or_warning['status_code'])
-            
+            return HTMLResponse(
+                content=f"<h1>Erreur</h1><p>{error_or_warning['error']}</p>",
+                status_code=error_or_warning["status_code"],
+            )
+
         # Utilisation de la BDD locale pour le loader sqlite3 natif
-        sondage_obj = load_sondage_complet("database/db_oceens.db", id_template, id_sondage)
-        
+        sondage_obj = load_sondage_complet(
+            "database/db_oceens.db", id_template, id_sondage
+        )
+
         viz_context = get_visualisation_context(sondage_obj)
-        
+
         context = {
             "user": user,
             "sondage": sondage,
             "nb_inscrits": nb_inscrits,
             "nb_repondants": nb_repondants,
-            "warning_msg": error_or_warning if isinstance(error_or_warning, str) else None,
-            "viz_data": viz_context
+            "warning_msg": error_or_warning
+            if isinstance(error_or_warning, str)
+            else None,
+            "viz_data": viz_context,
         }
-        
+
         return templates.TemplateResponse(
-            request=request,
-            name="visualisation.html",
-            context=context
+            request=request, name="visualisation.html", context=context
         )
 
     @app.get("/visualisation/admin", response_class=HTMLResponse)
@@ -1308,48 +1404,52 @@ def create_app():
         user = require_roles(request, ["Admin"])
         if user is None:
             return RedirectResponse(url="/")
-            
+
         all_sondages = session.exec(select(Sondage)).all()
-        
+
         # On regroupe les sondages par campus pour la vue de Niveau 0
         sondages_list = []
         for s in all_sondages:
-            nb_inscrits = session.exec(
-                select(func.count(Repondre.id_user)).where(
-                    Repondre.id_template == s.id_template,
-                    Repondre.id_sondage == s.id_sondage
-                )
-            ).first() or 0
-            
-            nb_repondants = session.exec(
-                select(func.count(Repondre.id_user)).where(
-                    Repondre.id_template == s.id_template,
-                    Repondre.id_sondage == s.id_sondage,
-                    Repondre.repondu == True
-                )
-            ).first() or 0
-            
-            sondages_list.append({
-                "id_template": s.id_template,
-                "id_sondage": s.id_sondage,
-                "campus": s.campus,
-                "formation": s.formation,
-                "semestre": s.semestre,
-                "annee_scolaire": s.annee_scolaire,
-                "url": s.url,
-                "nb_inscrits": nb_inscrits,
-                "nb_repondants": nb_repondants,
-            })
+            nb_inscrits = (
+                session.exec(
+                    select(func.count(Repondre.id_user)).where(
+                        Repondre.id_template == s.id_template,
+                        Repondre.id_sondage == s.id_sondage,
+                    )
+                ).first()
+                or 0
+            )
 
-        context = {
-            "user": user,
-            "sondages": sondages_list
-        }
+            nb_repondants = (
+                session.exec(
+                    select(func.count(Repondre.id_user)).where(
+                        Repondre.id_template == s.id_template,
+                        Repondre.id_sondage == s.id_sondage,
+                        Repondre.repondu == True,
+                    )
+                ).first()
+                or 0
+            )
+
+            sondages_list.append(
+                {
+                    "id_template": s.id_template,
+                    "id_sondage": s.id_sondage,
+                    "campus": s.campus,
+                    "formation": s.formation,
+                    "semestre": s.semestre,
+                    "annee_scolaire": s.annee_scolaire,
+                    "url": s.url,
+                    "nb_inscrits": nb_inscrits,
+                    "nb_repondants": nb_repondants,
+                }
+            )
+
+        context = {"user": user, "sondages": sondages_list}
         return templates.TemplateResponse(
-            request=request,
-            name="visualisation_admin.html",
-            context=context
+            request=request, name="visualisation_admin.html", context=context
         )
+
     # └───────────────────────────────────────────────────────────────────┘
 
     return app

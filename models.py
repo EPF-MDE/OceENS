@@ -14,8 +14,6 @@ class User(SQLModel, table=True):
     role: Optional[str] = Field(default=None, sa_column=Column("Role", String))
 
 
-
-
 class Template(SQLModel, table=True):
     __tablename__ = "Templates"
 
@@ -211,6 +209,20 @@ class Reponse(SQLModel, table=True):
         default=None, sa_column=Column("Id_Reponse", Integer, primary_key=True)
     )
     valeur: Optional[str] = Field(default=None, sa_column=Column("Valeur", Text))
+    id_module: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            "Id_Module",
+            Integer,
+            ForeignKey("Modules.Id_Module"),
+            nullable=True,
+        ),
+    )
+
+    enseignant: Optional[str] = Field(
+        default=None,
+        sa_column=Column("Enseignant", String, nullable=True),
+    )
 
 
 class Repondre(SQLModel, table=True):
@@ -237,6 +249,4 @@ class Repondre(SQLModel, table=True):
     date_soumission: Optional[str] = Field(
         default=None, sa_column=Column("Date_soumission", String)
     )
-    repondu: Optional[bool] = Field(
-        default=False, sa_column=Column("Repondu", Integer)
-    )
+    repondu: Optional[bool] = Field(default=False, sa_column=Column("Repondu", Integer))
