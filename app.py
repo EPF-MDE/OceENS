@@ -1293,13 +1293,13 @@ def create_app():
             )
         ).first()
         if not sondage:
-            return None, {"error": "Sondage introuvable.", "status_code": 404}
+            return None, {"error": "Sondage introuvable.", "status_code": 404}, None, None
 
         if role != "admin" and sondage.formation not in formations_autorisees:
             return None, {
                 "error": f"Formation '{sondage.formation}' non autorisée pour votre rôle.",
                 "status_code": 403,
-            }
+            }, None, None
 
         nb_inscrits = (
             session.exec(
