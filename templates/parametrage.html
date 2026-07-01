@@ -213,7 +213,7 @@
                         <label>Semestre</label>
                         <select id="param-semestre">
                             <option value="">-- Sélectionnez un semestre --</option>
-                            {% for s in ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'] %}
+                            {% for s in ['Automne', 'Printemps'] %}
                             <option value="{{ s }}" {% if semestre_annee==s %}selected{% endif %}>{{ s }}</option>
                             {% endfor %}
                         </select>
