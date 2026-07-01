@@ -12,6 +12,7 @@ class User(SQLModel, table=True):
     )
     mail: Optional[str] = Field(default=None, sa_column=Column("Mail", String))
     role: Optional[str] = Field(default=None, sa_column=Column("Role", String))
+    # Campus
 
 
 class Template(SQLModel, table=True):
@@ -181,15 +182,6 @@ class Reponse(SQLModel, table=True):
         ),
     )
 
-    id_template_1: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            "Id_Template_1",
-            Integer,
-            ForeignKey("Questions.Id_Template"),
-            primary_key=True,
-        ),
-    )
     id_section: Optional[int] = Field(
         default=None,
         sa_column=Column(
