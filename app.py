@@ -1337,7 +1337,7 @@ def create_app():
 
         role = user.get("role", "") or ""
         formations_autorisees = (
-            parse_rprm_formations(role) if role.startswith("RP-RM") else []
+            parse_rprm_formations(role) if ":" in role else []
         )
         admin_role = "admin" if role == "Admin" else "rprm"
 
