@@ -1408,56 +1408,7 @@ def create_app():
             request=request, name="visualisation.html", context=context
         )
 
-    @app.get("/visualisation/admin", response_class=HTMLResponse)
-    def visualisation_admin_globale(request: Request, session: SessionDep):
-        user = require_roles(request, ["Admin"])
-        if user is None:
-            return RedirectResponse(url="/")
 
-        all_sondages = session.exec(select(Sondage)).all()
-
-        # On regroupe les sondages par campus pour la vue de Niveau 0
-        sondages_list = []
-        for s in all_sondages:
-            nb_inscrits = (
-                session.exec(
-                    select(func.count(Repondre.id_user)).where(
-                        Repondre.id_template == s.id_template,
-                        Repondre.id_sondage == s.id_sondage,
-                    )
-                ).first()
-                or 0
-            )
-
-            nb_repondants = (
-                session.exec(
-                    select(func.count(Repondre.id_user)).where(
-                        Repondre.id_template == s.id_template,
-                        Repondre.id_sondage == s.id_sondage,
-                        Repondre.repondu == True,
-                    )
-                ).first()
-                or 0
-            )
-
-            sondages_list.append(
-                {
-                    "id_template": s.id_template,
-                    "id_sondage": s.id_sondage,
-                    "campus": s.campus,
-                    "formation": s.formation,
-                    "semestre": s.semestre,
-                    "annee_scolaire": s.annee_scolaire,
-                    "url": s.url,
-                    "nb_inscrits": nb_inscrits,
-                    "nb_repondants": nb_repondants,
-                }
-            )
-
-        context = {"user": user, "sondages": sondages_list}
-        return templates.TemplateResponse(
-            request=request, name="visualisation_admin.html", context=context
-        )
 
     # └───────────────────────────────────────────────────────────────────┘
 
