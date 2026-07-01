@@ -76,7 +76,7 @@ const Parametrage = {
                     <label>Semestre</label>
                     <select id="param-semestre" onchange="Parametrage.onSemestreChange(this.value)">
                         <option value="">-- Sélectionnez un semestre --</option>
-                        ${['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'].map(s => `<option value="${s}" ${this.semestreAnnee === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        ${['Automne', 'Printemps'].map(s => `<option value="${s}" ${this.semestreAnnee === s ? 'selected' : ''}>${s}</option>`).join('')}
                     </select>
                 </div>
                 <div class="pub-field">
@@ -286,7 +286,7 @@ const Parametrage = {
         // Résoudre le nom de la filière sélectionnée
         const filiereNom = this.selectedFiliereId
             ? (this.allFilieres.find(f => f.id === this.selectedFiliereId) ||
-               this.filieresList.find(f => f.id === this.selectedFiliereId))?.nom || ''
+                this.filieresList.find(f => f.id === this.selectedFiliereId))?.nom || ''
             : '';
 
         // On ne peut lancer la requête que si les 3 valeurs sont renseignées
@@ -331,9 +331,9 @@ const Parametrage = {
 
                 // Enrichir la liste des profs avec ceux du sondage précédent
                 if (data.profsList && data.profsList.length > 0) {
-                    const existingIds = new Set(this.profsList.map(p => `${(p.prenom||'').toLowerCase()}_${(p.nom||'').toLowerCase()}`));
+                    const existingIds = new Set(this.profsList.map(p => `${(p.prenom || '').toLowerCase()}_${(p.nom || '').toLowerCase()}`));
                     for (const prof of data.profsList) {
-                        const key = `${(prof.prenom||'').toLowerCase()}_${(prof.nom||'').toLowerCase()}`;
+                        const key = `${(prof.prenom || '').toLowerCase()}_${(prof.nom || '').toLowerCase()}`;
                         if (!existingIds.has(key)) {
                             this.nextId++;
                             prof.id = this.nextId;
