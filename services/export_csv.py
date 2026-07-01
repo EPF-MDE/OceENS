@@ -45,9 +45,14 @@ def generate_csv_response(sondage_obj) -> Response:
     csv_text = df.to_csv(index=False, sep=";")
     csv_bytes = csv_text.encode("utf-8-sig")
 
+    campus = _safe_filename(getattr(sondage_obj, "campus", "campus"))
     formation = _safe_filename(getattr(sondage_obj, "formation", "formation"))
     semestre = _safe_filename(getattr(sondage_obj, "semestre", "semestre"))
-    filename = f"export_{formation}_{semestre}.csv"
+    annee_scolaire = _safe_filename(
+        getattr(sondage_obj, "annee_scolaire", "annee_scolaire")
+    )
+
+    filename = f"export_{campus}_{formation}_{semestre}_{annee_scolaire}.csv"
 
     return Response(
         content=csv_bytes,
