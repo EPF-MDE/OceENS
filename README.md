@@ -536,6 +536,10 @@ OceENS/
 ├── Template_2025.md              # Reference wording of the survey template
 ├── CONTEXT.md                    # Domain glossary and language boundary
 ├── AGENTS.md, CLAUDE.md          # Conventions for coding agents
+├── tach.toml                     # The package boundary rule, checked by `tach check`
+│
+├── scripts/
+│   └── check_cycles.py           #   Rejects import cycles between packages
 │
 ├── docs/
 │   ├── smoke-test.md             #   Manual validation procedure (no CI yet)
@@ -548,6 +552,7 @@ OceENS/
 ├── .venv/                        # Environment created by uv sync (not committed)
 │
 └── src/oceens/                   # The package — everything below is importable
+    ├── README.md                 # The package boundary convention, next to the code
     ├── main.py                   # FastAPI factory, middlewares and router assembly
     ├── sondage_loader.py         # Loads a full survey for the export
     ├── survey_loader_from_xlsx.py     # Imports surveys from an Excel file
@@ -558,6 +563,7 @@ OceENS/
     │   ├── database.py            #     SQLite engine, schema migration, SessionDep
     │   ├── security.py            #     Roles, scopes, access control
     │   ├── dependencies.py        #     Shared Jinja templates and logger
+    │   ├── settings_store.py      #     Application settings (exchange rate)
     │   └── seed.py                #     Initial data and program synchronisation
     │
     ├── models/                    # SQLModel schema, one file per table
@@ -584,7 +590,6 @@ OceENS/
     │   ├── visualisation_data.py  #     Aggregations and visualisation context
     │   ├── llm_client.py          #     Multi-provider LLM client (ollama/openai/anthropic)
     │   ├── llm_costs.py           #     Summary cost (measured tokens × price list)
-    │   ├── settings_store.py      #     Application settings (exchange rate)
     │   └── export_csv.py          #     CSV export of the answers
     │
     ├── seed_data/                 # Seed data read at startup (was import/)
@@ -706,6 +711,17 @@ manual procedure in **[docs/smoke-test.md](docs/smoke-test.md)**: static checks,
 from a fresh clone, Docker, exit codes on invalid configuration, and the LLM key. Then
 test the routes your change touches, on a throwaway SQLite database (never a copy of
 production), with the relevant roles and survey statuses.
+
+Two of those static checks are machine-checked architecture rules rather than behaviour:
+
+```
+uv run tach check
+uv run python scripts/check_cycles.py
+```
+
+No import may reach past a package's public surface, and no two packages may depend on
+each other. **[src/oceens/README.md](src/oceens/README.md)** states the rule and how to
+write an interface that satisfies it.
 
 ---
 

@@ -11,3 +11,7 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Package boundaries
+
+Machine-checked, so read `src/oceens/README.md` before adding a package or importing across one. The two commands: `uv run tach check` and `uv run python scripts/check_cycles.py`.

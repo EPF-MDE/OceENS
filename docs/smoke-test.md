@@ -29,7 +29,13 @@ Identical on both systems (a single line, no continuation):
 ```
 uv run python -m compileall -q src
 git diff --check
+uv run tach check
+uv run python scripts/check_cycles.py
 ```
+
+The last two are the package boundary checks, and `src/oceens/README.md` states the rule
+they enforce. Both exit non-zero on a violation: `tach check` names the offending import,
+`check_cycles.py` names the two packages that depend on each other.
 
 ## 1. Local start, without credentials
 
