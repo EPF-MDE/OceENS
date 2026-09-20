@@ -1,0 +1,35 @@
+# The architecture check, run on every push and every pull request. It is the
+# same two commands as locally, from a fresh checkout: an import that reaches
+# past a package's public surface, or a cycle between packages, fails the run.
+#
+# This workflow reports; it does not require. Making a check required is a
+# branch-protection setting of a repository, not something a branch can carry.
+name: Architecture
+
+on: [push, pull_request]
+
+jobs:
+  architecture:
+    name: Package boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # --frozen: the run resolves nothing. It installs what uv.lock pins, so a
+      # green run here means the same versions a contributor has locally.
+      - name: Install the project and its dev tools
+        run: uv sync --frozen
+
+      # tach reads the import graph statically; no application code is imported
+      # and no .env is needed, so the run touches neither database nor network.
+      - name: No private name reached from outside its package
+        run: uv run tach check
+
+      - name: No import cycle between packages
+        run: uv run python scripts/check_cycles.py

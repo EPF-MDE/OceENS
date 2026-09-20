@@ -71,6 +71,11 @@ uv run tach check
 uv run python scripts/check_cycles.py
 ```
 
+The same two commands run in CI on every push and every pull request
+(`.github/workflows/architecture.yml`), from a fresh checkout and against the
+versions `uv.lock` pins — so a boundary broken locally is caught on the branch
+whether or not anyone ran them by hand.
+
 A clean exit means every import in the repo goes through a public surface and
 no two packages depend on each other. On a violation there is nothing to hunt
 for: `tach check` names the offending import, and `check_cycles.py` names the
