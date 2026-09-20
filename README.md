@@ -153,9 +153,10 @@ price list. All of this is idempotent.
 respondents and answers, so that every screen has something to show. Four surveys are
 seeded — three open, one closed with results (`MDID5`, Troyes campus).
 
-Three single-role users are seeded as well. Unlike the demo dataset, they are also added
-to a database that already has data — but only when they are missing: an existing user
-with that mail keeps the roles they already hold.
+The dataset includes three **single-role users**, each holding exactly one scoped role.
+Like the rest of the demo dataset they are seeded on an empty database only: a scoped role
+is a real permission over a real program, not something to hand out to a database already
+in service.
 
 | Mail | Role |
 |------|------|
@@ -163,10 +164,14 @@ with that mail keeps the roles they already hold.
 | `oceens.program.manager@epf.fr` | `program_manager:MDAI5` |
 | `oceens.campus.manager@epf.fr` | `campus_manager:Troyes` |
 
-Each one holds exactly one scoped role, matching a seeded survey, so signing in as any of
-them shows a populated dashboard. The demo users `antoine.gademer@epf.fr` (user 1) and
+Each scope matches a seeded survey, so signing in as any of them shows a populated
+dashboard. The other demo users `antoine.gademer@epf.fr` (user 1) and
 `yassine.gharbi@epfedu.fr` (user 6) combine `admin` with a business role; the seeded
 students hold no role at all.
+
+> **If you deployed a build between #84 and #38**, that version seeded the three addresses
+> above into a populated database too. Anyone signing in with one of them inherits the
+> scope. Check the `users` and `roles` tables and delete those rows if they are there.
 
 ---
 

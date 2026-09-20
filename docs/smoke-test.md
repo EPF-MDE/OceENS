@@ -65,7 +65,7 @@ Expected, with no Entra credential and no LLM key:
 The startup logs create the tables, insert the demo dataset, and contain neither an error
 nor an exception trace.
 
-Signing in from `/dev/login` as each of the three single-role users
+On an empty database, signing in from `/dev/login` as each of the three single-role users
 (`oceens.facilitator@epf.fr`, `oceens.program.manager@epf.fr`,
 `oceens.campus.manager@epf.fr`) lands on that role's dashboard, with at least one survey
 listed.

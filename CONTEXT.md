@@ -38,6 +38,7 @@ _Avoid_: impersonation, spoofing, fake login
 A seeded user holding exactly one scoped role — `facilitator:<code>`,
 `program_manager:<code>` or `campus_manager:<campus>` — and no other. They exist so that a
 role's screens and its scope can be exercised through the dev sign-in: the other seeded
-users either combine `admin` with a business role or hold no role at all. Unlike the rest
-of the demo dataset, they are seeded even into a database that already has data.
+users either combine `admin` with a business role or hold no role at all. They are part of
+the demo dataset, so they are seeded on an empty database only: a scoped role is a real
+permission over a real program, not something to grant to a database already in service.
 _Avoid_: test user, fake user (they are demo data, not fixtures)

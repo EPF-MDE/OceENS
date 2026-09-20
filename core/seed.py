@@ -1,10 +1,12 @@
 """Peuplement initial de la base de données (seed).
 
-Ce module remplit la base avec des données de départ. Sont toujours seedés, de
-façon idempotente : les filières (synchronisées depuis un CSV), le fournisseur
-LLM par défaut, la grille tarifaire et les utilisateurs à rôle unique. Le jeu de
-données de démonstration (utilisateurs, sondages, réponses...) n'est inséré
-QUE si la base est vide.
+Ce module remplit la base avec des données de départ. Sont toujours seedées, de
+façon idempotente, les données de référence dont l'application a besoin pour
+fonctionner : les filières (synchronisées depuis un CSV), le fournisseur LLM
+par défaut, le taux de change et la grille tarifaire. Le jeu de données de
+démonstration (utilisateurs, rôles, sondages, réponses...) n'est inséré QUE si
+la base est vide : les rôles seedés sont des droits sur de vrais programmes,
+qu'on ne distribue pas à une base déjà en service.
 
 Point d'entrée : `seed_all_if_necessary()`, appelé au démarrage de l'app.
 """
@@ -64,18 +66,25 @@ ADDITIONAL_STUDENT_USERS = [
 ]
 
 
-# Utilisateurs à rôle unique : (mail, rôle). Chacun porte exactement un rôle
-# scopé, ce que ne fait aucun utilisateur du jeu de démonstration — 1 et 6
-# cumulent `admin` avec leur rôle métier, si bien qu'on ne peut pas se
-# connecter en simple animateur, responsable de programme ou direction de
-# campus. Les périmètres reprennent ceux des sondages seedés (SEEDED_SURVEYS) :
-# chacun voit des données dès sa première connexion. Le campus est celui du
-# sondage fermé, seul type de sondage qu'affiche le dashboard d'une direction
-# de campus.
+# Utilisateurs à rôle unique : (user_id, mail, rôle). Chacun porte exactement
+# un rôle scopé, ce que ne fait aucun autre utilisateur du jeu de démonstration
+# — 1 et 6 cumulent `admin` avec leur rôle métier, si bien qu'on ne pourrait
+# pas se connecter en simple animateur, responsable de programme ou direction
+# de campus. Les périmètres reprennent ceux des sondages seedés
+# (SEEDED_SURVEYS) : chacun voit des données dès sa première connexion. Le
+# campus est celui du sondage fermé, seul type de sondage qu'affiche le
+# dashboard d'une direction de campus.
+#
+# Ce sont des données de démonstration, au même titre que les sondages : un
+# rôle scopé est un droit sur de vrais programmes, et l'insérer dans une base
+# déjà peuplée reviendrait à accorder ce droit à qui se connecte avec ce mail.
+# Ils ne sont donc seedés que sur une base vide, par `seed_users` (le mail) et
+# `seed_roles` (le rôle), comme le reste de la démo — d'où des identifiants
+# fixes, qui suivent le dernier du jeu de démo (ADDITIONAL_STUDENT_USERS, 22).
 SINGLE_ROLE_USERS = [
-    ("oceens.facilitator@epf.fr", "facilitator:MDAI5"),
-    ("oceens.program.manager@epf.fr", "program_manager:MDAI5"),
-    ("oceens.campus.manager@epf.fr", "campus_manager:Troyes"),
+    (23, "oceens.facilitator@epf.fr", "facilitator:MDAI5"),
+    (24, "oceens.program.manager@epf.fr", "program_manager:MDAI5"),
+    (25, "oceens.campus.manager@epf.fr", "campus_manager:Troyes"),
 ]
 
 
@@ -142,44 +151,13 @@ def seed_users(session: Session):
         (7, "arnaud.jousset@epf.fr"),
         (8, "etienne.gibaud@epf.fr"),
         *ADDITIONAL_STUDENT_USERS,
+        *[(user_id, mail) for user_id, mail, _ in SINGLE_ROLE_USERS],
     ]
     for u_data in user_data:
         user = User(user_id=u_data[0], mail=u_data[1])
         session.merge(
             user
         )  # Utilisation de merge pour éviter les erreurs si l'ID existe déjà
-    session.commit()
-
-
-def seed_single_role_users(session: Session):
-    """Crée les utilisateurs à rôle unique s'ils manquent (idempotent).
-
-    Relançable, et applicable à une base déjà peuplée : contrairement au jeu de
-    démonstration, ces utilisateurs ne sont pas réservés à une base vide. La
-    présence est testée sur le mail, qui identifie l'utilisateur, et
-    l'identifiant est laissé à l'auto-incrément : sur une base déjà déployée,
-    les identifiants suivant ceux du seed ont pu être attribués à de vrais
-    utilisateurs, qu'un `merge` sur un identifiant fixe écraserait.
-
-    Un utilisateur qui porte déjà un rôle n'est jamais modifié : le rôle n'est
-    ajouté que s'il n'en a aucun.
-    """
-    for mail, role in SINGLE_ROLE_USERS:
-        user = session.exec(select(User).where(User.mail == mail)).first()
-        if user is None:
-            user = User(mail=mail)
-            session.add(user)
-            session.flush()  # attribue le user_id auto-incrémenté
-
-        existing_role = session.exec(
-            select(Role).where(Role.user_id == user.user_id)
-        ).first()
-        if existing_role is not None:
-            continue
-
-        session.add(Role(user_id=user.user_id, role=role))
-        logger.debug(f"[SEED] Rôle unique {role} attribué à {mail}.")
-
     session.commit()
 
 
@@ -193,6 +171,7 @@ def seed_roles(session: Session):
         (6, "campus_manager:Montpellier"),
         (7, "admin"),
         (8, "admin"),
+        *[(user_id, role) for user_id, _, role in SINGLE_ROLE_USERS],
     ]
     for r_data in role_data:
         role = Role(user_id=r_data[0], role=r_data[1])
@@ -1176,9 +1155,9 @@ Réponses : ```{ANSWERS}```
 def seed_all_if_necessary():
     """Point d'entrée du seed, appelé au démarrage de l'application.
 
-    Toujours exécuté : synchro des filières, du fournisseur LLM par défaut et
-    des utilisateurs à rôle unique (idempotents). Le jeu de données de démo
-    n'est inséré que si la base est vide (test: présence d'au moins un
+    Toujours exécuté : synchro des filières, du fournisseur LLM par défaut, du
+    taux de change et de la grille tarifaire (idempotents). Le jeu de données
+    de démo n'est inséré que si la base est vide (test: présence d'au moins un
     utilisateur).
     """
     with Session(engine) as session:
@@ -1222,7 +1201,3 @@ def seed_all_if_necessary():
             seed_stats(session)
 
             logger.debug("Database seeding completed successfully!")
-
-        # Après le jeu de démonstration, qui fixe les identifiants 1 à 22 :
-        # ces utilisateurs-ci prennent les suivants, par auto-incrément.
-        seed_single_role_users(session)
