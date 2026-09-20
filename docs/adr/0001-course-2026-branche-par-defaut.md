@@ -1,3 +1,0 @@
-# `course-2026` devient la branche par défaut pendant le semestre
-
-Pour le cours *Complex Web Services* 2026–27, une vingtaine d'étudiants forkent OcéEns et forkent la branche par défaut : `course-2026` devient donc la branche par défaut du dépôt, et c'est d'elle que partent les forks et vers elle que visent les PR (dont la connexion de développement, #82, et le seed par rôle, #84). `main` n'est pas touchée pendant le semestre, pour offrir aux étudiants une base stable et éviter d'y mélanger du code propre au cours ; aucune synchronisation `main` → `course-2026` n'est prévue avant la fin du semestre.

@@ -1,176 +1,497 @@
 # OcéEns II
 
-Plateforme d'évaluation des enseignements conçue pour l'école d'ingénieurs EPF.
+Teaching evaluation platform built for the EPF engineering school.
 
-## Aperçu
+## Overview
 
-L'application **OcéEns II** permet aux responsables de programme, animateurs, directions de campus et administrateurs de créer et gérer des sondages d'évaluation pour les différentes filières de l'EPF, et aux étudiants d'y répondre. Les réponses peuvent être exportées, visualisées, et synthétisées via un LLM. L'interface est habillée de la charte graphique officielle de l'EPF.
+**OcéEns II** lets program managers, facilitators, campus management and administrators
+create and run evaluation surveys for EPF's programs, and lets students answer them.
+Answers can be exported, visualised, and summarised through an LLM. The interface follows
+EPF's official visual identity.
 
-### Stack technique
+The application itself is in French: its pages, its seeded demo content and the survey
+questions are written in French. The documentation is in English — see `CONTEXT.md` for
+where that boundary sits.
 
-| Composant | Technologie |
-|-----------|-------------|
+### Technical stack
+
+| Component | Technology |
+|-----------|------------|
 | **Framework** | FastAPI (Python 3.12) |
-| **Authentification** | Microsoft Entra ID (Azure AD) via OAuth2.0 / MSAL, Microsoft Graph |
-| **Base de données** | SQLite (via SQLAlchemy + SQLModel) |
-| **Templating** | Jinja2 (rendu serveur) |
-| **Frontend** | HTML / CSS / JavaScript, sans framework |
-| **Serveur** | Uvicorn |
-| **Journalisation** | Module standard Python `logging`, via les handlers Uvicorn |
+| **Authentication** | Microsoft Entra ID (Azure AD) via OAuth2.0 / MSAL, Microsoft Graph — or a dev sign-in, see below |
+| **Database** | SQLite (via SQLAlchemy + SQLModel) |
+| **Templating** | Jinja2 (server-side rendering) |
+| **Frontend** | HTML / CSS / JavaScript, no framework |
+| **Server** | Uvicorn |
+| **Logging** | Standard Python `logging`, through the Uvicorn handlers |
 | **Exports** | Pandas (CSV) |
-| **Synthèses de verbatims** | Daemon séparé, appel à un LLM (`requests-cache`, `markdown-it-py`) |
+| **Verbatim summaries** | Separate daemon calling an LLM (`requests-cache`, `markdown-it-py`) |
 
 ---
 
-## Rôles
+## Roles
 
-- `student` : répond aux sondages auxquels il est inscrit.
-- `program_manager:<code>` : gère les sondages de sa/ses filière(s).
-- `facilitator:<code>` : anime les sondages de sa/ses filière(s).
-- `campus_manager:<campus>` : périmètre à l'échelle du campus.
-- `admin` : administration générale.
+- `student`: answers the surveys they are invited to.
+- `program_manager:<code>`: manages the surveys of their program(s).
+- `facilitator:<code>`: runs the surveys of their program(s).
+- `campus_manager:<campus>`: campus-wide scope.
+- `admin`: general administration.
 
-Un utilisateur peut cumuler plusieurs rôles, chacun avec son propre périmètre (codes filière ou campus séparés par `;`).
-
----
-
-## Pages et routes principales
-
-| Route | Description |
-|-------|-------------|
-| `/` | Accueil, hub d'authentification. |
-| `/login`, `/auth/callback`, `/logout` | Flux d'authentification Microsoft Entra ID. |
-| `/dev/login` | Connexion de développement : page de choix de l'utilisateur en `GET`, connexion en `POST` (uniquement avec `AUTH_MODE=dev`, voir [Authentification en mode développement](#authentification-en-mode-développement)). |
-| `/dashboard/student` | Dashboard étudiant. |
-| `/dashboard/program-manager` | Dashboard responsable de programme. |
-| `/dashboard/facilitator` | Dashboard animateur. |
-| `/dashboard/campus-manager` | Dashboard direction de campus. |
-| `/dashboard/teachers/analytics` | Score de satisfaction par enseignant, filtrable par année / semestre / formation. Accessible aux rôles `campus_manager` et `program_manager`, scopé au périmètre de chacun. |
-| `/dashboard/admin` | Dashboard administrateur. |
-| `/dashboard/survey-create` | Création / paramétrage d'un sondage. |
-| `/api/surveys/{survey_id}` | Questionnaire (réponse au sondage). |
-| `/api/surveys/{survey_id}/status` | Changement de statut d'un sondage. |
-| `/api/surveys/{survey_id}/students` | Gestion des étudiants inscrits à un sondage. |
-| `/api/surveys/{survey_id}/export` | Export CSV des réponses. |
-| `/api/surveys/{survey_id}/visualisation` | Visualisation des réponses. Accepte `?teacher=<nom>` pour arriver déjà filtré sur un enseignant. |
-| `/api/surveys/{survey_id}/generate-summaries` | Lancement de la génération de synthèses LLM. |
-| `/api/surveys/{survey_id}/destroy-summaries` | Suppression des synthèses générées. |
-| `/api/users/{user_id}/role` | Modification du rôle d'un utilisateur. |
-| `/backend/prompts` | Liste des prompts LLM (admin uniquement). |
-| `/backend/prompts/new` | Formulaire de création d'un prompt. |
-| `/backend/prompts/{id}/edit` | Formulaire de modification d'un prompt. |
-| `/api/prompts` | Création d'un prompt (POST, form). |
-| `/api/prompts/{id}` | Modification d'un prompt (PUT, fetch). Bloqué si le prompt est référencé dans `summaries`. |
-| `/api/prompts/{id}/delete` | Suppression d'un prompt (POST, form). Bloquée si le prompt est référencé dans `summaries`. |
+A user can hold several roles, each with its own scope (program codes or campuses
+separated by `;`). The scope is stored inside the role string itself, after the colon.
 
 ---
 
-## Installation et démarrage
+## Running it from a fresh clone
 
-### Prérequis
+The application starts with no Azure application and no LLM key: `.env.example` ships
+`AUTH_MODE=dev`, which replaces Microsoft Entra ID with a local sign-in page.
+
+### Prerequisites
 
 - Python 3.12
-- Un fichier `.env` configuré (voir section [Configuration](#configuration))
+- A `.env` file, copied from `.env.example` (see [Configuration](#configuration))
 
-### Avec Docker Compose (recommandé)
+### With Docker Compose (recommended)
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
-La base SQLite est persistée dans un répertoire local. Par défaut `./database/` ; pour pointer ailleurs, définir `LOCAL_DATABASE_DIR` dans `.env` ou dans l'environnement :
+The application listens on <http://localhost:8000>. Without a `.env`, `docker compose`
+fails with `env file .env not found`: copying `.env.example` is the first command of a
+fresh clone.
+
+The SQLite database is persisted in a directory of the host, mounted into the container:
+`./database/` by default, or the directory named by `LOCAL_DATABASE_DIR`.
 
 ```env
-LOCAL_DATABASE_DIR=/chemin/vers/database
+LOCAL_DATABASE_DIR=/path/to/database
 ```
 
-**Développement** — code source monté en volume (les modifications sont prises en compte sans rebuild), données de seed disponibles :
+To stop and clean up:
 
 ```bash
-docker run -p 8000:8000 --env-file .env -v oceens_db:/app/database -v ./import:/app/import -v .:/app oceens:1.0
+docker compose down
 ```
 
-> Le `Dockerfile` inclut `--reload` dans la commande Uvicorn : uvicorn détecte les changements de fichiers et recharge l'application automatiquement lorsque le code source est monté via `-v .:/app`. Retirer `--reload` pour un déploiement en production.
+> The image runs `uvicorn main:app` without `--reload`, and the source code is copied into
+> the image rather than mounted: a code change needs a `docker compose up --build`. For a
+> reload loop, run the application directly instead (below).
+>
+> The `.env` file is never copied into the image — Compose passes it through `env_file`.
 
-> La base SQLite est persistée dans le volume Docker `oceens_db` (`/app/database`).
-> Le fichier `.env` n'est jamais copié dans l'image : il est passé via `--env-file` au lancement.
+### Without Docker
 
-### Sans Docker (installation manuelle)
-
-### Étapes
-
-1. **Cloner le projet**
+1. **Clone the project**
 
    ```bash
-   git clone <url-du-repo>
+   git clone <repository-url>
    cd OceENS
    ```
 
-2. **Créer et activer un environnement virtuel**
+2. **Copy the configuration**
 
    ```bash
-   python -m venv env
-   env/scripts/activate        # Windows
-   source env/bin/activate     # Linux / macOS
+   cp .env.example .env            # Windows (PowerShell): Copy-Item .env.example .env
    ```
 
-3. **Installer les dépendances**
+3. **Create a virtual environment and install the dependencies**
 
    ```bash
-   pip install -r requirements.txt
+   python3 -m venv .venv
+   .venv/bin/pip install -r requirements.txt
    ```
 
-4. **Ajouter la base de données**
-   Créer un dossier `database/` puis y placer le fichier `db_oceens.db`, ou laisser `seed_all_if_necessary()` initialiser une base vide au premier démarrage.
+   On Windows (PowerShell), the interpreter is `.venv\Scripts\python.exe`; calling it by
+   its path avoids `Activate.ps1`, which PowerShell's execution policy blocks by default:
 
-5. **Lancer l'application** :
+   ```powershell
+   py -3.12 -m venv .venv
+   .venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
+
+4. **Start the application**, from the repository root:
 
    ```bash
-   fastapi dev
+   .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 
-   Ou directement avec Uvicorn :
+   Or with reload while developing:
 
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000
+   .venv/bin/uvicorn main:app --reload
    ```
 
-   En production, `launch.sh` lance l'application et le daemon de synthèses dans des sessions `screen` séparées.
+   > The working directory must be the repository root: the templates, the static files
+   > and the seed CSV files under `import/` are all resolved relative to it.
 
-6. **(Optionnel) Lancer le daemon de synthèses LLM** :
+5. **Open** <http://localhost:8000>.
+
+6. **(Optional) Start the LLM summaries daemon**:
 
    ```bash
-   python summaries_generator_daemon.py
+   .venv/bin/python summaries_generator_daemon.py
    ```
 
-   Ce processus tourne en boucle, écrit en base et contacte un service LLM externe : à ne lancer que lorsque c'est nécessaire.
+   This process loops, writes to the database and calls an external LLM service: start it
+   only when summaries are needed. Setting `RUN_SUMMARIES_DAEMON=1` in the `.env` makes
+   the application start it as a child process on startup and stop it on shutdown.
 
-   > La variable d'environnement `RUN_SUMMARIES_DAEMON=1` dans le
-   > `.env` fait lancer automatiquement le daemon en process séparé au démarrage
-   > d'uvicorn (et l'arrête à la fermeture). A utiliser en production avec Docker.
-   > NB : `launch.sh` (sans docker) gère déjà le daemon dans sa propre session `screen`.
+   In production without Docker, `launch.sh` starts the application and the daemon in two
+   separate `screen` sessions.
 
-7. Ouvrez votre navigateur à l'adresse **http://localhost:8000**.
+### What the first start does
+
+On every start, the application creates the missing tables, adds the columns missing from
+already-deployed tables, and seeds what must always be present: the programs (from
+`import/Program_list.csv`), the default LLM provider, the exchange rate and the model
+price list. All of this is idempotent.
+
+**On an empty database only**, it also inserts a demo dataset: users, surveys, modules,
+respondents and answers, so that every screen has something to show. Four surveys are
+seeded — three open, one closed with results (`MDID5`, Troyes campus).
+
+Three single-role users are seeded as well, and unlike the demo dataset they are also
+added to a database that already has data:
+
+| Mail | Role |
+|------|------|
+| `oceens.facilitator@epf.fr` | `facilitator:MDAI5` |
+| `oceens.program.manager@epf.fr` | `program_manager:MDAI5` |
+| `oceens.campus.manager@epf.fr` | `campus_manager:Troyes` |
+
+Each one holds exactly one scoped role, matching a seeded survey, so signing in as any of
+them shows a populated dashboard. The demo users `antoine.gademer@epf.fr` (user 1) and
+`yassine.gharbi@epfedu.fr` (user 6) combine `admin` with a business role; the seeded
+students hold no role at all.
 
 ---
 
-## Journalisation
+## Dev sign-in
 
-Les logs applicatifs utilisent le module standard Python `logging` et le logger
-`uvicorn`. Cela permet aux messages de l'application, d'`auth.py` et de `seed.py` de reprendre
-le format, les couleurs et les handlers déjà configurés par le serveur.
+To work on a fork without an Azure application, the **dev sign-in** lets anyone sign in as
+any user, without proof of identity. It must **never** be used in production.
 
-Les niveaux sont utilisés selon leur gravité :
+| Variable | Effect |
+|----------|--------|
+| `AUTH_MODE` | `entra` (default) or `dev`, case- and space-insensitive. Any other value stops the application at startup. In `dev`, the `ENTRA_*` variables are not needed. |
+| `DEV_LOGIN_KEY` | Optional, `dev` mode only. When set, every sign-in must supply it (field `key`), otherwise `401`. When unset, sign-in is open. Ignored (with a warning) in `entra`. |
+| `SECRET_KEY` | Optional in `dev`: when missing, a random key is drawn at each start (with a warning) and sessions are lost on restart. Required in `entra`. |
+| `ALLOWED_DOMAINS` | Applies in `dev` too (`403` for any other domain); defaults to `epf.fr,epfedu.fr` in that mode. |
 
-| Niveau | Utilisation |
-|--------|-------------|
-| `DEBUG` | Informations détaillées utiles au développement et au seeding. |
-| `INFO` | Démarrage, arrêt et opérations applicatives normales. |
-| `WARNING` | Ressource attendue absente ou situation non bloquante. |
-| `ERROR` / `EXCEPTION` | Échec d'une opération ; `logger.exception()` conserve la traceback. |
-| `CRITICAL` | Configuration indispensable manquante, empêchant le démarrage. |
+In `dev` mode the session cookie is no longer restricted to HTTPS (`http://localhost`
+works), `/login` redirects to `/dev/login`, `/auth/callback` does not exist and `/logout`
+clears the session then returns to `/`. A warning is logged at startup. A red,
+non-dismissable banner is shown at the top of every page that includes the shared header:
+it recalls the signed-in address, offers *Changer d'utilisateur* (`/dev/login`) and says
+*accès ouvert à tous* when `DEV_LOGIN_KEY` is unset.
 
-Exemple :
+`POST /dev/login` expects a form with `email`, `name` (optional) and `key` (when
+`DEV_LOGIN_KEY` is set). The user is fetched or created exactly as on return from Entra:
+an unknown mail becomes a new student. Without `name`, the displayed name is derived from
+the mail (`bob.leponge@epfedu.fr` → "Bob Leponge"). A new sign-in replaces the session —
+that is how you switch user.
+
+In a browser, `GET /dev/login` lists the users of the database, grouped by role name
+without its scope (a user with no role appears under `student`, a user with several roles
+under each of them). Clicking one signs in as them; a free-text field accepts any other
+address, with an optional name. When `DEV_LOGIN_KEY` is set, a single key field appears
+and serves every sign-in on the page; the key is never stored in the session.
+
+```bash
+AUTH_MODE=dev DEV_LOGIN_KEY=my-key uvicorn main:app
+
+# Sign in as the seeded admin; -c saves the session cookie
+curl -i -c cookies.txt \
+  -d email=antoine.gademer@epf.fr -d key=my-key \
+  http://localhost:8000/dev/login
+
+# Reuse the cookie (-b) for the following requests
+curl -b cookies.txt -c cookies.txt -L http://localhost:8000/
+```
+
+> [!WARNING]
+> `dev` mode does not require `SECRET_KEY`. Without it the key is random and unknown; but
+> if a *known* `SECRET_KEY` is set (shared, copied from an example…), anyone who knows it
+> can forge a session cookie and bypass `DEV_LOGIN_KEY`. `dev` mode accepts that, because
+> it is only ever meant to run locally.
+
+---
+
+## Authentication with Microsoft Entra ID (OAuth 2.0)
+
+With `AUTH_MODE` unset or `entra`, sign-in goes through **Microsoft Entra ID** using MSAL:
+
+```
+1. The user clicks "Se connecter"
+   → FastAPI generates a random state (UUID, CSRF protection)
+   → Redirect to the Microsoft sign-in page
+
+2. The user authenticates with Microsoft
+   → Microsoft redirects to /auth/callback with a code + state
+
+3. The server exchanges the code for an access token
+   → Fetches the user's profile through Microsoft Graph
+   → Reads the roles and their scopes from the database
+   → Creates the session {name, email, roles}
+   → Redirects to the matching dashboard
+
+4. On sign-out (/logout)
+   → Session and cookies are cleared
+   → Sign-out on the Microsoft side
+   → Back to the home page
+```
+
+Authentication alone authorises no business action: every route then checks the role and
+its scope (program or campus) through `require_roles()` and the associated helpers.
+
+---
+
+## Configuration
+
+Copy `.env.example` to `.env` and fill it in. That file is the reference: it lists every
+variable the code reads, with its default.
+
+| Variable | Required | Meaning |
+|----------|----------|---------|
+| `AUTH_MODE` | no (default `entra`) | `entra` or `dev`. Any other value: the application logs a critical error and exits with code 1. |
+| `DEV_LOGIN_KEY` | no | Key required by the dev sign-in. Empty: sign-in is open. Ignored in `entra`. |
+| `ALLOWED_DOMAINS` | no | Comma-separated mail domains allowed to sign in. Defaults to `epf.fr,epfedu.fr` in `dev`, to empty in `entra`. |
+| `SECRET_KEY` | in `entra` | Signs the session cookies. |
+| `ENTRA_CLIENT_ID` | in `entra` | Azure application ID. |
+| `ENTRA_CLIENT_SECRET` | in `entra` | Azure application secret. |
+| `ENTRA_TENANT_ID` | in `entra` | Azure tenant (organisation) ID. |
+| `REDIRECT_URI` | no (default `https://localhost/auth/callback`) | Callback URL registered in Azure. |
+| `LOCAL_DATABASE_DIR` | no (default `database/`) | Directory holding `db_oceens.db`. A relative path is resolved from the repository root. With Docker Compose, the host directory mounted into the container. |
+| `LLM_API_KEY` | no | Key of the default LLM provider. Empty: the application starts, but requested summaries are marked as configuration errors. |
+| `RUN_SUMMARIES_DAEMON` | no | `1`/`true`/`yes`/`on` starts the summaries daemon alongside Uvicorn. |
+
+`SECRET_KEY` signs the session cookies: anyone who knows it can forge an admin session. It
+is **required unless `AUTH_MODE=dev`**: when missing or empty, the application logs a
+critical error and exits at startup (exit code 1). Generate one with
+`python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+
+> [!CAUTION]
+> Never commit the `.env` file. It is already listed in `.gitignore`, as are the `*.db`
+> files (`database/db_oceens.db`, `cache_llm.db`).
+
+---
+
+## Pages and routes
+
+Pages and forms are server-rendered; the `/api` routes are called by the templates, by
+`fetch()` or by a form post.
+
+### Pages
+
+| Route | Description |
+|-------|-------------|
+| `GET /` | Home page, authentication hub. |
+| `GET /login`, `GET /auth/callback`, `GET /logout` | Microsoft Entra ID flow. In `dev` mode, `/login` redirects to `/dev/login` and `/auth/callback` does not exist. |
+| `GET`/`POST /dev/login` | Dev sign-in: user list in `GET`, sign-in in `POST` (only with `AUTH_MODE=dev`). |
+| `GET /dashboard/student` | Student dashboard. |
+| `GET /dashboard/program-manager` | Program manager dashboard. |
+| `GET /dashboard/facilitator` | Facilitator dashboard. |
+| `GET /dashboard/campus-manager` | Campus management dashboard. |
+| `GET /dashboard/teachers/analytics` | Satisfaction score per teacher, filterable by year / semester / program / teacher. Open to `campus_manager` and `program_manager`, each within their own scope. |
+| `GET /dashboard/admin` | Administrator dashboard. |
+| `GET /dashboard/survey-create` | Survey creation / setup. |
+
+### Surveys
+
+| Route | Description |
+|-------|-------------|
+| `POST /api/surveys` | Creates a survey. |
+| `GET /api/surveys/{survey_id}` | The questionnaire itself. |
+| `POST /api/surveys/{survey_id}` | Submits the answers. |
+| `POST /api/surveys/{survey_id}/status` | Changes the status of a survey. |
+| `DELETE`/`POST /api/surveys/{survey_id}/delete` | Deletes a survey. |
+| `GET`/`POST`/`DELETE /api/surveys/{survey_id}/students` | Students invited to a survey. |
+| `GET /api/surveys/{survey_id}/export` | CSV export of the answers. |
+| `GET /api/surveys/{survey_id}/visualisation` | Visualisation of the answers. Accepts `?teacher=<name>` to open already filtered on a teacher. |
+| `POST /api/surveys/{survey_id}/generate-summaries` | Requests the LLM summaries. |
+| `POST /api/surveys/{survey_id}/destroy-summaries` | Deletes the generated summaries. |
+| `GET /api/surveys/{survey_id}/cost` | Summary cost of that survey. |
+
+### Administration
+
+| Route | Description |
+|-------|-------------|
+| `POST /api/users` | Creates a user from a mail address (admin). |
+| `PUT /api/users/{user_id}/role` | Changes the role of a user. |
+| `GET /backend/prompts`, `/backend/prompts/new`, `/backend/prompts/{id}/edit` | LLM prompt screens (admin only). |
+| `POST /api/prompts`, `PUT`/`DELETE /api/prompts/{id}` | Prompt CRUD. Editing and deleting are refused while the prompt is referenced in `summaries`. |
+| `GET /backend/templates` | Survey templates. |
+| `POST /api/templates`, `PUT`/`DELETE /api/templates/{id}`, `POST /api/templates/{id}/toggle-active`, `POST /api/templates/{id}/duplicate` | Survey template administration. |
+| `POST`/`PUT`/`DELETE /api/sections`, `/api/sections/{id}` | Section administration. |
+| `POST`/`PUT`/`DELETE /api/questions`, `/api/questions/{id}` | Question administration. |
+| `GET /backend/providers` and `/new`, `/{id}/edit`, `/{id}/test`; `POST /backend/providers/create`, `/{id}/update`, `/{id}/delete` | LLM providers (admin). |
+| `GET /backend/llm/prices`; `POST /backend/llm/settings/rate`, `/backend/llm/prices/save`, `/backend/llm/prices/{id}/delete` | Price list and exchange rate. |
+| `GET /backend/llm/costs` | Global summary cost. |
+
+Any `404` other than on `/` is redirected to `/` by an HTTP middleware, which then routes
+to the right dashboard.
+
+---
+
+## LLM providers (verbatim summaries)
+
+Verbatim summaries are generated by an LLM. The provider is **configurable from the
+interface** (`/backend/providers`, admin only), without touching the code. The default
+provider is **Ollama EPF** (`https://locallm.mde.epf.fr/ollama`), created automatically on
+the first start.
+
+### Supported API types
+
+| `api_type` | Covers |
+|------------|--------|
+| `ollama`    | Ollama servers (local, EPF, third-party) |
+| `openai`    | OpenAI **and any OpenAI-compatible endpoint**: vLLM, Groq, Mistral, LM Studio… |
+| `anthropic` | Claude API (Anthropic) |
+
+### Security principle: no key in the database
+
+The SQLite database is not encrypted and ends up in backups. **No API key is stored in
+it.** The `llm_providers` table only holds the *name* of the environment variable
+(`api_key_env`, e.g. `OPENAI_API_KEY`); the value stays in the `.env` and is resolved only
+at call time. That name is validated against an allow-list (`LLM_*` or `*_API_KEY`) so it
+cannot point at a system secret (`SECRET_KEY`, `ENTRA_CLIENT_SECRET`…).
+
+### Adding a provider
+
+1. **Add the key to the `.env`** with a conforming name (`LLM_*` or `*_API_KEY`):
+
+   ```env
+   OPENAI_API_KEY=sk-...
+   ```
+
+2. **Restart the summaries daemon** (the `.env` is read at startup only):
+
+   ```bash
+   .venv/bin/python summaries_generator_daemon.py
+   ```
+
+3. **Create the provider** in `/backend/providers` → *+ Nouveau fournisseur*: name, API
+   type, base URL, environment variable name (`OPENAI_API_KEY`) and a default model. The
+   **key present / absent** indicator confirms the variable is loaded. The **Tester**
+   button checks that the URL and the key answer, then sends a one-token generation to
+   confirm the account can actually generate (see below).
+
+4. **Attach a prompt** to the provider: in `/backend/prompts`, a `<select>` picks the
+   provider of a prompt. A prompt without a provider (`provider_id` NULL) falls back to
+   Ollama EPF.
+
+> [!NOTE]
+> A provider referenced by at least one prompt cannot be deleted (it would break the
+> configuration of those prompts).
+
+### Exhausted credit and other provider errors
+
+Every provider reports its failures in its own format: an exhausted credit is a
+`429 insufficient_quota` at OpenAI, but a `400 "Your credit balance is too low"` at
+Anthropic. `services/llm_client.py` normalises those answers into categories (`quota`,
+`rate_limit`, `auth`, `model`, `server`) and derives a readable message from them:
+
+> ⚠️ Crédit ou quota épuisé chez le fournisseur : la clé est valide mais le compte ne peut
+> plus générer. Rechargez le compte ou choisissez un autre fournisseur. (fournisseur
+> OpenAI, modèle gpt-4o-mini, HTTP 429)
+
+That message is written to `Summary.metadata_text` in place of the raw JSON — so it is
+visible straight from the interface when a summary fails. The provider's raw answer stays
+in the daemon logs for diagnosis.
+
+> [!IMPORTANT]
+> The **Tester** button does not merely list the models: at OpenAI as at Anthropic,
+> `GET /v1/models` still answers perfectly with a zero balance. A one-token generation
+> ping (negligible cost) is therefore sent afterwards — it is the only way to spot an
+> exhausted credit **before** launching a summary campaign.
+
+---
+
+## Cost of the summaries
+
+The cost of each summary is **measured, not estimated**. At generation time the daemon
+records the token counters returned by the provider (`Summary.input_tokens`,
+`output_tokens`, `model_used`): that is the only chance to capture them, no API lets you
+ask for them afterwards. The amount is then obtained by crossing those counters with the
+price list.
+
+### Price list — `/backend/llm/prices`
+
+Prices live in the database (table `llm_model_prices`) **in euros**, and are editable from
+the administration: no release is needed to follow a price revision, nor to cover a
+locally added provider.
+
+Two components add up:
+
+- a **flat cost per generation** (`flat_cost_min`, `flat_cost_max`), for a model whose cost
+  is not per token;
+- a **price per million tokens**, in and out.
+
+Pre-filled at startup (`seed_model_prices`, idempotent — a price corrected by hand is
+never rewritten):
+
+| Model | Flat cost per generation | In €/M | Out €/M |
+| --- | --- | ---: | ---: |
+| `gemma4:26b` (Ollama EPF, self-hosted) | 0.02 – 0.05 € | 0.00 | 0.00 |
+| `claude-opus-5` | — | 4.60 | 23.00 |
+| `claude-sonnet-5` | — | 2.76 | 13.80 |
+| `claude-haiku-4-5` | — | 0.92 | 4.60 |
+
+The school's LLM is not free: self-hosted does not mean costless. GPU, electricity and
+hardware amortisation come to 2–5 cents per summary, all included — hence a flat range
+rather than a per-token price.
+
+Anthropic publishes in dollars per million tokens; those prices are converted once, at the
+`usd_to_eur` rate stored in `settings` (0.92 by default, editable in the administration
+alongside the price list). The rate only applies at entry: changing it later does not
+rewrite existing prices, so a price already applied to past summaries never changes
+retroactively.
+
+Other providers' prices (OpenAI, Mistral, Groq…) are **left to be entered**: they are not
+guessed. A provider-specific price wins over a generic price for the same model name.
+
+### Where to look
+
+| Where | What |
+| --- | --- |
+| `/backend/llm/costs` | Global cost, broken down by survey and by model (admin) |
+| The 💰 button on a survey row | Summary cost of that survey |
+
+### What is not priced
+
+A summary cannot be priced when its counters are missing (generated before this feature,
+or a provider that does not expose them) or when its model has no recorded price. It is
+then **counted separately**, never estimated nor flattened to zero: an invented amount
+would be more harmful than a missing one, since it would be displayed with the authority
+of a real amount. The screens state explicitly when a total is partial.
+
+Not to be confused with a **zero** cost: a self-hosted model has a real, small flat cost
+per generation, which is not the same information as "unknown".
+
+> [!IMPORTANT]
+> Tracking starts when the feature goes live: summaries generated before it have no
+> counters in the database and cannot be priced retroactively.
+
+---
+
+## Logging
+
+Application logs use the standard Python `logging` module and the `uvicorn` logger, so
+that messages from the application, from `auth.py` and from `seed.py` inherit the format,
+the colours and the handlers the server already configured.
+
+| Level | Used for |
+|-------|----------|
+| `DEBUG` | Detailed information useful while developing and seeding. |
+| `INFO` | Startup, shutdown and normal application operations. |
+| `WARNING` | An expected resource is missing, or a non-blocking situation. |
+| `ERROR` / `EXCEPTION` | An operation failed; `logger.exception()` keeps the traceback. |
+| `CRITICAL` | Missing mandatory configuration, preventing startup. |
+
+Example:
 
 ```python
 import logging
@@ -185,257 +506,105 @@ except Exception:
     logger.exception("Échec de l'opération")
 ```
 
-Les nouveaux diagnostics doivent utiliser le logger approprié plutôt que
-`print()`. Le niveau applicatif est actuellement réglé sur `DEBUG` dans
-`core/dependencies.py`. Les logs applicatifs passent par le handler Uvicorn, généralement
-écrit sur `stderr` ; avec une redirection séparée, utilisez par exemple
-`2> error.log` pour les récupérer.
+New diagnostics should use the appropriate logger rather than `print()`. The application
+level is currently set to `DEBUG` in `core/dependencies.py`. Application logs go through
+the Uvicorn handler, usually written to `stderr`; with separate redirection, use for
+instance `2> error.log` to collect them.
 
 ---
 
-## Configuration
-
-Créez un fichier `.env` à la racine du projet :
-
-```env
-# Azure Entra ID
-ENTRA_CLIENT_ID=your_app_id_here
-ENTRA_CLIENT_SECRET=your_secret_here
-ENTRA_TENANT_ID=your_tenant_id_here
-REDIRECT_URI=http://localhost:8000/auth/callback
-ALLOWED_DOMAINS=epf.fr,epfedu.fr
-
-# Session (obligatoire hors AUTH_MODE=dev)
-SECRET_KEY=your_secure_random_key_here
-
-# Synthèses LLM
-LLM_API_KEY=your_llm_api_key_here
-```
-
-`SECRET_KEY` signe les cookies de session : quiconque la connaît peut forger une session admin. Elle est **obligatoire hors `AUTH_MODE=dev`** : si elle est absente ou vide, l'application journalise une erreur critique et s'arrête au démarrage (code de sortie 1). Générez-la avec `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
-
-> [!CAUTION]
-> Ne jamais commiter le fichier `.env`. Il est déjà listé dans le `.gitignore`, tout comme les fichiers `*.db` (`database/db_oceens.db`, `cache_llm.db`).
-
----
-
-## Fournisseurs LLM (synthèses de verbatims)
-
-Les synthèses de verbatims sont générées par un LLM. Le fournisseur est
-**configurable depuis l'interface** (`/backend/providers`, admin uniquement),
-sans toucher au code. Le fournisseur par défaut est **Ollama EPF**
-(`https://locallm.mde.epf.fr/ollama`), créé automatiquement au premier
-démarrage.
-
-### Types d'API supportés
-
-| `api_type` | Couvre |
-|------------|--------|
-| `ollama`    | Serveurs Ollama (local, EPF, tiers) |
-| `openai`    | OpenAI **et tout endpoint compatible OpenAI** : vLLM, Groq, Mistral, LM Studio… |
-| `anthropic` | API Claude (Anthropic) |
-
-### Principe de sécurité : aucune clé en base
-
-La base SQLite n'est pas chiffrée et part dans les sauvegardes. **Aucune clé
-d'API n'y est donc stockée.** La table `llm_providers` ne contient que le *nom*
-de la variable d'environnement (`api_key_env`, ex. `OPENAI_API_KEY`) ; la valeur
-reste dans le `.env` et n'est résolue qu'au moment de l'appel. Ce nom est validé
-contre une liste blanche (`LLM_*` ou `*_API_KEY`) pour empêcher de pointer vers
-un secret système (`SECRET_KEY`, `ENTRA_CLIENT_SECRET`…).
-
-### Ajouter un nouveau fournisseur
-
-1. **Ajouter la clé au `.env`** avec un nom conforme (`LLM_*` ou `*_API_KEY`) :
-
-   ```env
-   OPENAI_API_KEY=sk-...
-   ```
-
-2. **Redémarrer le daemon** de synthèses (les variables du `.env` ne sont lues
-   qu'au démarrage) :
-
-   ```bash
-   python summaries_generator_daemon.py
-   ```
-
-3. **Créer le fournisseur** dans `/backend/providers` → *+ Nouveau fournisseur* :
-   renseigner le nom, le type d'API, l'URL de base, le nom de la variable d'env
-   (`OPENAI_API_KEY`), et un modèle par défaut. L'indicateur **« clé présente /
-   absente »** confirme que la variable est bien chargée. Le bouton **Tester**
-   vérifie que l'URL et la clé répondent, puis envoie une génération d'un token
-   pour confirmer que le compte peut réellement générer (voir ci-dessous).
-
-4. **Relier un prompt** au fournisseur : dans `/backend/prompts`, un `<select>`
-   permet de choisir le fournisseur d'un prompt. Un prompt sans fournisseur
-   (`provider_id` NULL) retombe automatiquement sur Ollama EPF.
-
-> [!NOTE]
-> Un fournisseur référencé par au moins un prompt ne peut pas être supprimé
-> (pour ne pas casser la configuration de ces prompts).
-
-### Crédit épuisé et autres erreurs de fournisseur
-
-Chaque fournisseur signale ses pannes dans un format différent : un crédit
-épuisé est un `429 insufficient_quota` chez OpenAI, mais un `400 « Your credit
-balance is too low »` chez Anthropic. `services/llm_client.py` normalise ces
-réponses en catégories (`quota`, `rate_limit`, `auth`, `model`, `server`) et en
-tire un message lisible :
-
-> ⚠️ Crédit ou quota épuisé chez le fournisseur : la clé est valide mais le
-> compte ne peut plus générer. Rechargez le compte ou choisissez un autre
-> fournisseur. (fournisseur OpenAI, modèle gpt-4o-mini, HTTP 429)
-
-Ce message est écrit dans `Summary.metadata_text` à la place du JSON brut — il
-est donc visible directement depuis l'interface quand une synthèse échoue. La
-réponse brute du fournisseur reste dans les logs du daemon pour le diagnostic.
-
-> [!IMPORTANT]
-> Le bouton **Tester** ne se contente pas de lister les modèles : chez OpenAI
-> comme chez Anthropic, `GET /v1/models` répond encore parfaitement avec un
-> solde à zéro. Un ping de génération d'un token (coût négligeable) est donc
-> envoyé ensuite — c'est le seul moyen de repérer un crédit épuisé **avant** de
-> lancer une campagne de synthèses.
-
----
-
-## Coût des synthèses
-
-Le coût de chaque synthèse est **mesuré, pas estimé**. Au moment de la
-génération, le daemon enregistre les compteurs de tokens renvoyés par le
-fournisseur (`Summary.input_tokens`, `output_tokens`, `model_used`) : c'est la
-seule occasion de les capturer, aucune API ne permet de les redemander après
-coup. Le montant est ensuite obtenu en croisant ces compteurs avec la grille
-tarifaire.
-
-> [!NOTE]
-> Cette section remplace les anciens scripts `llm-utils/token-counting/`, qui
-> comptaient les tokens du **code source du dépôt** et les multipliaient par un
-> tarif codé en dur. Cette mesure ne disait rien de la dépense réelle de
-> l'application. Le suivi porte désormais sur les appels effectivement facturés.
-
-### Grille tarifaire — `/backend/llm/prices`
-
-Les tarifs vivent en base (table `llm_model_prices`), en **dollars par million
-de tokens**, comme les publient les fournisseurs. Ils sont éditables depuis
-l'administration : pas besoin de livrer une version pour suivre une révision de
-prix, ni pour couvrir un fournisseur ajouté localement.
-
-Sont pré-remplis au démarrage (`seed_model_prices`, idempotent — un tarif
-corrigé à la main n'est jamais réécrit) :
-
-| Modèle | Entrée $/M | Sortie $/M |
-| --- | ---: | ---: |
-| `claude-opus-5` | 5.00 | 25.00 |
-| `claude-sonnet-5` | 3.00 | 15.00 |
-| `claude-haiku-4-5` | 1.00 | 5.00 |
-| `gemma4:26b` (Ollama EPF, auto-hébergé) | 0.00 | 0.00 |
-
-Les tarifs des autres fournisseurs (OpenAI, Mistral, Groq…) sont **à saisir** :
-ils ne sont pas devinés. Un tarif spécifique à un fournisseur l'emporte sur un
-tarif générique portant le même nom de modèle.
-
-### Consultation
-
-| Où | Quoi |
-| --- | --- |
-| `/backend/llm/costs` | Coût global, détaillé par sondage et par modèle (admin) |
-| Bouton 💰 sur une ligne de sondage | Coût des synthèses de ce sondage |
-
-### Ce qui n'est pas chiffré
-
-Une synthèse n'est pas chiffrable quand ses compteurs manquent (générée avant
-cette fonctionnalité, ou fournisseur qui ne les expose pas) ou quand son modèle
-n'a pas de tarif enregistré. Elle est alors **comptée à part**, jamais estimée
-ni ramenée à zéro : un montant inventé serait plus nuisible qu'un montant
-absent, puisqu'il s'afficherait avec l'autorité d'un montant réel. Les écrans
-signalent explicitement qu'un total est partiel.
-
-À distinguer d'un coût **nul** : les modèles auto-hébergés valent réellement
-0,00 $, ce qui n'est pas la même information que « inconnu ».
-
-> [!IMPORTANT]
-> Le suivi démarre à la mise en service : les synthèses générées auparavant
-> n'ont pas de compteurs en base et ne peuvent pas être chiffrées
-> rétroactivement.
-
----
-
-## Structure du projet
+## Project structure
 
 ```
 OceENS/
-├── main.py                       # Fabrique FastAPI, middlewares et assemblage des routeurs
-├── sondage_loader.py             # Chargement d'un sondage complet pour l'export
-├── survey_loader_from_xlsx.py    # Import de sondages depuis un fichier Excel
-├── summaries_generator_daemon.py # Traitement asynchrone des synthèses LLM (processus séparé)
-├── launch.sh                     # Script de lancement (production, sans Docker)
-├── requirements.txt              # Dépendances Python
-├── Dockerfile                    # Image Docker de l'application
-├── .dockerignore                 # Fichiers exclus du build Docker
-├── .env                          # Variables d'environnement (⚠️ non commité)
-├── .gitignore                    # Fichiers et dossiers ignorés par Git
+├── main.py                       # FastAPI factory, middlewares and router assembly
+├── sondage_loader.py             # Loads a full survey for the export
+├── survey_loader_from_xlsx.py    # Imports surveys from an Excel file
+├── summaries_generator_daemon.py # Asynchronous LLM summary processing (separate process)
+├── launch.sh                     # Launch script (production, without Docker)
+├── requirements.txt              # Python dependencies, pinned
+├── Dockerfile                    # Application image
+├── docker-compose.yaml           # Service, port, env_file and volumes
+├── .dockerignore                 # Files excluded from the Docker build
+├── .env.example                  # Reference configuration, to copy to .env
+├── .env                          # Environment variables (⚠️ never committed)
+├── .gitignore                    # Files and directories ignored by Git
+├── Template_2025.md              # Reference wording of the survey template
+├── CONTEXT.md                    # Domain glossary and language boundary
+├── AGENTS.md, CLAUDE.md          # Conventions for coding agents
 │
-├── core/                         # Accès bas niveau et sécurité
-│   ├── auth.py                   #   Authentification Microsoft Entra ID (login, logout, callback) et connexion de développement
-│   ├── database.py               #   Moteur SQLite et dépendance SessionDep
-│   ├── security.py               #   Rôles, périmètres, contrôle d'accès
-│   ├── dependencies.py           #   templates Jinja et logger partagés
-│   └── seed.py                   #   Données initiales et synchronisation des formations
+├── docs/
+│   ├── smoke-test.md             #   Manual validation procedure (no CI yet)
+│   ├── adr/                      #   Architecture decision records
+│   └── agents/                   #   Issue tracker, triage labels, domain docs
 │
-├── models/                       # Schéma SQLModel, un fichier par table
-│   ├── __init__.py               #   Ré-exporte toutes les classes (voir sa docstring)
+├── core/                         # Low-level access and security
+│   ├── auth.py                   #   Microsoft Entra ID flow and dev sign-in
+│   ├── database.py               #   SQLite engine, schema migration, SessionDep
+│   ├── security.py               #   Roles, scopes, access control
+│   ├── dependencies.py           #   Shared Jinja templates and logger
+│   └── seed.py                   #   Initial data and program synchronisation
+│
+├── models/                       # SQLModel schema, one file per table
+│   ├── __init__.py               #   Re-exports every class (see its docstring)
 │   └── User.py, Survey.py, ...
 │
-├── routers/                      # Routes découpées par domaine métier
-│   ├── pages.py                  #   Accueil et dashboards par rôle
-│   ├── surveys.py                #   Sondages : CRUD, statut, export, visualisation
-│   ├── students.py               #   Inscription des étudiants à un sondage
-│   ├── users.py                  #   Gestion des rôles utilisateurs
-│   ├── summaries.py              #   Déclenchement des synthèses LLM
-│   ├── prompts.py                #   Administration des prompts
-│   ├── survey_templates.py       #   Administration des modèles de sondage
-│   ├── sections_questions.py     #   Administration des sections et questions
-│   └── llm/                      #   Administration LLM (URLs inchangées)
-│       ├── _access.py            #     Contrôle d'accès partagé des écrans LLM
-│       ├── providers.py          #     Fournisseurs LLM (CRUD + test de connexion)
-│       ├── prices.py             #     Grille tarifaire par modèle
-│       └── costs.py              #     Coût global et coût par sondage
+├── routers/                      # Routes split by business domain
+│   ├── pages.py                  #   Home page and dashboards per role
+│   ├── surveys.py                #   Surveys: CRUD, status, export, visualisation
+│   ├── students.py               #   Students invited to a survey
+│   ├── users.py                  #   User creation and roles
+│   ├── summaries.py              #   LLM summary triggering
+│   ├── prompts.py                #   Prompt administration
+│   ├── survey_templates.py       #   Survey template administration
+│   ├── sections_questions.py     #   Section and question administration
+│   └── llm/                      #   LLM administration (URLs unchanged)
+│       ├── _access.py            #     Shared access control of the LLM screens
+│       ├── providers.py          #     LLM providers (CRUD + connection test)
+│       ├── prices.py             #     Per-model price list
+│       └── costs.py              #     Global cost and per-survey cost
 │
-├── database/                     # Dossier contenant la base de données (ignoré par Git)
+├── services/                     # Business logic
+│   ├── helpers.py                #   Navigation, statistics, filters, sorting
+│   ├── visualisation_data.py     #   Aggregations and visualisation context
+│   ├── llm_client.py             #   Multi-provider LLM client (ollama/openai/anthropic)
+│   ├── llm_costs.py              #   Summary cost (measured tokens × price list)
+│   ├── settings_store.py         #   Application settings (exchange rate)
+│   └── export_csv.py             #   CSV export of the answers
+│
+├── import/                       # Seed data read at startup
+│   ├── Program_list.csv          #   Programs, synchronised on every start
+│   └── seed_answers*.csv         #   Demo answers of the seeded surveys
+│
+├── database/                     # Database directory (ignored by Git)
 │   └── db_oceens.db
 │
-├── services/                     # Logique métier
-│   ├── helpers.py                # Navigation, statistiques, filtres, tri
-│   ├── visualisation_data.py     # Agrégations et contexte de visualisation
-│   ├── llm_client.py             # Client LLM multi-fournisseur (ollama/openai/anthropic)
-│   ├── llm_costs.py              # Coût des synthèses (tokens mesurés × grille tarifaire)
-│   └── export_csv.py             # Export CSV des réponses
+├── llm-utils/                    # LLM tooling outside the application
+│   └── README.md                 #   (cost tracking moved into the app, see above)
 │
-├── llm-utils/                    # Outils LLM hors application
-│   └── README.md                 # (le suivi des coûts est passé dans l'app, voir ci-dessus)
-│
-├── templates/                    # Templates HTML (Jinja2)
-│   ├── index.html                     # Page d'accueil / login
+├── templates/                    # HTML templates (Jinja2)
+│   ├── index.html                     # Home / sign-in page
+│   ├── dev_login.html                 # Dev sign-in page
 │   ├── dashboard/
 │   │   ├── admin.html
 │   │   ├── student.html
 │   │   ├── program_manager.html
 │   │   ├── facilitator.html
 │   │   ├── campus_manager.html
-│   │   ├── teachers-analytics.html       # Satisfaction des enseignants (campus_manager, program_manager)
-│   │   ├── survey.html                   # Réponse au sondage
-│   │   ├── survey_create.html            # Création de sondage
-│   │   └── visualisation.html            # Visualisation des réponses
-│   ├── backend/                       # Pages d'administration (admin only)
-│   │   ├── prompts.html               # Liste des prompts LLM
-│   │   ├── prompt_form.html           # Formulaire create/edit partagé
-│   │   └── llm/                       # Écrans LLM (fournisseurs, tarifs, coûts)
+│   │   ├── teachers-analytics.html    # Teacher satisfaction
+│   │   ├── survey.html                # Answering a survey
+│   │   ├── survey_create.html         # Survey creation
+│   │   └── visualisation.html         # Answer visualisation
+│   ├── backend/                       # Administration pages (admin only)
+│   │   ├── prompts.html               # LLM prompt list
+│   │   ├── prompt_form.html           # Shared create/edit form
+│   │   ├── templates.html             # Survey templates
+│   │   └── llm/                       # LLM screens (providers, prices, costs)
 │   │       ├── providers.html
 │   │       ├── provider_form.html
-│   │       ├── prices.html            # Grille tarifaire éditable
-│   │       └── costs.html             # Coût global et par sondage
-│   └── template_parts/                # Fragments réutilisables entre dashboards
+│   │       ├── prices.html            # Editable price list
+│   │       └── costs.html             # Global and per-survey cost
+│   └── template_parts/                # Fragments shared between dashboards
 │       ├── part_site_header.html
 │       ├── part_dashboard_navigation.html
 │       ├── part_theme_switcher.html
@@ -443,148 +612,97 @@ OceENS/
 │
 ├── static/
 │   ├── css/                      # admin.css, student.css, program_manager.css, survey.css,
-│   │                              # survey_create.css, visualisation.css, prompt_form.css,
-│   │                              # llm_backend.css (écrans LLM), theme.css, site_header.css,
-│   │                              # dashboard_navigation.css, responsive.css
+│   │                             # survey_create.css, visualisation.css, prompt_form.css,
+│   │                             # llm_backend.css, theme.css, site_header.css,
+│   │                             # dashboard_navigation.css, responsive.css
 │   ├── js/
 │   │   └── survey.js
 │   └── img/
 │
-└── env/                           # Environnement virtuel Python (non commité)
+└── .venv/                        # Python virtual environment (not committed)
 ```
 
 ---
 
-## Authentification (OAuth 2.0)
+## Notable features
 
-Le flux d'authentification repose sur **Microsoft Entra ID** via la bibliothèque MSAL :
+### Teacher analytics
 
-```
-1. Utilisateur clique "Se connecter"
-   → FastAPI génère un state aléatoire (UUID, protection CSRF)
-   → Redirection vers la page de login Microsoft
+`/dashboard/teachers/analytics` (`campus_manager`, `program_manager`) aggregates the
+satisfaction score per `(teacher, survey)` from the `QCU_Satisfaction` answers that carry
+an `Answer.teacher` (ME sections). The teacher list is sorted with `teacher_sort_key()`,
+case- and accent-insensitive, and stays filterable by school year, semester, program and
+teacher.
 
-2. L'utilisateur s'authentifie chez Microsoft
-   → Microsoft redirige vers /auth/callback avec un code + state
+### Teacher filter in the visualisation
 
-3. Le serveur échange le code contre un token d'accès
-   → Récupération des infos utilisateur via Microsoft Graph
-   → Consultation de la BDD pour obtenir le(s) rôle(s) et leur périmètre
-   → Création de la session {name, email, roles}
-   → Redirection vers le dashboard correspondant
+A client-side selector filters the visualisation without reloading: only the modules of
+the chosen teacher stay visible, the Campus and Formation sections being hidden. The page
+reads `?teacher=<name>` on load to pre-filter itself; links from the analytics screen pass
+that parameter, so clicking a teacher's score opens their view directly.
 
-4. À la déconnexion (/logout)
-   → Suppression de la session et des cookies
-   → Déconnexion côté Microsoft
-   → Retour à la page d'accueil
-```
+### Surveys imported from Excel
 
-L'authentification seule n'autorise aucune action métier : chaque route vérifie ensuite le rôle et le périmètre (formation ou campus) via `require_roles()` et les helpers associés.
+Surveys loaded by `survey_loader_from_xlsx.py` have no `QCU_Attendance` question:
+`services/visualisation_data.py` then uses `satisfaction_responses_count` as a fallback
+denominator for the teacher score. Teacher names are normalised with `.title()` both at
+import and at aggregation, merging case variants (`"GADEMER Antoine"` and
+`"Gademer Antoine"` = a single entry). Questions are sorted by `question_id` in the
+template, which puts the charts before the verbatims whatever the insertion order.
 
----
+### Campus management scope
 
-## Authentification en mode développement
+The `campus_manager` dashboard only shows closed surveys with at least one respondent. The
+questionnaire link and the QR code are hidden there (`can_view_survey_link=False`): this
+role reads results without distributing surveys. The `{% if can_view_survey_link |
+default(true) %}` guard leaves the other dashboards unchanged.
 
-Pour travailler sur un fork sans application Azure, la **connexion de développement** permet de se connecter en tant que n'importe quel utilisateur, sans preuve d'identité. Elle ne doit **jamais** servir en production.
+### Orphan student cleanup
 
-| Variable | Rôle |
-|----------|------|
-| `AUTH_MODE` | `entra` (défaut) ou `dev`, sans tenir compte de la casse ni des espaces. Toute autre valeur arrête l'application au démarrage. En `dev`, les variables `ENTRA_*` ne sont pas nécessaires. |
-| `DEV_LOGIN_KEY` | Optionnelle, mode `dev` uniquement. Si elle est définie, chaque connexion doit la fournir (champ `key`), sinon `401`. Si elle ne l'est pas, la connexion est ouverte. Ignorée (avec un avertissement) en `entra`. |
-| `SECRET_KEY` | Facultative en `dev` : si elle manque, une clé aléatoire est tirée à chaque démarrage (avec un avertissement) et les sessions sont perdues au redémarrage. Obligatoire en `entra`. |
-| `ALLOWED_DOMAINS` | S'applique aussi en `dev` (`403` pour un autre domaine) ; vaut `epf.fr,epfedu.fr` par défaut dans ce mode. |
+When a survey is deleted, students no longer attached to **any other** survey are deleted
+too, to avoid accumulating unused accounts (`services/helpers.py`,
+`_delete_orphan_students`). A safeguard protects users holding a privileged role (`admin`,
+`program_manager`, `facilitator`, `campus_manager`): a teacher or a manager who answered a
+survey is never erased.
 
-En mode `dev`, le cookie de session n'est plus limité à HTTPS (`http://localhost` fonctionne), `/login` redirige vers `/dev/login`, `/auth/callback` n'existe pas et `/logout` efface la session puis renvoie vers `/`. Un avertissement est journalisé au démarrage. Un bandeau rouge, non refermable, s'affiche en haut de chaque page incluant le header partagé : il rappelle l'adresse connectée, propose « Changer d'utilisateur » (`/dev/login`) et précise « accès ouvert à tous » quand `DEV_LOGIN_KEY` n'est pas définie.
+### Adding a user by mail
 
-`POST /dev/login` attend un formulaire avec `email`, `name` (optionnel) et `key` (si `DEV_LOGIN_KEY` est définie). L'utilisateur est récupéré ou créé comme au retour d'Entra : un mail inconnu devient un nouvel étudiant. Sans `name`, le nom affiché est construit depuis le mail (`bob.leponge@epfedu.fr` → « Bob Leponge »). Une nouvelle connexion remplace la session : c'est ainsi qu'on change d'utilisateur.
-
-Dans un navigateur, `GET /dev/login` affiche la liste des utilisateurs de la base, regroupés par nom de rôle sans périmètre (un utilisateur sans rôle apparaît sous `student`, un utilisateur à plusieurs rôles sous chacun d'eux). Un clic connecte en tant que l'utilisateur choisi ; un champ libre permet d'utiliser une autre adresse, avec un nom optionnel. Si `DEV_LOGIN_KEY` est définie, un champ de clé unique s'affiche et sert à toutes les connexions de la page ; la clé n'est jamais stockée en session. On revient sur cette page pour changer d'utilisateur.
-
-```bash
-AUTH_MODE=dev DEV_LOGIN_KEY=ma-cle uvicorn main:app
-
-# Se connecter en tant qu'admin du seed ; -c enregistre le cookie de session
-curl -i -c cookies.txt \
-  -d email=antoine.gademer@epf.fr -d key=ma-cle \
-  http://localhost:8000/dev/login
-
-# Réutiliser le cookie (-b) pour les requêtes suivantes
-curl -b cookies.txt -c cookies.txt -L http://localhost:8000/
-```
-
-> [!WARNING]
-> Le mode `dev` n'exige pas `SECRET_KEY`. Sans elle, la clé est aléatoire et inconnue ; mais si une `SECRET_KEY` connue est définie (partagée, copiée d'un exemple…), quiconque la connaît peut forger un cookie de session et contourner `DEV_LOGIN_KEY` : le mode `dev` l'accepte, car il ne sert qu'en local.
+The *Utilisateurs* tab of the administrator dashboard offers a **+ Ajouter un utilisateur**
+button: a mail is enough to create the account, with the `student` role by default
+(`POST /api/users`, admin only). The mail is validated (format + allowed domain) and
+duplicates are refused.
 
 ---
 
-## Fonctionnalités notables
+## Deployment checklist
 
-### Analytique des enseignants
-
-La route `/dashboard/teachers/analytics` (`campus_manager`, `program_manager`) agrège le score de satisfaction par `(enseignant, sondage)` à partir des réponses `QCU_Satisfaction` renseignées d'un `Answer.teacher` (sections ME). La liste des enseignants est triée avec `teacher_sort_key()`, insensible à la casse et aux accents, et reste filtrable par année scolaire, semestre, formation et enseignant.
-
-### Filtre par enseignant dans la visualisation
-
-Un sélecteur côté client filtre la visualisation sans rechargement : seules les modules de l'enseignant choisi restent affichées, les sections Campus et Formation étant masquées. La page lit `?teacher=<nom>` au chargement pour se pré-filtrer ; les liens depuis l'analytique transmettent ce paramètre, si bien qu'un clic sur le score d'un enseignant ouvre directement sa vue.
-
-### Sondages importés via Excel
-
-Les sondages chargés par `survey_loader_from_xlsx.py` n'ont pas de question `QCU_Attendance` : `services/visualisation_data.py` utilise alors `satisfaction_responses_count` comme dénominateur de repli pour le score enseignant. Les noms d'enseignants sont normalisés en `.title()` à l'import comme à l'agrégation, pour fusionner les variantes de casse (`"GADEMER Antoine"` et `"Gademer Antoine"` = une seule entrée). Les questions sont triées par `question_id` dans le template, ce qui garantit les graphes avant les verbatims quel que soit l'ordre d'insertion.
-
-### Périmètre de la direction de campus
-
-Le dashboard `campus_manager` n'affiche que les sondages fermés ayant au moins un répondant. Le lien vers le questionnaire et le QR code y sont masqués (`can_view_survey_link=False`) : ce rôle consulte les résultats sans diffuser les sondages. Le garde `{% if can_view_survey_link | default(true) %}` laisse les autres dashboards inchangés.
-
-### Nettoyage des étudiants orphelins
-
-Lors de la suppression d'un sondage, les étudiants qui ne sont plus rattachés à
-**aucun autre** sondage sont également supprimés, pour éviter d'accumuler des
-comptes inutilisés (`services/helpers.py`, `_delete_orphan_students`). Un
-garde-fou protège les utilisateurs à rôle privilégié (`admin`,
-`program_manager`, `facilitator`, `campus_manager`) : un enseignant ou un
-gestionnaire ayant répondu à un sondage n'est jamais effacé.
-
-### Ajout d'un utilisateur par mail
-
-L'onglet « Utilisateurs » du dashboard administrateur propose un bouton
-**« + Ajouter un utilisateur »** : un mail suffit pour créer le compte, avec le
-rôle `student` par défaut (`POST /api/users`, admin uniquement). Le mail est
-validé (format + domaine autorisé) et les doublons sont refusés.
+- [ ] `.env` created with the real Azure credentials and a dedicated `SECRET_KEY`
+      (required unless `AUTH_MODE=dev`, otherwise the application refuses to start)
+- [ ] `AUTH_MODE` unset or `entra`
+- [ ] Valid SSL certificate (Let's Encrypt or equivalent)
+- [ ] `https_only=True` in the SessionMiddleware (automatic unless `AUTH_MODE=dev`)
+- [ ] Database present (`database/db_oceens.db`) or its directory mounted
+- [ ] Environment variables kept secret, including `LLM_API_KEY`
+- [ ] **Docker Compose**: `.env` loaded through `env_file`, never copied into the image;
+      `LOCAL_DATABASE_DIR` pointing at the right directory
+- [ ] `summaries_generator_daemon.py` started if LLM summaries are used
 
 ---
 
-## Checklist de déploiement
+## Validating a change
 
-- [ ] `.env` créé avec les vraies credentials Azure et une `SECRET_KEY` dédiée (obligatoire hors `AUTH_MODE=dev`, sinon l'application refuse de démarrer)
-- [ ] `AUTH_MODE` non défini ou `entra`
-- [ ] Certificat SSL valide (Let's Encrypt ou équivalent)
-- [ ] `https_only=True` dans le SessionMiddleware (automatique hors `AUTH_MODE=dev`)
-- [ ] Base de données présente (`database/db_oceens.db`) ou volume Docker monté
-- [ ] Variables d'environnement sécurisées, y compris `LLM_API_KEY`
-- [ ] **Docker Compose** : `.env` chargé via `env_file`, jamais copié dans l'image ; `LOCAL_DATABASE_DIR` pointant vers le bon répertoire de base
-- [ ] Daemon `summaries_generator_daemon.py` lancé si les synthèses LLM sont utilisées
+The repository has no automated test suite and no CI. Before proposing a change, run the
+manual procedure in **[docs/smoke-test.md](docs/smoke-test.md)**: static checks, startup
+from a fresh clone, Docker, exit codes on invalid configuration, and the LLM key. Then
+test the routes your change touches, on a throwaway SQLite database (never a copy of
+production), with the relevant roles and survey statuses.
 
 ---
 
-## Validation avant contribution
-
-Le dépôt ne contient pas de suite de tests automatisés ni de CI. Avant de proposer un changement :
-
-```bash
-python -m compileall -q main.py \
-  sondage_loader.py survey_loader_from_xlsx.py summaries_generator_daemon.py \
-  core models routers services
-git diff --check
-```
-
-Puis tester manuellement les routes concernées sur une base SQLite jetable (jamais une copie de production), avec les rôles et statuts de sondage pertinents.
-
----
-
-## Ressources
+## Resources
 
 - [FastAPI](https://fastapi.tiangolo.com/)
-- [Guide du logging FastAPI et Uvicorn](https://apitally.io/blog/fastapi-logging-guide)
+- [FastAPI and Uvicorn logging guide](https://apitally.io/blog/fastapi-logging-guide)
 - [MSAL Python](https://github.com/AzureAD/microsoft-authentication-library-for-python)
 - [Microsoft Graph](https://learn.microsoft.com/en-us/graph/)
 - [Jinja2](https://jinja.palletsprojects.com/)
@@ -594,4 +712,4 @@ Puis tester manuellement les routes concernées sur une base SQLite jetable (jam
 
 ---
 
-**Équipe OcéEns** — EPF
+**OcéEns team** — EPF

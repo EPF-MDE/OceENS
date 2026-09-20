@@ -1,11 +1,35 @@
 # OcéEns
 
-Plateforme d'évaluation des enseignements de l'EPF : des sondages sont créés par filière, les étudiants y répondent, et les réponses sont exportées, visualisées et synthétisées.
+EPF's teaching evaluation platform: surveys are created per program, students answer them,
+and the answers are exported, visualised and summarised.
 
-## Langage
+## Language boundary
 
-### Authentification
+The documentation, the code identifiers and the issues are in **English**. The **product**
+is in French: the rendered pages, the survey questions, the seeded demo content and the
+messages shown to a user stay in French, as do the code comments and log messages already
+written in it. Quote a French label as-is rather than translating it in passing — a
+translated label no longer matches what is on screen.
 
-**Connexion de développement** (`AUTH_MODE=dev`) :
-Connexion sans fournisseur d'identité : on choisit l'adresse mail d'un utilisateur et on est connecté en tant que lui, sans preuve d'identité. Elle n'existe que lorsque `AUTH_MODE=dev` et ne doit jamais servir en production.
-_À éviter_ : impersonation, usurpation, fake login
+The code already names the domain in English; these are the same things under two names:
+
+| In the product (French) | In the code and the docs (English) |
+|---|---|
+| sondage | survey (`Survey`) |
+| synthèse | summary (`Summary`) |
+| filière | program (`Program`, role scope) |
+| animateur | facilitator |
+| direction de campus | campus manager |
+| responsable de programme | program manager |
+| enseignant | teacher |
+| verbatim | verbatim (unchanged) |
+
+## Vocabulary
+
+### Authentication
+
+**Dev sign-in** (`AUTH_MODE=dev`):
+Sign-in with no identity provider: you pick a user's mail address and are signed in as
+them, with no proof of identity. It exists only when `AUTH_MODE=dev` and must never be
+used in production.
+_Avoid_: impersonation, spoofing, fake login
