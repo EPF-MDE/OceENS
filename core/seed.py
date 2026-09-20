@@ -99,18 +99,21 @@ SEEDED_SURVEYS = [
         "program": "MDAI5",
         "campus": "Montpellier",
         "answers_file": "seed_answers.csv",
+        "status": 1,
     },
     {
         "survey_id": 2,
         "program": "MDAI4",
         "campus": "Montpellier",
         "answers_file": "seed_answers_survey_2.csv",
+        "status": 1,
     },
     {
         "survey_id": 3,
         "program": "MIAN5",
         "campus": "Saint-Nazaire",
         "answers_file": "seed_answers_survey_3.csv",
+        "status": 1,
     },
     {
         "survey_id": 4,
@@ -167,14 +170,14 @@ def seed_single_role_users(session: Session):
             session.add(user)
             session.flush()  # attribue le user_id auto-incrémenté
 
-        already_has_a_role = session.exec(
+        existing_role = session.exec(
             select(Role).where(Role.user_id == user.user_id)
         ).first()
-        if already_has_a_role:
+        if existing_role is not None:
             continue
 
         session.add(Role(user_id=user.user_id, role=role))
-        logger.debug(f"[SEED] Utilisateur à rôle unique {mail} ({role}) créé.")
+        logger.debug(f"[SEED] Rôle unique {role} attribué à {mail}.")
 
     session.commit()
 
@@ -695,7 +698,7 @@ def seed_surveys(session: Session):
             survey_id=survey_data["survey_id"],
             program=survey_data["program"],
             semester="Automne",
-            status=survey_data.get("status", 1),
+            status=survey_data["status"],
             school_year="2026-2027",
             password=None,
         )

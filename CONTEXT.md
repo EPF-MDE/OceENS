@@ -33,3 +33,11 @@ Sign-in with no identity provider: you pick a user's mail address and are signed
 them, with no proof of identity. It exists only when `AUTH_MODE=dev` and must never be
 used in production.
 _Avoid_: impersonation, spoofing, fake login
+
+**Single-role user**:
+A seeded user holding exactly one scoped role — `facilitator:<code>`,
+`program_manager:<code>` or `campus_manager:<campus>` — and no other. They exist so that a
+role's screens and its scope can be exercised through the dev sign-in: the other seeded
+users either combine `admin` with a business role or hold no role at all. Unlike the rest
+of the demo dataset, they are seeded even into a database that already has data.
+_Avoid_: test user, fake user (they are demo data, not fixtures)
