@@ -9,7 +9,9 @@ services:
       - .env
     volumes:
       - ${LOCAL_DATABASE_DIR:-./database}:/app/database
-      # Les CSV de seed vivent dans le paquet ; l'image est installée en mode
-      # éditable, donc c'est bien ce chemin-là que lit le seed au démarrage.
+      # Les CSV de seed vivent dans le paquet. Ce montage suppose l'installation
+      # éditable que fait `uv sync` dans le Dockerfile : c'est src/ que lit le
+      # seed au démarrage. Passer le Dockerfile en `--no-editable` demanderait
+      # de monter le paquet installé dans .venv à la place.
       - ./src/oceens/seed_data:/app/src/oceens/seed_data
     restart: always

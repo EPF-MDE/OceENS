@@ -14,6 +14,7 @@ les modules dédiés :
 
 from contextlib import asynccontextmanager
 import os
+import shutil
 import sys
 import subprocess
 from pathlib import Path
@@ -66,12 +67,28 @@ def _maybe_start_summaries_daemon():
         return None
 
     logger.info("Démarrage du daemon de synthèses (RUN_SUMMARIES_DAEMON activé)...")
-    # sys.executable = le même interpréteur Python que celui d'uvicorn, et -m
-    # va chercher le module dans le paquet installé : plus de chemin de fichier
-    # à résoudre depuis le répertoire courant.
-    return subprocess.Popen(
-        [sys.executable, "-m", "oceens.summaries_generator_daemon"]
-    )
+    # Le point d'entrée installé, celui-là même que lance `launch.sh`. On le
+    # cherche d'abord à côté de l'interpréteur courant, pour rester dans
+    # l'environnement d'uvicorn même si le PATH pointe ailleurs. À défaut, le
+    # module derrière ce point d'entrée, avec le même interpréteur : un
+    # environnement où le script manque doit quand même générer ses synthèses.
+    command = _summaries_daemon_command()
+    return subprocess.Popen(command)
+
+
+def _summaries_daemon_command():
+    """Commande de lancement du daemon : le point d'entrée, sinon son module."""
+    bin_dir = Path(sys.executable).parent
+    for name in ("oceens-summaries", "oceens-summaries.exe"):
+        entry_point = bin_dir / name
+        if entry_point.exists():
+            return [str(entry_point)]
+
+    entry_point = shutil.which("oceens-summaries")
+    if entry_point:
+        return [entry_point]
+
+    return [sys.executable, "-m", "oceens.summaries_generator_daemon"]
 
 
 @asynccontextmanager
