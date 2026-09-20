@@ -1,9 +1,10 @@
 """Peuplement initial de la base de données (seed).
 
-Ce module remplit la base avec des données de départ : filières (toujours
-synchronisées depuis un CSV), fournisseur LLM par défaut (idempotent), puis un
-jeu de données de démonstration (utilisateurs, sondages, réponses...) UNIQUEMENT
-si la base est vide.
+Ce module remplit la base avec des données de départ. Sont toujours seedés, de
+façon idempotente : les filières (synchronisées depuis un CSV), le fournisseur
+LLM par défaut, la grille tarifaire et les utilisateurs à rôle unique. Le jeu de
+données de démonstration (utilisateurs, sondages, réponses...) n'est inséré
+QUE si la base est vide.
 
 Point d'entrée : `seed_all_if_necessary()`, appelé au démarrage de l'app.
 """

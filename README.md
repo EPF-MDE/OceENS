@@ -153,8 +153,9 @@ price list. All of this is idempotent.
 respondents and answers, so that every screen has something to show. Four surveys are
 seeded — three open, one closed with results (`MDID5`, Troyes campus).
 
-Three single-role users are seeded as well, and unlike the demo dataset they are also
-added to a database that already has data:
+Three single-role users are seeded as well. Unlike the demo dataset, they are also added
+to a database that already has data — but only when they are missing: an existing user
+with that mail keeps the roles they already hold.
 
 | Mail | Role |
 |------|------|
@@ -174,12 +175,9 @@ students hold no role at all.
 To work on a fork without an Azure application, the **dev sign-in** lets anyone sign in as
 any user, without proof of identity. It must **never** be used in production.
 
-| Variable | Effect |
-|----------|--------|
-| `AUTH_MODE` | `entra` (default) or `dev`, case- and space-insensitive. Any other value stops the application at startup. In `dev`, the `ENTRA_*` variables are not needed. |
-| `DEV_LOGIN_KEY` | Optional, `dev` mode only. When set, every sign-in must supply it (field `key`), otherwise `401`. When unset, sign-in is open. Ignored (with a warning) in `entra`. |
-| `SECRET_KEY` | Optional in `dev`: when missing, a random key is drawn at each start (with a warning) and sessions are lost on restart. Required in `entra`. |
-| `ALLOWED_DOMAINS` | Applies in `dev` too (`403` for any other domain); defaults to `epf.fr,epfedu.fr` in that mode. |
+It is turned on by `AUTH_MODE=dev`, and shaped by `DEV_LOGIN_KEY`, `SECRET_KEY` and
+`ALLOWED_DOMAINS` — all four described in [Configuration](#configuration). In `dev` mode,
+the `ENTRA_*` variables are not needed.
 
 In `dev` mode the session cookie is no longer restricted to HTTPS (`http://localhost`
 works), `/login` redirects to `/dev/login`, `/auth/callback` does not exist and `/logout`
@@ -256,10 +254,10 @@ variable the code reads, with its default.
 
 | Variable | Required | Meaning |
 |----------|----------|---------|
-| `AUTH_MODE` | no (default `entra`) | `entra` or `dev`. Any other value: the application logs a critical error and exits with code 1. |
-| `DEV_LOGIN_KEY` | no | Key required by the dev sign-in. Empty: sign-in is open. Ignored in `entra`. |
-| `ALLOWED_DOMAINS` | no | Comma-separated mail domains allowed to sign in. Defaults to `epf.fr,epfedu.fr` in `dev`, to empty in `entra`. |
-| `SECRET_KEY` | in `entra` | Signs the session cookies. |
+| `AUTH_MODE` | no (default `entra`) | `entra` or `dev`, case- and space-insensitive. Any other value: the application logs a critical error and exits with code 1. |
+| `DEV_LOGIN_KEY` | no | Key required by the dev sign-in (form field `key`), otherwise `401`. Empty: sign-in is open. Ignored, with a warning, in `entra`. |
+| `ALLOWED_DOMAINS` | no | Comma-separated mail domains allowed to sign in (`403` for any other), in `dev` as in `entra`. Defaults to `epf.fr,epfedu.fr` in `dev`, to empty in `entra`. |
+| `SECRET_KEY` | in `entra` | Signs the session cookies. In `dev`, optional: when missing, a random key is drawn at each start, with a warning, and sessions are lost on restart. |
 | `ENTRA_CLIENT_ID` | in `entra` | Azure application ID. |
 | `ENTRA_CLIENT_SECRET` | in `entra` | Azure application secret. |
 | `ENTRA_TENANT_ID` | in `entra` | Azure tenant (organisation) ID. |
