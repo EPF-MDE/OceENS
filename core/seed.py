@@ -63,6 +63,21 @@ ADDITIONAL_STUDENT_USERS = [
 ]
 
 
+# Utilisateurs à rôle unique : (mail, rôle). Chacun porte exactement un rôle
+# scopé, ce que ne fait aucun utilisateur du jeu de démonstration — 1 et 6
+# cumulent `admin` avec leur rôle métier, si bien qu'on ne peut pas se
+# connecter en simple animateur, responsable de programme ou direction de
+# campus. Les périmètres reprennent ceux des sondages seedés (SEEDED_SURVEYS) :
+# chacun voit des données dès sa première connexion. Le campus est celui du
+# sondage fermé, seul type de sondage qu'affiche le dashboard d'une direction
+# de campus.
+SINGLE_ROLE_USERS = [
+    ("oceens.facilitator@epf.fr", "facilitator:MDAI5"),
+    ("oceens.program.manager@epf.fr", "program_manager:MDAI5"),
+    ("oceens.campus.manager@epf.fr", "campus_manager:Troyes"),
+]
+
+
 # submission_id, user_id, created_at
 SEEDED_SUBMISSIONS = [
     (1, 1, "2026-06-30 16:24:04"),
@@ -102,6 +117,10 @@ SEEDED_SURVEYS = [
         "program": "MDID5",
         "campus": "Troyes",
         "answers_file": "seed_answers_survey_4.csv",
+        # Fermé (0), là où les autres sont ouverts (1) : le dashboard d'une
+        # direction de campus n'affiche que les sondages fermés ayant des
+        # répondants, et resterait vide sans un sondage dans cet état.
+        "status": 0,
     },
 ]
 
@@ -125,6 +144,38 @@ def seed_users(session: Session):
         session.merge(
             user
         )  # Utilisation de merge pour éviter les erreurs si l'ID existe déjà
+    session.commit()
+
+
+def seed_single_role_users(session: Session):
+    """Crée les utilisateurs à rôle unique s'ils manquent (idempotent).
+
+    Relançable, et applicable à une base déjà peuplée : contrairement au jeu de
+    démonstration, ces utilisateurs ne sont pas réservés à une base vide. La
+    présence est testée sur le mail, qui identifie l'utilisateur, et
+    l'identifiant est laissé à l'auto-incrément : sur une base déjà déployée,
+    les identifiants suivant ceux du seed ont pu être attribués à de vrais
+    utilisateurs, qu'un `merge` sur un identifiant fixe écraserait.
+
+    Un utilisateur qui porte déjà un rôle n'est jamais modifié : le rôle n'est
+    ajouté que s'il n'en a aucun.
+    """
+    for mail, role in SINGLE_ROLE_USERS:
+        user = session.exec(select(User).where(User.mail == mail)).first()
+        if user is None:
+            user = User(mail=mail)
+            session.add(user)
+            session.flush()  # attribue le user_id auto-incrémenté
+
+        already_has_a_role = session.exec(
+            select(Role).where(Role.user_id == user.user_id)
+        ).first()
+        if already_has_a_role:
+            continue
+
+        session.add(Role(user_id=user.user_id, role=role))
+        logger.debug(f"[SEED] Utilisateur à rôle unique {mail} ({role}) créé.")
+
     session.commit()
 
 
@@ -644,7 +695,7 @@ def seed_surveys(session: Session):
             survey_id=survey_data["survey_id"],
             program=survey_data["program"],
             semester="Automne",
-            status=1,
+            status=survey_data.get("status", 1),
             school_year="2026-2027",
             password=None,
         )
@@ -1121,9 +1172,10 @@ Réponses : ```{ANSWERS}```
 def seed_all_if_necessary():
     """Point d'entrée du seed, appelé au démarrage de l'application.
 
-    Toujours exécuté : synchro des filières et du fournisseur LLM par défaut
-    (idempotents). Le jeu de données de démo n'est inséré que si la base est
-    vide (test: présence d'au moins un utilisateur).
+    Toujours exécuté : synchro des filières, du fournisseur LLM par défaut et
+    des utilisateurs à rôle unique (idempotents). Le jeu de données de démo
+    n'est inséré que si la base est vide (test: présence d'au moins un
+    utilisateur).
     """
     with Session(engine) as session:
         # Toujours synchroniser les programmes depuis le CSV
@@ -1143,26 +1195,30 @@ def seed_all_if_necessary():
         seed_model_prices(session)
 
         # Seeder le reste uniquement si la base est vide
-        if session.query(User).first():
-            return
+        database_is_empty = session.query(User).first() is None
 
-        seed_users(session)
-        seed_roles(session)
+        if database_is_empty:
+            seed_users(session)
+            seed_roles(session)
 
-        seed_templates(session)
-        seed_sections(session)
-        seed_questions(session)
-        seed_options(session)
+            seed_templates(session)
+            seed_sections(session)
+            seed_questions(session)
+            seed_options(session)
 
-        seed_surveys(session)
-        seed_modules(session)
-        seed_respondents(session)
-        seed_submissions(session)
+            seed_surveys(session)
+            seed_modules(session)
+            seed_respondents(session)
+            seed_submissions(session)
 
-        seed_answers(session)
+            seed_answers(session)
 
-        seed_prompts(session)
+            seed_prompts(session)
 
-        seed_stats(session)
+            seed_stats(session)
 
-        logger.debug("Database seeding completed successfully!")
+            logger.debug("Database seeding completed successfully!")
+
+        # Après le jeu de démonstration, qui fixe les identifiants 1 à 22 :
+        # ces utilisateurs-ci prennent les suivants, par auto-incrément.
+        seed_single_role_users(session)
