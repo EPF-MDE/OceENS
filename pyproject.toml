@@ -1,0 +1,41 @@
+[project]
+name = "oceens"
+version = "0.1.0"
+description = "OceENS — collecte, dépouillement et synthèse des sondages pédagogiques de l'EPF"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "fastapi==0.141.1",         # Le framework web : application, routes, réponses
+    "sqlmodel==0.0.39",         # ORM des modèles (Session, SQLModel, Field, select)
+    "SQLAlchemy==2.0.52",       # Moteur et migrations légères dans core/database.py
+    "uvicorn==0.52.4",          # Serveur ASGI qui sert l'application
+    "pydantic==2.13.4",         # Validation des données, sous FastAPI et SQLModel
+    "starlette==1.6.0",         # SessionMiddleware, pour la session de connexion
+    "python-dotenv==1.2.3",     # load_dotenv : lecture du .env au démarrage
+    "requests==2.34.2",         # Appels à l'API Microsoft Graph et aux fournisseurs LLM
+    "msal==1.38.0",             # Authentification Microsoft Entra ID
+    "openpyxl==3.1.5",          # Lecture des .xlsx (import de sondages et d'étudiants)
+    "python-multipart==0.0.32", # Requis par FastAPI pour Form et UploadFile
+    "Jinja2==3.1.6",            # Moteur des templates HTML
+    "itsdangerous==2.2.0",      # Requis par Starlette pour signer le cookie de session
+    "pandas==3.0.5",            # Agrégation des données et export CSV
+    "requests-cache==1.3.3",    # Cache des requêtes LLM
+    "markdown-it-py==4.2.0",    # Markdown du LLM converti en HTML
+]
+
+# Commandes installées avec le paquet. Elles remplacent les `python fichier.py`
+# d'avant le packaging : le point d'entrée trouve le code dans l'environnement,
+# plus dans le répertoire courant.
+[project.scripts]
+oceens = "oceens.main:run"
+oceens-summaries = "oceens.summaries_generator_daemon:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Layout src/ : le paquet n'est importable qu'une fois installé, jamais parce
+# qu'on se trouve à la racine du dépôt. C'est ce qui garantit qu'un import ne
+# passe plus par le répertoire courant.
+[tool.hatch.build.targets.wheel]
+packages = ["src/oceens"]

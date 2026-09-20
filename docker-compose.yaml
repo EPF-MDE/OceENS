@@ -9,5 +9,7 @@ services:
       - .env
     volumes:
       - ${LOCAL_DATABASE_DIR:-./database}:/app/database
-      - ./import:/app/import
+      # Les CSV de seed vivent dans le paquet ; l'image est installée en mode
+      # éditable, donc c'est bien ce chemin-là que lit le seed au démarrage.
+      - ./src/oceens/seed_data:/app/src/oceens/seed_data
     restart: always

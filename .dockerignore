@@ -23,5 +23,6 @@ venv/
 *.log
 *.error
 
-# Fichiers de développement
-import/seed_answers*.csv
+# Fichiers de développement : le jeu de réponses de démonstration n'entre pas
+# dans l'image, il est monté au lancement (voir docker-compose.yaml).
+src/oceens/seed_data/seed_answers*.csv

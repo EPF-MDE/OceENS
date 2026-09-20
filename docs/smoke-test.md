@@ -10,17 +10,16 @@ container.
 ## Conventions per system
 
 Commands are given for **Windows (PowerShell)** then for **macOS / Linux (bash)**. Only
-four things differ:
+three things differ:
 
 | | Windows (PowerShell) | macOS / Linux (bash) |
 |---|---|---|
-| Virtual environment interpreter | `.venv\Scripts\python.exe` | `.venv/bin/python` |
 | Setting a variable for one command | `$env:VAR = "x"` then `Remove-Item Env:VAR` | `VAR=x command` |
 | Reading the exit code | `$LASTEXITCODE` | `echo $?` |
 | Copying / renaming a file | `Copy-Item`, `Rename-Item` | `cp`, `mv` |
 
-The commands call the interpreter **by its path** (`.venv\Scripts\python.exe`) rather than
-activating the environment: on Windows, `Activate.ps1` is blocked by default by
+Everything runs through `uv run`, which uses the environment of `uv.lock` without
+activating it. That is deliberate: on Windows, `Activate.ps1` is blocked by default by
 PowerShell's execution policy, and that is not what this test is about.
 
 ## Static checks
@@ -28,31 +27,35 @@ PowerShell's execution policy, and that is not what this test is about.
 Identical on both systems (a single line, no continuation):
 
 ```
-python -m compileall -q main.py sondage_loader.py survey_loader_from_xlsx.py summaries_generator_daemon.py core models routers services
+uv run python -m compileall -q src
 git diff --check
 ```
 
 ## 1. Local start, without credentials
 
-In a fresh clone of the branch, with an empty virtual environment.
+In a fresh clone of the branch, with no virtual environment yet: `uv sync` creates it,
+installs the locked dependencies and the `oceens` package itself, and fetches Python 3.12
+if the machine has no such interpreter.
 
 **Windows (PowerShell)**
 
 ```powershell
 Copy-Item .env.example .env
-py -3.12 -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\uvicorn.exe main:app --port 8000
+uv sync
+uv run oceens
 ```
 
 **macOS / Linux (bash)**
 
 ```bash
 cp .env.example .env
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn main:app --port 8000
+uv sync
+uv run oceens
 ```
+
+`oceens` is the entry point installed with the package; it serves on port 8000. For
+another port, or for `--reload`, call the server directly:
+`uv run uvicorn oceens.main:app --port 8000`.
 
 Expected, with no Entra credential and no LLM key:
 
@@ -104,19 +107,19 @@ The `.env` must be moved aside for the last two cases: `load_dotenv()` would rea
 ```powershell
 # Invalid AUTH_MODE
 $env:AUTH_MODE = "bogus"
-.venv\Scripts\python.exe -c "import main"; $LASTEXITCODE   # 1
+uv run python -c "import oceens.main"; $LASTEXITCODE   # 1
 Remove-Item Env:AUTH_MODE
 
 # ENTRA_* missing, without .env
 Rename-Item .env .env.bak
 'AUTH_MODE','ENTRA_CLIENT_ID','ENTRA_CLIENT_SECRET','ENTRA_TENANT_ID' |
   ForEach-Object { Remove-Item "Env:$_" -ErrorAction SilentlyContinue }
-.venv\Scripts\python.exe -c "import main"; $LASTEXITCODE   # 1
+uv run python -c "import oceens.main"; $LASTEXITCODE   # 1
 
 # SECRET_KEY missing in entra mode, without .env
 $env:ENTRA_CLIENT_ID = "x"; $env:ENTRA_CLIENT_SECRET = "x"; $env:ENTRA_TENANT_ID = "x"
 Remove-Item Env:SECRET_KEY -ErrorAction SilentlyContinue
-.venv\Scripts\python.exe -c "import main"; $LASTEXITCODE   # 1
+uv run python -c "import oceens.main"; $LASTEXITCODE   # 1
 'ENTRA_CLIENT_ID','ENTRA_CLIENT_SECRET','ENTRA_TENANT_ID' |
   ForEach-Object { Remove-Item "Env:$_" }
 Rename-Item .env.bak .env
@@ -126,16 +129,16 @@ Rename-Item .env.bak .env
 
 ```bash
 # Invalid AUTH_MODE
-AUTH_MODE=bogus .venv/bin/python -c "import main"; echo $?   # 1
+AUTH_MODE=bogus uv run python -c "import oceens.main"; echo $?   # 1
 
 # ENTRA_* missing, without .env
 mv .env .env.bak
 env -u AUTH_MODE -u ENTRA_CLIENT_ID -u ENTRA_CLIENT_SECRET -u ENTRA_TENANT_ID \
-  .venv/bin/python -c "import main"; echo $?   # 1
+  uv run python -c "import oceens.main"; echo $?   # 1
 
 # SECRET_KEY missing in entra mode, without .env
 env -u AUTH_MODE -u SECRET_KEY ENTRA_CLIENT_ID=x ENTRA_CLIENT_SECRET=x ENTRA_TENANT_ID=x \
-  .venv/bin/python -c "import main"; echo $?   # 1
+  uv run python -c "import oceens.main"; echo $?   # 1
 mv .env.bak .env
 ```
 
@@ -147,9 +150,9 @@ control, `AUTH_MODE=dev` exits with 0, even without a `SECRET_KEY`.
 ## 4. Without an LLM key
 
 `.env.example` ships an **empty** `LLM_API_KEY`: the application starts normally, only the
-summaries are unavailable. With `summaries_generator_daemon.py` running, a summary request
-is marked as a configuration error (`http_status` 500, "variable d'environnement absente
-ou vide") and no call is made to the provider.
+summaries are unavailable. With the summaries daemon (`uv run oceens-summaries`) running,
+a summary request is marked as a configuration error (`http_status` 500, "variable
+d'environnement absente ou vide") and no call is made to the provider.
 
 ## 5. With an LLM key
 
@@ -160,12 +163,11 @@ EPF account, then sets it in their `.env`:
 LLM_API_KEY=<your key>
 ```
 
-A quick check, without going through the interface. The command fits on one line and works
-in both shells — only the interpreter path changes (`.venv\Scripts\python.exe` on
-Windows):
+A quick check, without going through the interface. The command fits on one line and is
+the same in both shells:
 
 ```
-.venv/bin/python -c "from types import SimpleNamespace; from services import llm_client as c; p = SimpleNamespace(name='Ollama EPF', api_type='ollama', base_url='https://locallm.mde.epf.fr/ollama', api_key_env='LLM_API_KEY', default_model='gemma4:26b'); print(c.check_model(p, 'gemma4:26b')); print(c.ping_generation(p, 'gemma4:26b'))"
+uv run python -c "from types import SimpleNamespace; from oceens.services import llm_client as c; p = SimpleNamespace(name='Ollama EPF', api_type='ollama', base_url='https://locallm.mde.epf.fr/ollama', api_key_env='LLM_API_KEY', default_model='gemma4:26b'); print(c.check_model(p, 'gemma4:26b')); print(c.ping_generation(p, 'gemma4:26b'))"
 ```
 
 Expected: `True`, then `(True, None, None)`. `check_model` alone is not enough — the model
@@ -174,7 +176,7 @@ reveals it. With an empty key, the same command raises `LLMConfigError`: that is
 behaviour of step 4.
 
 Then, end to end: request the summaries of a survey with
-`summaries_generator_daemon.py` running. The rows move from `http_status` 0 to 200 and the
+`uv run oceens-summaries` running. The rows move from `http_status` 0 to 200 and the
 summary is rendered as HTML. Never commit the key: `.env` is ignored by Git.
 
 ## Next
