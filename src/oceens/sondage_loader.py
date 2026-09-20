@@ -3,7 +3,7 @@
 Assemble en un seul objet `FullSurvey` (structure de dataclasses) toute la
 hiérarchie d'un sondage : modules, sections, questions, options et réponses.
 Cet objet sait ensuite s'aplatir en lignes de tableau (une par réponse) via
-`to_flat_dataframe_records()`, consommées par services/export_csv.py.
+`to_flat_dataframe_records()`, consommées par `oceens.services.export_csv`.
 """
 
 from dataclasses import dataclass, field

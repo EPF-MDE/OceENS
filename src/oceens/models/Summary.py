@@ -6,7 +6,7 @@ from sqlmodel import Field, SQLModel
 class Summary(SQLModel, table=True):
     """Synthèse LLM des verbatims, générée de façon asynchrone.
 
-    Le daemon `summaries_generator_daemon.py` traite les lignes en attente et
+    Le daemon `oceens.summaries_generator_daemon` traite les lignes en attente et
     remplit `summary_text` (HTML) et `metadata_text`. Le champ `http_status`
     sert de marqueur d'état de la file :
     - 0 : en attente de génération ;

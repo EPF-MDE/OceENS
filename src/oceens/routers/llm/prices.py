@@ -14,7 +14,7 @@ convertit une fois pour toutes à l'enregistrement : tout ce qui est stocké est
 en euros.
 
 Aucun tarif n'est deviné : un modèle sans ligne ici est signalé comme non
-chiffrable par `services/llm_costs.py`, jamais estimé.
+chiffrable par `oceens.services.llm_costs`, jamais estimé.
 """
 
 from datetime import date

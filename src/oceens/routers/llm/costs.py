@@ -7,7 +7,7 @@ Deux entrées :
 - `/api/surveys/{id}/cost` : le coût d'un seul sondage, en JSON, appelé depuis
   le bouton présent sur chaque ligne de sondage.
 
-Les montants proviennent de `services/llm_costs.py`, qui ne chiffre que ce
+Les montants proviennent de `oceens.services.llm_costs`, qui ne chiffre que ce
 qu'il peut prouver : une synthèse sans compteur de tokens ou sans tarif connu
 est comptée comme non chiffrable, jamais estimée.
 """

@@ -16,7 +16,7 @@ l'application :
 
 | Où | Quoi |
 | --- | --- |
-| `services/llm_costs.py` | Calcul du coût à partir des tokens réellement consommés |
+| `oceens.services.llm_costs` | Calcul du coût à partir des tokens réellement consommés |
 | `/backend/llm/prices` | Grille tarifaire par modèle, éditable (admin) |
 | `/backend/llm/costs` | Coût global, détaillé par sondage et par modèle (admin) |
 | Bouton 💰 sur une ligne de sondage | Coût des synthèses de ce sondage |

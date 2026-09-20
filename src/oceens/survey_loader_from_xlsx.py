@@ -5,7 +5,8 @@ modules (depuis le syllabus) et toutes les réponses (depuis l'export du
 formulaire). Les colonnes du fichier de réponses sont repérées par mots-clés,
 et chaque bloc de questions est lu par décalage de colonnes/d'IDs.
 
-Usage : python survey_loader_from_xlsx.py SYLLABUS FORMS PROGRAM SEMESTER YEAR
+Usage : uv run python -m oceens.survey_loader_from_xlsx SYLLABUS FORMS PROGRAM
+SEMESTER YEAR
 """
 
 import pandas as pd
