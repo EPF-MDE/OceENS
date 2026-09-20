@@ -39,3 +39,9 @@ build-backend = "hatchling.build"
 # passe plus par le répertoire courant.
 [tool.hatch.build.targets.wheel]
 packages = ["src/oceens"]
+
+# Outils de développement, absents de l'application installée.
+[dependency-groups]
+dev = [
+    "tach~=0.35.0",             # Vérifie les frontières entre paquets (voir tach.toml)
+]
