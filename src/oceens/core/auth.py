@@ -43,7 +43,7 @@ import requests
 import msal
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from oceens.core.database import SessionDep
+from oceens.core.database import SessionDep, get_or_create_user
 from oceens.core.dependencies import templates
 import logging
 
@@ -216,8 +216,6 @@ async def auth_callback(request: Request):
     5. Stocker l'utilisateur en session
     6. Rediriger vers le dashboard
     """
-    from oceens.core.database import get_or_create_user
-
     # Récupère le state que Microsoft a renvoyé
     received_state = request.query_params.get("state")
 
@@ -446,8 +444,6 @@ async def dev_login(
     3. Récupérer ou créer l'utilisateur (mail inconnu = nouvel étudiant)
     4. Remplacer la session par {name, email} puis rediriger vers la racine
     """
-    from oceens.core.database import get_or_create_user
-
     if DEV_LOGIN_KEY and not hmac.compare_digest(
         (key or "").encode(), DEV_LOGIN_KEY.encode()
     ):
