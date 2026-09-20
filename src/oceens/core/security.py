@@ -286,7 +286,7 @@ def get_student_dashboard_redirect(roles: list[str]) -> str | None:
     return None
 
 
-def _check_sondage_access_and_status(
+def check_survey_access_and_status(
     session: Session,
     survey_id: int,
     roles: list[str],

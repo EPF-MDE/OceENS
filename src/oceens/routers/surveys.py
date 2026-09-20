@@ -10,7 +10,8 @@ from oceens.core.auth import get_current_user
 from oceens.core.database import SessionDep
 from oceens.models import Answer, Module, Option, Program, Question, Respondent, Section, Submission, Survey, User
 from oceens.core.dependencies import logger, templates
-from oceens.core.security import _check_sondage_access_and_status, can_manage_survey, get_results_program_codes, parse_rprm_formations, require_roles
+from oceens.core import check_survey_access_and_status
+from oceens.core.security import can_manage_survey, get_results_program_codes, parse_rprm_formations, require_roles
 from oceens.services.helpers import delete_survey_with_relations
 from oceens.sondage_loader import load_sondage_complet
 from oceens.services.export_csv import generate_csv_response
@@ -786,7 +787,7 @@ def export_sondage_csv(request: Request, survey_id: int, session: SessionDep):
 
     allowed_programs = get_results_program_codes(session, roles)
 
-    survey, error_or_warning, _, _ = _check_sondage_access_and_status(
+    survey, error_or_warning, _, _ = check_survey_access_and_status(
         session, survey_id, roles, allowed_programs
     )
     if not survey:
@@ -819,7 +820,7 @@ def visualisation_page(request: Request, survey_id: int, session: SessionDep):
     allowed_programs = get_results_program_codes(session, roles)
 
     survey, error_or_warning, respondents_count, answers_count = (
-        _check_sondage_access_and_status(
+        check_survey_access_and_status(
             session, survey_id, roles, allowed_programs
         )
     )

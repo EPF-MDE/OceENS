@@ -7,7 +7,8 @@ from sqlmodel import delete, insert, select
 from oceens.core.database import SessionDep
 from oceens.models import Answer, Question, Submission, Summary
 from oceens.core.dependencies import logger
-from oceens.core.security import _check_sondage_access_and_status, parse_rprm_formations, require_roles
+from oceens.core import check_survey_access_and_status
+from oceens.core.security import parse_rprm_formations, require_roles
 
 router = APIRouter(tags=["API"], prefix="/api")
 
@@ -40,7 +41,7 @@ def generate_summaries(request: Request, survey_id: int, request_data: SummaryRe
             allowed_programs.extend(parse_rprm_formations(role))
 
     # Vérifier accès au sondage + périmètre
-    survey, error_or_warning, _, _ = _check_sondage_access_and_status(
+    survey, error_or_warning, _, _ = check_survey_access_and_status(
         session, survey_id, roles, allowed_programs
     )
     if not survey:
@@ -129,7 +130,7 @@ def destroy_summaries(request: Request, survey_id: int, session: SessionDep):
             allowed_programs.extend(parse_rprm_formations(role))
 
     # Vérifier accès au sondage + périmètre
-    survey, error_or_warning, _, _ = _check_sondage_access_and_status(
+    survey, error_or_warning, _, _ = check_survey_access_and_status(
         session, survey_id, roles, allowed_programs
     )
     if not survey:
