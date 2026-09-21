@@ -1,7 +1,8 @@
 # Manual smoke test
 
-The repository has no automated test suite and no CI (the first tests are #85, the CI
-#78). This procedure runs entirely **outside the process**: start from a fresh clone,
+The repository has no automated test suite (the first tests are #85, the wider CI #78).
+CI checks the architecture rules and nothing else, so nothing upstream exercises
+behaviour. This procedure runs entirely **outside the process**: start from a fresh clone,
 start the application, and observe what it answers and with which exit code.
 
 Run it before proposing a change that touches startup, configuration, dependencies or the

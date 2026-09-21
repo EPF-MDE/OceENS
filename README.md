@@ -538,11 +538,14 @@ OceENS/
 ├── AGENTS.md, CLAUDE.md          # Conventions for coding agents
 ├── tach.toml                     # The package boundary rule, checked by `tach check`
 │
+├── .github/workflows/
+│   └── architecture.yml          #   The boundary rule, run on every push and pull request
+│
 ├── scripts/
 │   └── check_cycles.py           #   Rejects import cycles between packages
 │
 ├── docs/
-│   ├── smoke-test.md             #   Manual validation procedure (no CI yet)
+│   ├── smoke-test.md             #   Manual validation procedure (behaviour is not in CI)
 │   ├── adr/                      #   Architecture decision records
 │   └── agents/                   #   Issue tracker, triage labels, domain docs
 │
@@ -706,7 +709,9 @@ duplicates are refused.
 
 ## Validating a change
 
-The repository has no automated test suite and no CI. Before proposing a change, run the
+The repository has no automated test suite. CI covers the architecture rules only
+(`.github/workflows/architecture.yml`, on every push and pull request), so behaviour is
+still on you: before proposing a change, run the
 manual procedure in **[docs/smoke-test.md](docs/smoke-test.md)**: static checks, startup
 from a fresh clone, Docker, exit codes on invalid configuration, and the LLM key. Then
 test the routes your change touches, on a throwaway SQLite database (never a copy of
