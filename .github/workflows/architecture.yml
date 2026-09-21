@@ -13,12 +13,15 @@ jobs:
     name: Package boundaries
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
-      - name: Install uv and Python 3.12
+      # Both actions are pinned to an exact release: setup-uv stopped publishing
+      # a floating major tag after v7.6, and a tag that can vanish is not a pin.
+      # No python-version here -- setup-uv reads `.python-version`, so the
+      # interpreter stays declared in one place.
+      - name: Install uv
         uses: astral-sh/setup-uv@v10.1.0
         with:
-          python-version: "3.12"
           enable-cache: true
 
       # --frozen: the run resolves nothing. It installs what uv.lock pins, so a
