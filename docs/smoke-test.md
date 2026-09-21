@@ -170,21 +170,38 @@ EPF account, then sets it in their `.env`:
 LLM_API_KEY=<your key>
 ```
 
-A quick check, without going through the interface. The command fits on one line and is
-the same in both shells:
+A quick check, without going through the interface. **The key has to be in this command's
+own environment, not only in the `.env`**: `load_dotenv()` is called by the application,
+by the daemon and by the authentication module, but not by `oceens.services.llm_client`,
+which is all this command imports. Without the prefix below it raises `LLMConfigError`
+whatever the `.env` holds.
 
-```
+The `python -c` line is one line and identical on both systems; only the way of setting
+the variable around it differs.
+
+**Windows (PowerShell)**
+
+```powershell
+$env:LLM_API_KEY = "<your key>"
 uv run python -c "from types import SimpleNamespace; from oceens.services import llm_client as c; p = SimpleNamespace(name='Ollama EPF', api_type='ollama', base_url='https://locallm.mde.epf.fr/ollama', api_key_env='LLM_API_KEY', default_model='gemma4:26b'); print(c.check_model(p, 'gemma4:26b')); print(c.ping_generation(p, 'gemma4:26b'))"
+Remove-Item Env:LLM_API_KEY
+```
+
+**macOS / Linux (bash)**
+
+```bash
+LLM_API_KEY=<your key> uv run python -c "from types import SimpleNamespace; from oceens.services import llm_client as c; p = SimpleNamespace(name='Ollama EPF', api_type='ollama', base_url='https://locallm.mde.epf.fr/ollama', api_key_env='LLM_API_KEY', default_model='gemma4:26b'); print(c.check_model(p, 'gemma4:26b')); print(c.ping_generation(p, 'gemma4:26b'))"
 ```
 
 Expected: `True`, then `(True, None, None)`. `check_model` alone is not enough — the model
 list still answers normally for an account with no credit, only the generation call
-reveals it. With an empty key, the same command raises `LLMConfigError`: that is the
-behaviour of step 4.
+reveals it. With an empty value, or with the variable left out, the same command raises
+`LLMConfigError`: that is the behaviour of step 4.
 
 Then, end to end: request the summaries of a survey with
-`uv run oceens-summaries` running. The rows move from `http_status` 0 to 200 and the
-summary is rendered as HTML. Never commit the key: `.env` is ignored by Git.
+`uv run oceens-summaries` running. That half needs no prefix — the daemon reads the `.env`
+itself. The rows move from `http_status` 0 to 200, one at a time (the daemon is serial),
+and the summary is rendered as HTML. Never commit the key: `.env` is ignored by Git.
 
 ## Next
 
