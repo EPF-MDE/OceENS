@@ -9,7 +9,8 @@ les modules dédiés :
 - `oceens.core.security` : authentification, rôles et périmètres ;
 - `oceens.core.dependencies` : `templates` et `logger` partagés ;
 - `oceens.services.helpers` : navigation, statistiques, filtres, tri ;
-- `oceens.services` : agrégations, export CSV, client LLM.
+- `oceens.services` : agrégations, export CSV, client LLM ;
+- `oceens.production_signals` : erreurs et logs envoyés à PostHog.
 """
 
 from contextlib import asynccontextmanager
@@ -26,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 
+from oceens import production_signals
 from oceens.core.auth import AUTH_MODE, SECRET_KEY, router as auth_router
 from oceens.core.database import create_db_and_tables
 from oceens.core.dependencies import logger
@@ -95,10 +97,17 @@ def _summaries_daemon_command():
 async def lifespan(app: FastAPI):
     """Cycle de vie de l'application : setup au démarrage, teardown à l'arrêt.
 
-    Avant le `yield` : création des tables, seed initial, et lancement optionnel
-    du daemon de synthèses en parallèle (si RUN_SUMMARIES_DAEMON est activé).
-    Après le `yield` (à l'arrêt) : arrêt du daemon puis journalisation.
+    Avant le `yield` : signaux de production, création des tables, seed
+    initial, et lancement optionnel du daemon de synthèses en parallèle (si
+    RUN_SUMMARIES_DAEMON est activé).
+    Après le `yield` (à l'arrêt) : arrêt du daemon, journalisation, puis envoi
+    des derniers signaux de production.
     """
+    # Ici et non à l'import : uvicorn a déjà appliqué sa configuration de
+    # logging, qui retirerait le handler de logs.
+    signals = production_signals.start("oceens")
+    app.state.production_signals = signals
+
     logger.info("Initialisation de la base de données...")
     create_db_and_tables()
     seed_all_if_necessary()
@@ -118,6 +127,7 @@ async def lifespan(app: FastAPI):
             daemon_process.kill()  # forcer si toujours vivant après 10s
 
     logger.info("Fermeture de la connexion...")
+    signals.shutdown()
 
 
 def create_app():
@@ -129,6 +139,16 @@ def create_app():
         description="Système de gestion et de connexion pour étudiants, professeurs et admins",
         lifespan=lifespan,
     )
+    # Remplacé au démarrage par `lifespan`, si les réglages PostHog sont posés.
+    app.state.production_signals = production_signals.ProductionSignals()
+
+    # Ajouté avant SessionMiddleware, donc exécuté à l'intérieur : la session
+    # est déjà chargée quand il lit l'utilisateur connecté.
+    @app.middleware("http")
+    async def production_signals_context(request: Request, call_next):
+        """Capture l'exception d'une requête avec l'identité de l'utilisateur."""
+        with request.app.state.production_signals.request_context(request):
+            return await call_next(request)
 
     # SessionMiddleware (authentification)
     app.add_middleware(
