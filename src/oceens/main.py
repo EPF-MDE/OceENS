@@ -9,7 +9,8 @@ les modules dédiés :
 - `oceens.core.security` : authentification, rôles et périmètres ;
 - `oceens.core.dependencies` : `templates` et `logger` partagés ;
 - `oceens.services.helpers` : navigation, statistiques, filtres, tri ;
-- `oceens.services` : agrégations, export CSV, client LLM.
+- `oceens.services` : agrégations, export CSV, client LLM ;
+- `oceens.production_signals` : erreurs et logs envoyés à PostHog.
 """
 
 from contextlib import asynccontextmanager
@@ -26,11 +27,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 
+from oceens import production_signals
 from oceens.core.auth import AUTH_MODE, SECRET_KEY, router as auth_router
 from oceens.core.database import create_db_and_tables
 from oceens.core.dependencies import logger
 from oceens.core.seed import seed_all_if_necessary
-from oceens import production_signals
 
 from oceens.routers import (
     pages,

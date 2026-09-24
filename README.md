@@ -254,7 +254,8 @@ its scope (program or campus) through `require_roles()` and the associated helpe
 ## Configuration
 
 Copy `.env.example` to `.env` and fill it in. That file is the reference: it lists every
-variable the code reads, with its default.
+variable the code reads, with its default, except the three `POSTHOG_*` settings below,
+which are kept out of it on purpose.
 
 | Variable | Required | Meaning |
 |----------|----------|---------|
@@ -269,6 +270,15 @@ variable the code reads, with its default.
 | `LOCAL_DATABASE_DIR` | no (default `database/`) | Directory holding `db_oceens.db`. A relative path is resolved from the repository root. With Docker Compose, the host directory mounted into the container. |
 | `LLM_API_KEY` | no | Key of the default LLM provider. Empty: the application starts, but requested summaries are marked as configuration errors. |
 | `RUN_SUMMARIES_DAEMON` | no | `1`/`true`/`yes`/`on` starts the summaries daemon alongside Uvicorn. |
+| `POSTHOG_PROJECT_TOKEN` | no | Project token (`phc_…`) of the PostHog project that receives the production signals. |
+| `POSTHOG_HOST` | no | PostHog ingestion host, `https://eu.i.posthog.com`. |
+| `POSTHOG_ENVIRONMENT` | no | `staging` or `production`: the `environment` property of every exception, the `deployment.environment` attribute of every log. |
+
+The three `POSTHOG_*` settings go only in the host's settings of a deployed environment:
+never in `.env.example`, never committed. With all three set, the application and the
+summaries daemon send their unhandled exceptions to PostHog Error tracking, identified by
+the signed-in user's email, and their logs to PostHog Logs. With any of them unset (a
+laptop, a fresh clone), nothing is sent and the service runs as before.
 
 `SECRET_KEY` signs the session cookies: anyone who knows it can forge an admin session. It
 is **required unless `AUTH_MODE=dev`**: when missing or empty, the application logs a

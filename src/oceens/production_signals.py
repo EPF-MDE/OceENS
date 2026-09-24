@@ -26,6 +26,8 @@ from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 
+from oceens.core.auth import get_current_user
+
 # Chemin OTLP de PostHog Logs, ajouté à POSTHOG_HOST.
 LOGS_PATH = "/i/v1/logs"
 
@@ -68,7 +70,7 @@ class ProductionSignals:
         # PostHog, jamais initialisé : aucune exception n'arriverait.
         with posthog.new_context(client=self._client):
             # Sans utilisateur connecté, pas d'identité : on n'en invente pas.
-            email = (request.session.get("user") or {}).get("email")
+            email = (get_current_user(request) or {}).get("email")
             if email:
                 posthog.identify_context(email)
             session_id = request.headers.get(SESSION_HEADER)
