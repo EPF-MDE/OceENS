@@ -18,6 +18,7 @@ fichier ne connaît ni URL, ni format de payload, ni fournisseur particulier.
 service externe.
 """
 
+import atexit
 import json
 import logging
 import signal
@@ -29,6 +30,7 @@ from markdown_it import MarkdownIt
 from requests.exceptions import RequestException
 from sqlmodel import Session, select
 
+from oceens import production_signals
 from oceens.core.database import engine
 from oceens.models import Answer, LLMProvider, Prompt, Submission, Summary
 from oceens.services.llm_client import (
@@ -62,12 +64,18 @@ STATUS_CONFIG_ERROR = 500
 
 
 def signal_handler(signal_number, frame):
-    """Arrête proprement le daemon sur Ctrl+C (SIGINT)."""
+    """Arrête proprement le daemon sur Ctrl+C (SIGINT) ou SIGTERM.
+
+    `sys.exit` passe par atexit, qui envoie les derniers signaux de
+    production. Sans handler, SIGTERM (celui que l'application envoie à son
+    arrêt) tuerait le processus sans les envoyer.
+    """
     logger.info("Arrêt du daemon de synthèses.")
     sys.exit(0)
 
 
 signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 
 def get_provider(session, prompt_row):
@@ -302,6 +310,12 @@ def main():
         level=logging.INFO,
         format="%(levelname)s:     %(message)s",
     )
+    # Après basicConfig, comme dans l'application après la configuration
+    # d'uvicorn : le handler de logs s'ajoute à celle du processus. L'arrêt
+    # passe par atexit et non par un `finally` : une exception qui tue le
+    # daemon n'est capturée qu'après la sortie de `main()`, par sys.excepthook.
+    signals = production_signals.start("oceens-summaries")
+    atexit.register(signals.shutdown)
 
     md = MarkdownIt()  # convertisseur markdown → HTML pour le rendu final
     http_session = build_cache_session("cache_llm.db")

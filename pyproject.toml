@@ -21,6 +21,9 @@ dependencies = [
     "pandas==3.0.5",            # Agrégation des données et export CSV
     "requests-cache==1.3.3",    # Cache des requêtes LLM
     "markdown-it-py==4.2.0",    # Markdown du LLM converti en HTML
+    "posthog==7.60.0",          # Signaux de production : erreurs capturées vers PostHog
+    "opentelemetry-sdk==1.44.0", # Signaux de production : logs Python vers PostHog Logs
+    "opentelemetry-exporter-otlp-proto-http==1.44.0", # Exporteur OTLP de ces logs
 ]
 
 # Commandes installées avec le paquet. Elles remplacent les `python fichier.py`
