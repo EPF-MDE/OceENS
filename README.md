@@ -254,8 +254,7 @@ its scope (program or campus) through `require_roles()` and the associated helpe
 ## Configuration
 
 Copy `.env.example` to `.env` and fill it in. That file is the reference: it lists every
-variable the code reads, with its default, except the three `POSTHOG_*` settings below,
-which are kept out of it on purpose.
+variable the code reads, with its default.
 
 | Variable | Required | Meaning |
 |----------|----------|---------|
@@ -274,11 +273,12 @@ which are kept out of it on purpose.
 | `POSTHOG_HOST` | no | PostHog ingestion host, `https://eu.i.posthog.com`. |
 | `POSTHOG_ENVIRONMENT` | no | `staging` or `production`: the `environment` property of every exception, the `deployment.environment` attribute of every log. |
 
-The three `POSTHOG_*` settings go only in the host's settings of a deployed environment:
-never in `.env.example`, never committed. With all three set, the application and the
-summaries daemon send their unhandled exceptions to PostHog Error tracking, identified by
-the signed-in user's email, and their logs to PostHog Logs. With any of them unset (a
-laptop, a fresh clone), nothing is sent and the service runs as before.
+`.env.example` lists the three `POSTHOG_*` settings commented out and with no value. Their
+values go only in the host's settings of a deployed environment, never committed. With all
+three set, the application and the summaries daemon send their unhandled exceptions to
+PostHog Error tracking, identified by the signed-in user's email, and their logs to
+PostHog Logs. With any of them unset (a laptop, a fresh clone), nothing is sent and the
+service runs as before.
 
 `SECRET_KEY` signs the session cookies: anyone who knows it can forge an admin session. It
 is **required unless `AUTH_MODE=dev`**: when missing or empty, the application logs a
