@@ -10,7 +10,7 @@ on: [push, pull_request]
 
 jobs:
   architecture:
-    name: Package boundaries
+    name: architecture
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
