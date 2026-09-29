@@ -270,15 +270,19 @@ variable the code reads, with its default.
 | `LLM_API_KEY` | no | Key of the default LLM provider. Empty: the application starts, but requested summaries are marked as configuration errors. |
 | `RUN_SUMMARIES_DAEMON` | no | `1`/`true`/`yes`/`on` starts the summaries daemon alongside Uvicorn. |
 | `POSTHOG_PROJECT_TOKEN` | no | Project token (`phc_…`) of the PostHog project that receives the production signals. |
-| `POSTHOG_HOST` | no | PostHog ingestion host, `https://eu.i.posthog.com`. |
-| `POSTHOG_ENVIRONMENT` | no | `staging` or `production`: the `environment` property of every exception, the `deployment.environment` attribute of every log. |
+| `POSTHOG_HOST` | with `POSTHOG_PROJECT_TOKEN` | PostHog ingestion host, `https://eu.i.posthog.com`. |
+| `POSTHOG_ENVIRONMENT` | with `POSTHOG_PROJECT_TOKEN` | `staging` or `production`: the `environment` property of every exception, the `deployment.environment` attribute of every log. |
 
 `.env.example` lists the three `POSTHOG_*` settings commented out and with no value. Their
 values go only in the host's settings of a deployed environment, never committed. With all
 three set, the application and the summaries daemon send their unhandled exceptions to
 PostHog Error tracking, identified by the signed-in user's email, and their logs to
-PostHog Logs. With any of them unset (a laptop, a fresh clone), nothing is sent and the
-service runs as before.
+PostHog Logs. With `POSTHOG_PROJECT_TOKEN` unset (a laptop, a fresh clone), nothing is
+sent and the service runs as before. Set all three, or none: with `POSTHOG_PROJECT_TOKEN`
+set but `POSTHOG_HOST` or `POSTHOG_ENVIRONMENT` missing, the application and the daemon
+refuse to start (exit code 1) and name the missing setting, e.g. `ValueError:
+POSTHOG_ENVIRONMENT missing`, so that a staging's errors never mix silently with
+production's.
 
 `SECRET_KEY` signs the session cookies: anyone who knows it can forge an admin session. It
 is **required unless `AUTH_MODE=dev`**: when missing or empty, the application logs a

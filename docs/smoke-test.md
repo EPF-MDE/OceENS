@@ -106,8 +106,11 @@ docker compose down
 An invalid startup configuration must exit with **code 1**, so that a supervisor or a CI
 sees the failure.
 
-The `.env` must be moved aside for the last two cases: `load_dotenv()` would read
-`AUTH_MODE=dev` back from it and the application would start normally, with code 0.
+The `.env` must be moved aside for the `ENTRA_*` and `SECRET_KEY` cases: `load_dotenv()`
+would read `AUTH_MODE=dev` back from it and the application would start normally, with
+code 0. The PostHog cases keep the `.env`, provided it leaves the three `POSTHOG_*`
+settings commented out, as `.env.example` does: `load_dotenv()` would otherwise put back a
+setting the command removes.
 
 **Windows (PowerShell)**
 
@@ -130,6 +133,18 @@ uv run python -c "import oceens.main"; $LASTEXITCODE   # 1
 'ENTRA_CLIENT_ID','ENTRA_CLIENT_SECRET','ENTRA_TENANT_ID' |
   ForEach-Object { Remove-Item "Env:$_" }
 Rename-Item .env.bak .env
+
+# PostHog token without POSTHOG_HOST
+$env:POSTHOG_PROJECT_TOKEN = "phc_x"
+Remove-Item Env:POSTHOG_HOST, Env:POSTHOG_ENVIRONMENT -ErrorAction SilentlyContinue
+uv run python -c "import oceens.main"; $LASTEXITCODE   # 1
+uv run oceens-summaries; $LASTEXITCODE                 # 1
+
+# PostHog token without POSTHOG_ENVIRONMENT
+$env:POSTHOG_HOST = "https://eu.i.posthog.com"
+uv run python -c "import oceens.main"; $LASTEXITCODE   # 1
+uv run oceens-summaries; $LASTEXITCODE                 # 1
+Remove-Item Env:POSTHOG_PROJECT_TOKEN, Env:POSTHOG_HOST
 ```
 
 **macOS / Linux (bash)**
@@ -147,12 +162,27 @@ env -u AUTH_MODE -u ENTRA_CLIENT_ID -u ENTRA_CLIENT_SECRET -u ENTRA_TENANT_ID \
 env -u AUTH_MODE -u SECRET_KEY ENTRA_CLIENT_ID=x ENTRA_CLIENT_SECRET=x ENTRA_TENANT_ID=x \
   uv run python -c "import oceens.main"; echo $?   # 1
 mv .env.bak .env
+
+# PostHog token without POSTHOG_HOST
+env -u POSTHOG_HOST -u POSTHOG_ENVIRONMENT POSTHOG_PROJECT_TOKEN=phc_x \
+  uv run python -c "import oceens.main"; echo $?   # 1
+env -u POSTHOG_HOST -u POSTHOG_ENVIRONMENT POSTHOG_PROJECT_TOKEN=phc_x \
+  uv run oceens-summaries; echo $?                 # 1
+
+# PostHog token without POSTHOG_ENVIRONMENT
+env -u POSTHOG_ENVIRONMENT POSTHOG_PROJECT_TOKEN=phc_x POSTHOG_HOST=https://eu.i.posthog.com \
+  uv run python -c "import oceens.main"; echo $?   # 1
+env -u POSTHOG_ENVIRONMENT POSTHOG_PROJECT_TOKEN=phc_x POSTHOG_HOST=https://eu.i.posthog.com \
+  uv run oceens-summaries; echo $?                 # 1
 ```
 
 Expected: the log line `INVALID AUTH_MODE 'bogus'` for the first case,
 `MISSING ENTRA INFO. Please check .env` for the second,
-`MISSING SECRET_KEY. Required with AUTH_MODE=entra, please check .env` for the third. As a
-control, `AUTH_MODE=dev` exits with 0, even without a `SECRET_KEY`.
+`MISSING SECRET_KEY. Required with AUTH_MODE=entra, please check .env` for the third,
+`ValueError: POSTHOG_HOST missing` for the fourth, and `ValueError: POSTHOG_ENVIRONMENT
+missing` for the fifth, from the application as from the summaries daemon. As a control,
+`AUTH_MODE=dev` exits with 0, even without a `SECRET_KEY`, and so does the application
+with the three `POSTHOG_*` settings unset.
 
 ## 4. Without an LLM key
 
