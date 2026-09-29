@@ -14,6 +14,7 @@ from oceens.core import check_survey_access_and_status
 from oceens.core.security import can_manage_survey, get_results_program_codes, parse_rprm_formations, require_roles
 from oceens.services.helpers import delete_survey_with_relations
 from oceens.sondage_loader import load_sondage_complet
+from oceens.core.auth import _is_email_allowed
 from oceens.services.export_csv import generate_csv_response
 from oceens.services.visualisation_data import bilingual_text, get_visualisation_context2
 
@@ -149,6 +150,8 @@ async def create_survey(
                     max_id = max([u.user_id for u in existing_users] + [0])
 
                     for email in survey.students:
+                        if not _is_email_allowed(email):
+                            continue  # Une adresse qui ne pourra jamais se connecter
                         if email in existing_email_map:
                             email_to_user_id[email] = existing_email_map[email]
                             nb_existants += 1
