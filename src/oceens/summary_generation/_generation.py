@@ -15,11 +15,11 @@ from oceens.services.llm_client import (
 
 logger = logging.getLogger("uvicorn.error")
 
-# Le nombre du Design Document (EPF-MDE/OceENS#105) : 45 jobs × 120 s + 30 s
-# d'attente de la file ≈ 1 h 30 pour un sondage, même quand le GPU ne répond
-# plus. L'attente du GPU compte à l'intérieur de ces 120 s. Le relever, c'est
-# sortir de ce nombre.
-JOB_DEADLINE_SECONDS = 120
+# Le plus gros job du jeu de démo a pris 55 s, et un vrai sondage a plus de
+# réponses par job : quand le GPU est partagé avec le cours de GenAI, 120 s ne
+# suffisent plus et la synthèse manque. Dix minutes laissent finir un gros job
+# sur un GPU chargé.
+JOB_DEADLINE_SECONDS = 600
 
 # Codes écrits dans `Summary.http_status` pour les échecs qui ne viennent pas
 # d'une réponse HTTP du fournisseur.
