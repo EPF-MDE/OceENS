@@ -274,10 +274,11 @@ variable the code reads, with its default.
 | `POSTHOG_ENVIRONMENT` | no | `staging` or `production`: the `environment` property of every exception, the `deployment.environment` attribute of every log. |
 
 `.env.example` lists the three `POSTHOG_*` settings commented out and with no value. Their
-values go only in the host's settings of a deployed environment, never committed. With all three set, the application and the
-summaries daemon send their unhandled exceptions to PostHog Error tracking, identified by
-the signed-in user's email, and their logs to PostHog Logs. With any of them unset (a
-laptop, a fresh clone), nothing is sent and the service runs as before.
+values go only in the host's settings of a deployed environment, never committed. With all
+three set, the application and the summaries daemon send their unhandled exceptions to
+PostHog Error tracking, identified by the signed-in user's email, and their logs to
+PostHog Logs. With any of them unset (a laptop, a fresh clone), nothing is sent and the
+service runs as before.
 
 `SECRET_KEY` signs the session cookies: anyone who knows it can forge an admin session. It
 is **required unless `AUTH_MODE=dev`**: when missing or empty, the application logs a
