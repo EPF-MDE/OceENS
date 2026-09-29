@@ -3,9 +3,9 @@
 The seam this application is most likely to need one day is
 `oceens.services.llm_client`, behind the summaries daemon: it is the one place
 where swapping the implementation would change something users feel. This file
-records that candidate and the facts around it. It is a note, not a change:
-nothing here is implemented, no interface is introduced, no wrapper is added
-and no call site is touched.
+records that candidate and the facts around it. It was written as a note,
+before any change. The first slice behind the seam is `oceens.summary_generation`,
+which holds one job's call to the model and the deadline that bounds it.
 
 ## What the seam holds
 
@@ -55,9 +55,10 @@ by another survey simply add to it.
 
 Per row, the daemon resolves the prompt's provider (falling back to
 `DEFAULT_PROVIDER_NAME`), checks the model is available, loads the verbatims,
-and calls `ask_model` with `REQUEST_TIMEOUT_SECONDS` as the ceiling on that one
-call. A *successful* availability check is memoised per `(provider, model)` for
-the life of the process; a failed one deliberately is not, since the outage may
+and hands the call to `oceens.summary_generation.generate_summary`, which
+calls `ask_model` with `JOB_DEADLINE_SECONDS` as the ceiling on that one call.
+A *successful* availability check is memoised per `(provider, model)` for the
+life of the process; a failed one deliberately is not, since the outage may
 be transitory — so an unreachable provider is re-checked once per row. That
 check is a `GET` on the same cached session as the generations, which is a
 further reason it rarely reaches the network twice. Every exit path

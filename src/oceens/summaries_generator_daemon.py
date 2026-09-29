@@ -11,14 +11,14 @@ par la table `summaries`, qui sert de file d'attente :
 traiter, `200` est fait, toute autre valeur est un échec conservé pour le
 diagnostic. Le daemon ne modifie jamais `Survey.status`.
 
-Le dialogue HTTP avec le modèle est délégué à `oceens.services.llm_client` : ce
-fichier ne connaît ni URL, ni format de payload, ni fournisseur particulier.
+L'appel qui génère une synthèse est délégué à `oceens.summary_generation`, qui
+tient le délai d'un job : ce fichier ne connaît ni URL, ni format de payload,
+ni fournisseur particulier, ni la façon dont un appel échoue.
 
 À lancer à la main uniquement : il boucle, écrit en base et contacte un
 service externe.
 """
 
-import json
 import logging
 import signal
 import sys
@@ -33,12 +33,10 @@ from oceens.core.database import engine
 from oceens.models import Answer, LLMProvider, Prompt, Submission, Summary
 from oceens.services.llm_client import (
     LLMConfigError,
-    ask_model,
     build_cache_session,
     check_model,
-    format_error_text,
-    format_metadata_text,
 )
+from oceens.summary_generation import generate_summary
 
 load_dotenv()
 
@@ -48,8 +46,6 @@ logger = logging.getLogger("uvicorn.error")
 # Intervalle d'attente quand la file est vide.
 POLL_INTERVAL_SECONDS = 30
 
-REQUEST_TIMEOUT_SECONDS = 120
-
 # Fournisseur utilisé par les prompts antérieurs à la configuration
 # multi-fournisseur (`Prompt.provider_id` à NULL).
 DEFAULT_PROVIDER_NAME = "Ollama EPF"
@@ -57,7 +53,6 @@ DEFAULT_PROVIDER_NAME = "Ollama EPF"
 # Codes réécrits dans `Summary.http_status` pour les échecs qui ne viennent pas
 # d'une réponse HTTP du fournisseur.
 STATUS_MODEL_NOT_FOUND = 404
-STATUS_TIMEOUT = 504
 STATUS_CONFIG_ERROR = 500
 
 
@@ -237,57 +232,24 @@ def process_summary(session, summary_row, http_session, md, checked_models):
         provider.name,
     )
 
-    try:
-        answer, metadata, status_code = ask_model(
-            provider,
-            model,
-            full_prompt,
-            session=http_session,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-    except LLMConfigError as error:
-        logger.error("Fournisseur %s mal configuré : %s", provider.name, error)
-        finish_summary(
-            session, summary_row, STATUS_CONFIG_ERROR, metadata_text=str(error)
-        )
-        return
-    except RequestException as error:
-        logger.warning("Appel au fournisseur %s en échec : %s", provider.name, error)
-        finish_summary(
-            session, summary_row, STATUS_TIMEOUT, metadata_text=str(error)
-        )
-        return
-
-    if not answer:
-        # Le JSON brut du fournisseur part dans les logs, pour le diagnostic ;
-        # la base reçoit la version lisible, qui dit quoi corriger (crédit
-        # épuisé, débit dépassé, clé refusée…).
-        error_text = format_error_text(provider, model, status_code, metadata)
+    outcome = generate_summary(provider, model, full_prompt, http_session)
+    if outcome.answer:
+        logger.info("Synthèse %s : %s", summary_row.summary_id, outcome.metadata_text)
+    else:
         logger.warning(
-            "Synthèse %s : réponse vide (HTTP %s) — %s — réponse brute : %s",
+            "Synthèse %s en échec (HTTP %s) : %s",
             summary_row.summary_id,
-            status_code,
-            error_text,
-            json.dumps(metadata, default=str),
+            outcome.status,
+            outcome.metadata_text,
         )
-        finish_summary(
-            session,
-            summary_row,
-            status_code,
-            metadata_text=error_text,
-        )
-        return
-
-    metadata_text = format_metadata_text(metadata)
-    logger.info("Synthèse %s : %s", summary_row.summary_id, metadata_text)
 
     finish_summary(
         session,
         summary_row,
-        status_code,
-        summary_text=md.render(answer),
-        metadata_text=metadata_text,
-        metadata=metadata,
+        outcome.status,
+        summary_text=md.render(outcome.answer) if outcome.answer else None,
+        metadata_text=outcome.metadata_text,
+        metadata=outcome.metadata,
     )
 
 
