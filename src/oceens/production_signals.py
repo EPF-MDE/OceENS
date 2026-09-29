@@ -6,8 +6,11 @@ Trois réglages, lus dans l'environnement de chaque environnement déployé :
 - `POSTHOG_HOST` : l'hôte d'ingestion, `https://eu.i.posthog.com` ;
 - `POSTHOG_ENVIRONMENT` : `staging` ou `production`.
 
-S'il en manque un (poste de développement, clone neuf), rien n'est branché : le
-service démarre et répond exactement comme avant. Aucune valeur n'est commitée.
+Les trois, ou aucun. Sans le jeton (poste de développement, clone neuf), rien
+n'est branché : le service démarre et répond exactement comme avant. Avec le
+jeton mais sans l'hôte ou l'environnement, le service refuse de démarrer
+(`ValueError: POSTHOG_ENVIRONMENT missing`) : sinon les erreurs d'un staging
+se mêleraient sans bruit à celles de la production. Aucune valeur n'est commitée.
 
 `start()` s'appelle au démarrage de chaque processus du service (le `lifespan`
 de l'application, le `main()` du daemon), jamais à l'import : uvicorn applique
@@ -88,13 +91,33 @@ class ProductionSignals:
         self._client.shutdown()
 
 
-def start(service_name):
-    """Branche erreurs et logs sur PostHog, si les trois réglages sont posés."""
+def read_settings():
+    """Les trois réglages `(jeton, hôte, environnement)`, ou None sans jeton.
+
+    Lève `ValueError`, en nommant le réglage, si le jeton est posé sans l'hôte
+    ou sans l'environnement.
+    """
     token = os.environ.get("POSTHOG_PROJECT_TOKEN", "").strip()
+    if not token:
+        return None
     host = os.environ.get("POSTHOG_HOST", "").strip().rstrip("/")
+    if not host:
+        raise ValueError("POSTHOG_HOST missing")
     environment = os.environ.get("POSTHOG_ENVIRONMENT", "").strip()
-    if not (token and host and environment):
+    if not environment:
+        raise ValueError("POSTHOG_ENVIRONMENT missing")
+    return token, host, environment
+
+
+def start(service_name):
+    """Branche erreurs et logs sur PostHog, si les trois réglages sont posés.
+
+    Lève `ValueError` sur un réglage partiel, comme `read_settings()`.
+    """
+    settings = read_settings()
+    if settings is None:
         return ProductionSignals()
+    token, host, environment = settings
 
     client = posthog.Posthog(
         token,

@@ -139,6 +139,10 @@ def create_app():
         description="Système de gestion et de connexion pour étudiants, professeurs et admins",
         lifespan=lifespan,
     )
+    # Vérifiés dès l'import, pas seulement dans `lifespan` : un réglage PostHog
+    # partiel sort alors avec le code 1, comme les autres configurations
+    # invalides, et non avec le code 3 d'un échec de démarrage d'uvicorn.
+    production_signals.read_settings()
     # Remplacé au démarrage par `lifespan`, si les réglages PostHog sont posés.
     app.state.production_signals = production_signals.ProductionSignals()
 
