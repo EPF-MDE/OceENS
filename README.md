@@ -597,6 +597,8 @@ OceENS/
     │   ├── llm_costs.py           #     Summary cost (measured tokens × price list)
     │   └── export_csv.py          #     CSV export of the answers
     │
+    ├── summary_progress/          # A survey's summaries: done, errors, estimated time left
+    │
     ├── seed_data/                 # Seed data read at startup (was import/)
     │   ├── Program_list.csv       #     Programs, synchronised on every start
     │   └── seed_answers*.csv      #     Demo answers of the seeded surveys
