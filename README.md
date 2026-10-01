@@ -220,6 +220,10 @@ curl -b cookies.txt -c cookies.txt -L http://localhost:8000/
 > can forge a session cookie and bypass `DEV_LOGIN_KEY`. `dev` mode accepts that, because
 > it is only ever meant to run locally.
 
+Without `SECRET_KEY`, the key is random per process. So every deploy and every restart
+signs every user out, and two instances or workers reject each other's sessions. Setting
+`SECRET_KEY` removes it.
+
 ---
 
 ## Authentication with Microsoft Entra ID (OAuth 2.0)
