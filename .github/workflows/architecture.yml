@@ -12,7 +12,7 @@
 #
 # - staging: a push to the deployed branch whose `architecture` job passes is
 #   built into one image, tagged with its commit, and deployed to staging.
-# - production: only by Promotion, a run started by hand (workflow_dispatch). It
+# - production: only by promotion, a run started by hand (workflow_dispatch). It
 #   deploys the image staging runs, never one built for the occasion, so
 #   production only ever receives a commit staging has already received.
 #
@@ -28,7 +28,7 @@ on:
 jobs:
   architecture:
     name: architecture
-    # A Promotion builds nothing, so it has nothing to check.
+    # A promotion builds nothing, so it has nothing to check.
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -118,7 +118,7 @@ jobs:
           posthog-host: ${{ vars.POSTHOG_HOST }}
           posthog-environment: ${{ vars.POSTHOG_ENVIRONMENT }}
 
-  # Promotion, first half: ask staging which image it runs. It runs in the
+  # The promotion, first half: ask staging which image it runs. It runs in the
   # staging Environment to log in as staging, but deploys nothing there.
   staging-image:
     name: read the image staging runs
@@ -157,7 +157,7 @@ jobs:
           echo "Staging runs $image"
           echo "image=$image" >> "$GITHUB_OUTPUT"
 
-  # Promotion, second half: deploy that same image to production. Nothing is
+  # The promotion, second half: deploy that same image to production. Nothing is
   # rebuilt; only production's own settings and secrets differ.
   promote-production:
     name: promote to production

@@ -737,7 +737,9 @@ duplicates are refused.
 `.github/workflows/architecture.yml` deploys this branch to two environments, `staging` and
 `production`, each an App Service app on one B1 plan in France Central, always on. Both
 hold generated data and no real users, so both sign in through the [dev sign-in](#dev-sign-in),
-each with its own `DEV_LOGIN_KEY` and its own `SECRET_KEY`.
+each with its own `DEV_LOGIN_KEY` and its own `SECRET_KEY`. That is the one exception to
+the [deployment checklist](#deployment-checklist)'s `AUTH_MODE` line: an environment with
+real users signs in through Microsoft Entra ID.
 
 - **Staging, on green.** A push whose `architecture` job passes is built into one image,
   tagged with its commit and pushed to GHCR (`ghcr.io/epf-mde/oceens:<commit>`), then
@@ -769,10 +771,9 @@ Environment, and stores no Azure password.
   seeds it again ([What the first start does](#what-the-first-start-does)), so everything
   written since the last start is lost, cached summaries included. The seeded answers are
   left out of the image (`.dockerignore`), so the seeded surveys start with none.
-- **Without `SECRET_KEY`, every deploy signs everyone out.** In `dev`, an empty
-  `SECRET_KEY` draws a random key per process: each new container rejects the cookies of
-  the last one, and two instances would reject each other's. Each environment sets its own
-  for that reason, and never the value of another environment or of `.env.example`.
+- **Without `SECRET_KEY`, every deploy signs everyone out** ([Dev sign-in](#dev-sign-in)).
+  Each environment sets its own, never another environment's: anyone who knows it can forge
+  a session cookie and skip `DEV_LOGIN_KEY`.
 
 ---
 
