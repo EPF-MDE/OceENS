@@ -62,7 +62,8 @@ docker compose up --build
 
 The application listens on <http://localhost:8000>. Without a `.env`, `docker compose`
 fails with `env file .env not found`: copying `.env.example` is the first command of a
-fresh clone.
+fresh clone. The image starts the application alone: for summaries to be written, set
+`RUN_SUMMARIES_DAEMON=1` in the `.env` (see [Configuration](#configuration)).
 
 The SQLite database is persisted in a directory of the host, mounted into the container:
 `./database/` by default, or the directory named by `LOCAL_DATABASE_DIR`.
@@ -136,10 +137,9 @@ docker compose down
 
    This process loops, writes to the database and calls an external LLM service: start it
    only when summaries are needed. Setting `RUN_SUMMARIES_DAEMON=1` in the `.env` makes
-   the application start it as a child process on startup and stop it on shutdown.
-
-   In production without Docker, `launch.sh` starts the application and the daemon in two
-   separate `screen` sessions.
+   the application start it as a child process on startup and stop it on shutdown: see
+   [Configuration](#configuration) for when to set it. In production without Docker,
+   `launch.sh` starts the application and the daemon in two separate `screen` sessions.
 
 ### What the first start does
 
@@ -268,7 +268,7 @@ variable the code reads, with its default.
 | `REDIRECT_URI` | no (default `https://localhost/auth/callback`) | Callback URL registered in Azure. |
 | `LOCAL_DATABASE_DIR` | no (default `database/`) | Directory holding `db_oceens.db`. A relative path is resolved from the repository root. With Docker Compose, the host directory mounted into the container. |
 | `LLM_API_KEY` | no | Key of the default LLM provider. Empty: the application starts, but requested summaries are marked as configuration errors. |
-| `RUN_SUMMARIES_DAEMON` | no | `1`/`true`/`yes`/`on` starts the summaries daemon alongside Uvicorn. |
+| `RUN_SUMMARIES_DAEMON` | no | `1`/`true`/`yes`/`on` starts the summaries daemon alongside Uvicorn. Set it whenever the application is the only process that runs, as with the image or Docker Compose: otherwise requested summaries stay pending, with no error to say so. Leave it unset where something else starts `oceens-summaries`, as `launch.sh` does, or two daemons run. |
 | `POSTHOG_PROJECT_TOKEN` | no | Project token (`phc_…`) of the PostHog project that receives the production signals. |
 | `POSTHOG_HOST` | with `POSTHOG_PROJECT_TOKEN` | PostHog ingestion host, `https://eu.i.posthog.com`. |
 | `POSTHOG_ENVIRONMENT` | with `POSTHOG_PROJECT_TOKEN` | `staging` or `production`: the `environment` property of every exception, the `deployment.environment` attribute of every log. |
@@ -717,7 +717,7 @@ duplicates are refused.
 - [ ] Environment variables kept secret, including `LLM_API_KEY`
 - [ ] **Docker Compose**: `.env` loaded through `env_file`, never copied into the image;
       `LOCAL_DATABASE_DIR` pointing at the right directory
-- [ ] `oceens-summaries` started if LLM summaries are used
+- [ ] `oceens-summaries` started if LLM summaries are used (see `RUN_SUMMARIES_DAEMON`)
 
 ---
 
