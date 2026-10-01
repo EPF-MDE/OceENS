@@ -29,5 +29,13 @@ RUN uv sync --frozen
 # Le fichier .env ne doit PAS être copié dans l'image : fournir les secrets via
 # --env-file .env au lancement (docker run) ou via les variables d'environnement.
 
+# L'image tourne toujours derrière un proxy qui termine TLS (App Service, un
+# reverse proxy…), et l'adresse de ce proxy, vue du conteneur, n'est connue
+# qu'au déploiement. uvicorn croit donc `X-Forwarded-Proto` de toute adresse :
+# sans cela, il ne le croit que de 127.0.0.1, et les pages lient leurs CSS en
+# http://, que le navigateur bloque sur une page en HTTPS. Un déploiement qui
+# connaît l'adresse de son proxy la donne à la place (`-e FORWARDED_ALLOW_IPS=…`).
+ENV FORWARDED_ALLOW_IPS="*"
+
 # `oceens` est le point d'entrée installé avec le paquet (uvicorn sur 0.0.0.0:8000).
 CMD ["oceens"]
