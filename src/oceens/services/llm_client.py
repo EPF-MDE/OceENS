@@ -120,6 +120,28 @@ def resolve_api_key(provider):
     return value
 
 
+def config_problems(provider):
+    """Liste ce qui fera échouer chaque appel au fournisseur, sans l'appeler.
+
+    Contrôle le type d'API et le nom de la variable de clé avec les règles des
+    appels eux-mêmes ; la présence de la clé, elle, relève de `has_api_key`.
+    Une liste vide ne garantit donc pas que le fournisseur répond.
+    """
+    problems = []
+    if provider.api_type not in API_TYPES:
+        problems.append(
+            f"type d'API inconnu : {provider.api_type!r} "
+            f"(attendu : {', '.join(API_TYPES)})"
+        )
+    name = (provider.api_key_env or "").strip()
+    if name and not is_allowed_api_key_env(name):
+        problems.append(
+            f"nom de variable non autorisé pour la clé d'API : {name} "
+            "(doit commencer par LLM_ ou finir par _API_KEY)"
+        )
+    return problems
+
+
 def has_api_key(provider):
     """Indique si la clé du fournisseur est présente, sans révéler sa valeur.
 

@@ -363,7 +363,8 @@ interface** (`/backend/providers`, admin only), without touching the code. The d
 provider, **Ollama EPF**, is created automatically on the first start. It points to the
 school's LLM (`https://locallm.mde.epf.fr/ollama`) unless the `DEFAULT_PROVIDER_*`
 settings describe another one (see [Configuration](#configuration)). Changing them later
-does not touch the existing row: edit it in `/backend/providers`.
+does not touch the existing row: edit it in `/backend/providers`. At every start, a default
+provider whose API type or key variable name a call would refuse is logged as a warning.
 
 ### Supported API types
 

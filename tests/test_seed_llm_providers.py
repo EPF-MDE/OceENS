@@ -5,6 +5,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from oceens.core.seed import DEFAULT_PROVIDER_NAME, seed_llm_providers
 from oceens.models import LLMProvider
+from oceens.services.llm_client import config_problems, is_allowed_api_key_env
 
 PROVIDER_SETTINGS = (
     "DEFAULT_PROVIDER_API_TYPE",
@@ -61,8 +62,20 @@ def test_settings_describe_the_seeded_provider(session, monkeypatch):
 
 @pytest.mark.parametrize("name", PROVIDER_SETTINGS)
 def test_no_setting_can_be_read_as_a_key(name):
-    assert not name.startswith("LLM_")
-    assert not name.endswith("_API_KEY")
+    assert not is_allowed_api_key_env(name)
+
+
+def test_settings_a_provider_would_refuse_seed_a_row_with_problems(
+    session, monkeypatch
+):
+    monkeypatch.setenv("DEFAULT_PROVIDER_API_TYPE", "mistral")
+    monkeypatch.setenv("DEFAULT_PROVIDER_KEY_ENV", "SECRET_KEY")
+
+    assert len(config_problems(seeded_provider(session))) == 2
+
+
+def test_default_settings_seed_a_row_without_problem(session):
+    assert config_problems(seeded_provider(session)) == []
 
 
 def test_empty_settings_keep_locallm(session, monkeypatch):
