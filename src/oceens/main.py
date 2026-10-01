@@ -229,13 +229,15 @@ app = create_app()
 # └──────────────────────────────────────────────────────────────────────┘
 
 
+# Réglages du serveur ASGI. Les proxys dont uvicorn croit `X-Forwarded-Proto`
+# n'y figurent pas exprès : uvicorn les lit dans FORWARDED_ALLOW_IPS (par défaut
+# 127.0.0.1 seul), que chaque déploiement règle sur son propre proxy.
+SERVER_OPTIONS = {"host": "0.0.0.0", "port": 8000}
+
+
 def run():
     """Point d'entrée de la commande `oceens` : démarre le serveur ASGI."""
-    uvicorn.run(
-        "oceens.main:app",
-        host="0.0.0.0",
-        port=8000,
-    )
+    uvicorn.run("oceens.main:app", **SERVER_OPTIONS)
 
 
 if __name__ == "__main__":

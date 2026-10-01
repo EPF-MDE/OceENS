@@ -277,6 +277,7 @@ variable the code reads, with its default.
 | `DEFAULT_PROVIDER_MODEL` | no (default `gemma4:26b`) | Model the default provider uses. |
 | `DEFAULT_PROVIDER_KEY_ENV` | no (default `LLM_API_KEY`) | Name of the variable holding the default provider's key, not the key itself. Must start with `LLM_` or end with `_API_KEY`. |
 | `RUN_SUMMARIES_DAEMON` | no | `1`/`true`/`yes`/`on` starts the summaries daemon alongside Uvicorn. Set it whenever the application is the only process that runs, as with the image or Docker Compose: otherwise requested summaries stay pending, with no error to say so. Leave it unset where something else starts `oceens-summaries`, as `launch.sh` does, or two daemons run. |
+| `FORWARDED_ALLOW_IPS` | behind a proxy that ends TLS | Comma-separated addresses of the proxies whose `X-Forwarded-Proto` and `X-Forwarded-For` Uvicorn believes, or `*` for any. Defaults to `127.0.0.1`. Behind a proxy that ends TLS, set it to that proxy's address as the application sees it: otherwise the application builds its links with `http`, and the browser blocks the pages' CSS as mixed content. The Docker image sets `*`, since its proxy's address is only known at deploy time (on Azure App Service, it is not fixed); set the proxy's address instead where you know it. |
 | `POSTHOG_PROJECT_TOKEN` | no | Project token (`phc_…`) of the PostHog project that receives the production signals. |
 | `POSTHOG_HOST` | with `POSTHOG_PROJECT_TOKEN` | PostHog ingestion host, `https://eu.i.posthog.com`. |
 | `POSTHOG_ENVIRONMENT` | with `POSTHOG_PROJECT_TOKEN` | `staging` or `production`: the `environment` property of every exception, the `deployment.environment` attribute of every log. |
@@ -723,6 +724,8 @@ duplicates are refused.
       (required unless `AUTH_MODE=dev`, otherwise the application refuses to start)
 - [ ] `AUTH_MODE` unset or `entra`
 - [ ] Valid SSL certificate (Let's Encrypt or equivalent)
+- [ ] Behind a proxy that ends TLS: `FORWARDED_ALLOW_IPS` set to that proxy (the Docker
+      image sets `*`), so that pages link their CSS over HTTPS
 - [ ] `https_only=True` in the SessionMiddleware (automatic unless `AUTH_MODE=dev`)
 - [ ] Database present (`database/db_oceens.db`) or its directory mounted
 - [ ] Environment variables kept secret, including `LLM_API_KEY`
