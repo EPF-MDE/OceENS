@@ -94,6 +94,9 @@ docker run -p 8000:8000 --env-file .env -v oceens_db:/app/database -v ./import:/
 
 > La base SQLite est persistée dans le volume Docker `oceens_db` (`/app/database`).
 > Le fichier `.env` n'est jamais copié dans l'image : il est passé via `--env-file` au lancement.
+>
+> L'image ne lance qu'uvicorn : pour que les synthèses soient écrites, mettre
+> `RUN_SUMMARIES_DAEMON=1` dans le `.env` (voir l'étape 6 ci-dessous).
 
 ### Sans Docker (installation manuelle)
 
@@ -147,8 +150,13 @@ docker run -p 8000:8000 --env-file .env -v oceens_db:/app/database -v ./import:/
 
    > La variable d'environnement `RUN_SUMMARIES_DAEMON=1` dans le
    > `.env` fait lancer automatiquement le daemon en process séparé au démarrage
-   > d'uvicorn (et l'arrête à la fermeture). A utiliser en production avec Docker.
-   > NB : `launch.sh` (sans docker) gère déjà le daemon dans sa propre session `screen`.
+   > d'uvicorn (et l'arrête à la fermeture).
+   >
+   > À régler dès que l'application est le seul processus lancé, comme avec l'image
+   > ou Docker Compose : l'image ne lance qu'uvicorn, et sans la variable les synthèses
+   > demandées restent en attente, sans qu'aucune erreur le signale. Ne la laisser vide
+   > que là où autre chose lance le daemon, sinon deux daemons tournent : `launch.sh`
+   > (sans Docker) le lance dans sa propre session `screen`.
 
 7. Ouvrez votre navigateur à l'adresse **http://localhost:8000**.
 
@@ -562,7 +570,7 @@ validé (format + domaine autorisé) et les doublons sont refusés.
 - [ ] Base de données présente (`database/db_oceens.db`) ou volume Docker monté
 - [ ] Variables d'environnement sécurisées, y compris `LLM_API_KEY`
 - [ ] **Docker Compose** : `.env` chargé via `env_file`, jamais copié dans l'image ; `LOCAL_DATABASE_DIR` pointant vers le bon répertoire de base
-- [ ] Daemon `summaries_generator_daemon.py` lancé si les synthèses LLM sont utilisées
+- [ ] Daemon `summaries_generator_daemon.py` lancé si les synthèses LLM sont utilisées (voir `RUN_SUMMARIES_DAEMON`, étape 6)
 
 ---
 
