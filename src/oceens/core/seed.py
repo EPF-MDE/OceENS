@@ -13,6 +13,7 @@ Point d'entrée : `seed_all_if_necessary()`, appelé au démarrage de l'app.
 
 from sqlmodel import Session, delete, select
 import logging
+import os
 
 import csv
 import json
@@ -997,12 +998,25 @@ def seed_answers(session: Session):
 DEFAULT_PROVIDER_NAME = "Ollama EPF"
 
 
+def _setting(name, default):
+    """Valeur de la variable d'environnement `name`, `default` si absente ou vide."""
+    return os.environ.get(name, "").strip() or default
+
+
 def seed_llm_providers(session: Session):
-    """Crée le fournisseur LLM historique s'il n'existe pas.
+    """Crée le fournisseur LLM par défaut s'il n'existe pas.
+
+    Le déploiement le décrit par quatre variables d'environnement
+    (`DEFAULT_PROVIDER_*`, voir `.env.example`) ; chacune, absente ou vide,
+    garde la valeur historique : le LLM de l'école (locallm). Aucun de ces
+    noms ne commence par `LLM_` ni ne finit par `_API_KEY` : un fournisseur ne
+    peut pas lire l'une de ces variables comme sa clé.
 
     Relançable sans doublon : la présence est testée sur `name`, qui sert de
-    clé fonctionnelle. Aucune clé d'API n'est écrite ici, uniquement le nom de
-    la variable d'environnement qui la porte.
+    clé fonctionnelle. Une ligne existante n'est jamais modifiée, même si les
+    variables ont changé : un administrateur a pu la corriger à la main.
+    Aucune clé d'API n'est écrite ici, uniquement le nom de la variable
+    d'environnement qui la porte.
     """
 
     existing = session.exec(
@@ -1014,10 +1028,12 @@ def seed_llm_providers(session: Session):
     session.add(
         LLMProvider(
             name=DEFAULT_PROVIDER_NAME,
-            api_type="ollama",
-            base_url="https://locallm.mde.epf.fr/ollama",
-            api_key_env="LLM_API_KEY",
-            default_model="gemma4:26b",
+            api_type=_setting("DEFAULT_PROVIDER_API_TYPE", "ollama"),
+            base_url=_setting(
+                "DEFAULT_PROVIDER_BASE_URL", "https://locallm.mde.epf.fr/ollama"
+            ),
+            api_key_env=_setting("DEFAULT_PROVIDER_KEY_ENV", "LLM_API_KEY"),
+            default_model=_setting("DEFAULT_PROVIDER_MODEL", "gemma4:26b"),
             is_active=True,
         )
     )
