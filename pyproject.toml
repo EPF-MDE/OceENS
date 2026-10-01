@@ -43,5 +43,9 @@ packages = ["src/oceens"]
 # Outils de développement, absents de l'application installée.
 [dependency-groups]
 dev = [
+    "pytest~=8.4",              # Lance les tests de tests/
     "tach~=0.35.0",             # Vérifie les frontières entre paquets (voir tach.toml)
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

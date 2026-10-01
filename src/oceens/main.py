@@ -23,13 +23,16 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlmodel import Session, select
 from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 
 from oceens.core.auth import AUTH_MODE, SECRET_KEY, router as auth_router
-from oceens.core.database import create_db_and_tables
+from oceens.core.database import create_db_and_tables, engine
 from oceens.core.dependencies import logger
-from oceens.core.seed import seed_all_if_necessary
+from oceens.core.seed import DEFAULT_PROVIDER_NAME, seed_all_if_necessary
+from oceens.models import LLMProvider
+from oceens.services.llm_client import config_problems
 
 from oceens.routers import (
     pages,
@@ -91,6 +94,28 @@ def _summaries_daemon_command():
     return [sys.executable, "-m", "oceens.summaries_generator_daemon"]
 
 
+def _warn_about_default_provider():
+    """Journalise ce qui fera échouer chaque synthèse du fournisseur par défaut.
+
+    Ici et non dans le seed : les règles vivent dans `oceens.services`, que
+    `oceens.core` ne peut pas importer. Vérifié à chaque démarrage, et non à
+    la seule création de la ligne, pour couvrir aussi une ligne modifiée à la
+    main.
+    """
+    with Session(engine) as session:
+        provider = session.exec(
+            select(LLMProvider).where(LLMProvider.name == DEFAULT_PROVIDER_NAME)
+        ).first()
+        if provider is None:
+            return
+        for problem in config_problems(provider):
+            logger.warning(
+                f"Fournisseur « {DEFAULT_PROVIDER_NAME} » : {problem}. Ses "
+                "synthèses échoueront : corrigez-le dans /backend/providers "
+                "(ou, sur une base neuve, les variables DEFAULT_PROVIDER_*)."
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Cycle de vie de l'application : setup au démarrage, teardown à l'arrêt.
@@ -102,6 +127,7 @@ async def lifespan(app: FastAPI):
     logger.info("Initialisation de la base de données...")
     create_db_and_tables()
     seed_all_if_necessary()
+    _warn_about_default_provider()
 
     # Lancer le daemon de synthèses en parallèle d'uvicorn (optionnel)
     daemon_process = _maybe_start_summaries_daemon()
