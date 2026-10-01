@@ -431,7 +431,7 @@ def get_visualisation_context2(survey_id: int) -> Optional[Dict[str, Any]]:
                 "submission_id": r[1],
                 "question_id": r[2],
                 "module_id": r[3],
-                "teacher": r[4].title(),
+                "teacher": r[4].title() if r[4] is not None else None,
                 "option_id": r[5],
                 "answer_value": r[6],
                 "section_id": r[7],
