@@ -46,3 +46,6 @@ dev = [
     "pytest~=9.1.1",            # Lance les tests de tests/ (job `test` de la CI)
     "tach~=0.35.0",             # Vérifie les frontières entre paquets (voir tach.toml)
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
