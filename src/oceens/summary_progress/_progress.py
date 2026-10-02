@@ -6,9 +6,9 @@ from sqlmodel import case, func, select
 
 from oceens.models import Summary
 
-# Hypothèse B du Design Document (EPF-MDE/OceENS#105) : durée typique d'un
-# job. 45 jobs × 20 s ≈ 15 min pour un sondage seul dans la file.
-SECONDS_PER_JOB = 20
+# Durée typique d'un job. Le plus gros job de la base de démo a pris 55 s, et
+# le GPU est partagé avec le cours de GenAI : 150 s est plus honnête que 20 s.
+SECONDS_PER_JOB = 150
 
 # `Summary.http_status` est l'état de la file : 0 en attente, 200 fait, tout
 # autre code est un échec.
