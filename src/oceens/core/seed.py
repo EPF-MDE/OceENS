@@ -1147,11 +1147,15 @@ def seed_settings(session: Session):
 
 
 def seed_prompts(session: Session):
-    """Remplit la table prompts."""
+    """Remplit la table prompts.
+
+    Le prompt ne nomme aucun modèle : la synthèse prend alors celui du
+    fournisseur, que `seed_llm_providers` lit dans `DEFAULT_PROVIDER_MODEL`.
+    """
 
     prompt = Prompt(
-        description="Phrases représentatives (positives et négatives) avec Gemma4",
-        model="gemma4:26b",
+        description="Phrases représentatives (positives et négatives)",
+        model=None,
         prompt_text="""
 Tu trouveras ci-dessous une une liste de réponses à une question de satisfaction.
 1/ Regroupe les phrases positives et les phrases négatives en deux catégories sous forme de liste à puce avec une phrase par ligne). En cas de doublon, ne met qu'une seule ligne et rajoute le nombre d’occurrences entre parenthèse. Si une catégorie est vide ne l'affiche pas.
