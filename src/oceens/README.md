@@ -33,14 +33,16 @@ src/oceens/
 ```
 
 A package under `src/oceens/` is `core`, `models`, `routers`, `services`,
-`seed_data` or `llm_utils` — an immediate subdirectory with an `__init__.py`.
+`summary_progress`, `seed_data` or `llm_utils` — an immediate subdirectory with
+an `__init__.py`.
 `static/` and `templates/` hold no Python, so they are not packages. The modules
 sitting beside them (`main.py`, `sondage_loader.py`...) are outside every
 package: they may use any of them, and are bound by each one's interface like
 anyone else.
 
-No package here has an `_internal/` folder yet; `routers/llm/_access.py` is the
-one private module, and `routers` is free to use it because it is its own.
+No package here has an `_internal/` folder yet. The private modules are
+`routers/llm/_access.py` and `summary_progress/_progress.py`, each used only by
+its own package.
 
 Adding a package, or a private folder inside one, needs no edit to `tach.toml`.
 The rule is written once, generically, and applies to whatever is there.
