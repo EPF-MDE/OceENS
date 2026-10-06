@@ -39,15 +39,12 @@ LOGS_PATH = "/i/v1/logs"
 # posé sur la racine ne les verrait jamais.
 SERVICE_LOGGERS = ("uvicorn", "uvicorn.error")
 
-# En-tête que posent les SDK web de PostHog sur les requêtes qu'ils émettent.
-SESSION_HEADER = "X-POSTHOG-SESSION-ID"
-
 
 class ProductionSignals:
     """Ce que `start()` a branché, et de quoi le débrancher.
 
-    Éteint (`client` à None) quand un réglage manque : `request_context()` ne
-    fait alors rien, et `shutdown()` non plus.
+    Éteint (`client` à None) quand un réglage manque : les contextes, `report()`
+    et `shutdown()` ne font alors rien.
     """
 
     def __init__(self, client=None, logger_provider=None, handler=None, loggers=()):
@@ -76,10 +73,54 @@ class ProductionSignals:
             email = (get_current_user(request) or {}).get("email")
             if email:
                 posthog.identify_context(email)
-            session_id = request.headers.get(SESSION_HEADER)
-            if session_id:
-                posthog.set_context_session(session_id)
             yield
+
+    def process_context(self, distinct_id):
+        """Contexte PostHog d'un processus sans utilisateur, sous un nom fixe.
+
+        Hors requête, personne n'est connecté : sans identité, le SDK donnerait
+        à chaque événement un id aléatoire, et une erreur compterait autant
+        d'utilisateurs que d'occurrences. Le processus signe donc tout ce qu'il
+        envoie de son propre nom. Une exception qui sort du contexte est
+        capturée sous ce nom, puis relancée : `sys.excepthook` la reconnaît
+        alors comme déjà capturée, et ne l'envoie pas une seconde fois sans
+        identité.
+        """
+        if self._client is None:
+            return nullcontext()
+        return self._named_context(distinct_id)
+
+    @contextmanager
+    def _named_context(self, distinct_id):
+        with posthog.new_context(client=self._client):
+            posthog.identify_context(distinct_id)
+            yield
+
+    def work_context(self, **properties):
+        """Contexte PostHog d'un travail, ses `properties` sur tout ce qui s'y envoie.
+
+        À ouvrir dans `process_context()`, dont il garde l'identité.
+        """
+        if self._client is None:
+            return nullcontext()
+        return self._tagged_context(properties)
+
+    @contextmanager
+    def _tagged_context(self, properties):
+        with posthog.new_context(client=self._client):
+            for name, value in properties.items():
+                posthog.tag(name, value)
+            yield
+
+    def report(self, exception):
+        """Envoie à Error tracking une exception que le code a rattrapée.
+
+        Rattrapée, elle ne sort d'aucun contexte : rien ne la capturerait. Elle
+        part avec l'identité et les propriétés du contexte ouvert.
+        """
+        if self._client is None:
+            return
+        self._client.capture_exception(exception)
 
     def shutdown(self):
         """Vide les files d'envoi et débranche le handler de logs."""
