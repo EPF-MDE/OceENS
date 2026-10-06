@@ -46,6 +46,11 @@ load_dotenv()
 
 logger = logging.getLogger("uvicorn.error")
 
+# Le nom du daemon, dans ses logs (`service.name`) comme dans Error tracking,
+# où c'est l'identité (`distinct_id`) de tout ce qu'il envoie : il ne travaille
+# pour aucun utilisateur connecté, et n'en invente pas.
+DAEMON_NAME = "oceens-summaries"
+
 
 # Intervalle d'attente quand la file est vide.
 POLL_INTERVAL_SECONDS = 30
@@ -61,6 +66,15 @@ DEFAULT_PROVIDER_NAME = "Ollama EPF"
 STATUS_MODEL_NOT_FOUND = 404
 STATUS_TIMEOUT = 504
 STATUS_CONFIG_ERROR = 500
+
+
+class ProviderError(Exception):
+    """Réponse en erreur d'un fournisseur LLM.
+
+    `ask_model()` la rend comme une réponse, sans lever : le daemon la classe
+    et la range dans la ligne. Ce n'en est pas moins une erreur, signalée sous
+    cette forme à Error tracking.
+    """
 
 
 def signal_handler(signal_number, frame):
@@ -156,8 +170,12 @@ def load_verbatims(session, summary_row):
     return [value for value in session.exec(query).all() if value]
 
 
-def process_summary(session, summary_row, http_session, md, checked_models):
-    """Traite une ligne de la file. Retourne toujours après l'avoir sortie de l'état 0."""
+def process_summary(session, summary_row, http_session, md, checked_models, signals):
+    """Traite une ligne de la file. Retourne toujours après l'avoir sortie de l'état 0.
+
+    Chaque échec rattrapé auprès du fournisseur part aussi dans Error
+    tracking par `signals.report()` : rattrapé, il n'y arriverait pas seul.
+    """
 
     prompt_row = session.get(Prompt, summary_row.prompt_id)
     if not prompt_row:
@@ -201,6 +219,7 @@ def process_summary(session, summary_row, http_session, md, checked_models):
             logger.exception(
                 "Vérification du modèle %s impossible chez %s", model, provider.name
             )
+            signals.report(error)
             finish_summary(
                 session, summary_row, STATUS_CONFIG_ERROR, metadata_text=str(error)
             )
@@ -255,12 +274,14 @@ def process_summary(session, summary_row, http_session, md, checked_models):
         )
     except LLMConfigError as error:
         logger.error("Fournisseur %s mal configuré : %s", provider.name, error)
+        signals.report(error)
         finish_summary(
             session, summary_row, STATUS_CONFIG_ERROR, metadata_text=str(error)
         )
         return
     except RequestException as error:
         logger.warning("Appel au fournisseur %s en échec : %s", provider.name, error)
+        signals.report(error)
         finish_summary(
             session, summary_row, STATUS_TIMEOUT, metadata_text=str(error)
         )
@@ -278,6 +299,7 @@ def process_summary(session, summary_row, http_session, md, checked_models):
             error_text,
             json.dumps(metadata, default=str),
         )
+        signals.report(ProviderError(error_text))
         finish_summary(
             session,
             summary_row,
@@ -299,24 +321,57 @@ def process_summary(session, summary_row, http_session, md, checked_models):
     )
 
 
-def main():
-    """Boucle principale du daemon : dépile la file `summaries` en continu.
+def work_on_summary(session, summary_row, http_session, md, checked_models, signals):
+    """Traite une ligne de la file, quoi qu'il arrive pendant son traitement."""
+    try:
+        # Ce que le daemon signale pendant ce travail porte le sondage : ses
+        # erreurs se comptent en sondages touchés. Une exception inattendue
+        # sort de ce contexte capturée, avant le filet de sécurité.
+        with signals.work_context(survey_id=summary_row.survey_id):
+            process_summary(
+                session, summary_row, http_session, md, checked_models, signals
+            )
+    except Exception:
+        # Filet de sécurité : une exception inattendue ne doit ni arrêter le
+        # daemon, ni laisser la ligne bloquée à 0.
+        logger.exception(
+            "Erreur inattendue sur la synthèse %s", summary_row.summary_id
+        )
+        session.rollback()
+        finish_summary(
+            session,
+            summary_row,
+            STATUS_CONFIG_ERROR,
+            metadata_text="Erreur interne pendant la génération.",
+        )
 
-    Tant qu'il y a une ligne à http_status=0, on la traite ; sinon on attend
-    POLL_INTERVAL_SECONDS avant de re-vérifier. Toute exception inattendue est
-    rattrapée pour ne jamais arrêter le daemon ni bloquer une ligne.
-    """
+
+def main():
+    """Point d'entrée du daemon : branche les signaux de production, puis `run()`."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s:     %(message)s",
     )
     # Après basicConfig, comme dans l'application après la configuration
     # d'uvicorn : le handler de logs s'ajoute à celle du processus. L'arrêt
-    # passe par atexit et non par un `finally` : une exception qui tue le
-    # daemon n'est capturée qu'après la sortie de `main()`, par sys.excepthook.
-    signals = production_signals.start("oceens-summaries")
+    # passe par atexit et non par un `finally` : les envois partent après la
+    # sortie de `main()`, une fois l'exception qui tue le daemon capturée.
+    signals = production_signals.start(DAEMON_NAME)
     atexit.register(signals.shutdown)
+    # Une exception qui tue le daemon sort de ce contexte capturée sous son
+    # nom ; `sys.excepthook` la sait déjà capturée et ne l'envoie pas une
+    # seconde fois, sous une identité aléatoire.
+    with signals.process_context(DAEMON_NAME):
+        run(signals)
 
+
+def run(signals):
+    """Boucle principale du daemon : dépile la file `summaries` en continu.
+
+    Tant qu'il y a une ligne à http_status=0, on la traite ; sinon on attend
+    POLL_INTERVAL_SECONDS avant de re-vérifier. Toute exception inattendue est
+    rattrapée pour ne jamais arrêter le daemon ni bloquer une ligne.
+    """
     md = MarkdownIt()  # convertisseur markdown → HTML pour le rendu final
     http_session = build_cache_session("cache_llm.db")
 
@@ -336,21 +391,9 @@ def main():
                 time.sleep(POLL_INTERVAL_SECONDS)
                 continue
 
-            try:
-                process_summary(session, summary_row, http_session, md, checked_models)
-            except Exception:
-                # Filet de sécurité : une exception inattendue ne doit ni
-                # arrêter le daemon, ni laisser la ligne bloquée à 0.
-                logger.exception(
-                    "Erreur inattendue sur la synthèse %s", summary_row.summary_id
-                )
-                session.rollback()
-                finish_summary(
-                    session,
-                    summary_row,
-                    STATUS_CONFIG_ERROR,
-                    metadata_text="Erreur interne pendant la génération.",
-                )
+            work_on_summary(
+                session, summary_row, http_session, md, checked_models, signals
+            )
 
 
 if __name__ == "__main__":
