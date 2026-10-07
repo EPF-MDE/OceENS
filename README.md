@@ -546,10 +546,12 @@ OceENS/
 ├── tach.toml                     # The package boundary rule, checked by `tach check`
 │
 ├── .github/workflows/
-│   └── architecture.yml          #   The boundary rule, run on every push and pull request
+│   └── architecture.yml          #   The boundary rule and the tests, run on every push and pull request
 │
 ├── scripts/
 │   └── check_cycles.py           #   Rejects import cycles between packages
+│
+├── tests/                        # Automated tests, run by `uv run pytest` and in CI
 │
 ├── docs/
 │   ├── smoke-test.md             #   Manual validation procedure (behaviour is not in CI)
@@ -601,6 +603,8 @@ OceENS/
     │   ├── llm_client.py          #     Multi-provider LLM client (ollama/openai/anthropic)
     │   ├── llm_costs.py           #     Summary cost (measured tokens × price list)
     │   └── export_csv.py          #     CSV export of the answers
+    │
+    ├── summary_progress/          # A survey's summaries: done, errors, estimated time left
     │
     ├── seed_data/                 # Seed data read at startup (was import/)
     │   ├── Program_list.csv       #     Programs, synchronised on every start
@@ -716,9 +720,10 @@ duplicates are refused.
 
 ## Validating a change
 
-The automated tests are still few (`uv run pytest`), and CI covers the architecture rules
-only (`.github/workflows/architecture.yml`, on every push and pull request), so behaviour
-is mostly on you: before proposing a change, run the tests, then the
+The automated test suite is only starting: `tests/` holds its first tests, run by
+`uv run pytest` and by CI next to the architecture rules
+(`.github/workflows/architecture.yml`, on every push and pull request). Most behaviour
+is still on you: before proposing a change, run the tests, then the
 manual procedure in **[docs/smoke-test.md](docs/smoke-test.md)**: static checks, startup
 from a fresh clone, Docker, exit codes on invalid configuration, and the LLM key. Then
 test the routes your change touches, on a throwaway SQLite database (never a copy of

@@ -1,9 +1,10 @@
 # Manual smoke test
 
-The repository's automated tests are still few (`uv run pytest`; the dev sign-in's are
-#85, the wider CI #78). CI checks the architecture rules and nothing else, so nothing
-upstream exercises behaviour. This procedure runs entirely **outside the process**: start from a fresh clone,
-start the application, and observe what it answers and with which exit code.
+The automated test suite is only starting: `tests/` holds its first tests, run by
+`uv run pytest` and in CI next to the architecture rules (the dev sign-in tests are #85,
+the wider CI #78). Almost no behaviour is exercised upstream. This procedure runs entirely
+**outside the process**: start from a fresh clone, start the application, and observe what
+it answers and with which exit code.
 
 Run it before proposing a change that touches startup, configuration, dependencies or the
 container.
