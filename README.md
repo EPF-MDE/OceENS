@@ -10,7 +10,7 @@ Answers can be exported, visualised, and summarised through an LLM. The interfac
 EPF's official visual identity.
 
 The application itself is in French: its pages, its seeded demo content and the survey
-questions are written in French. The documentation is in English — see `CONTEXT.md` for
+questions are written in French. The documentation is in English — see `GLOSSARY.md` for
 where that boundary sits.
 
 ### Technical stack
@@ -285,13 +285,17 @@ variable the code reads, with its default.
 `.env.example` lists the three `POSTHOG_*` settings commented out and with no value. Their
 values go only in the host's settings of a deployed environment, never committed. With all
 three set, the application and the summaries daemon send their unhandled exceptions to
-PostHog Error tracking, identified by the signed-in user's email, and their logs to
-PostHog Logs. With `POSTHOG_PROJECT_TOKEN` unset (a laptop, a fresh clone), nothing is
-sent and the service runs as before. Set all three, or none: with `POSTHOG_PROJECT_TOKEN`
-set but `POSTHOG_HOST` or `POSTHOG_ENVIRONMENT` missing, the application and the daemon
-refuse to start (exit code 1) and name the missing setting, e.g. `ValueError:
-POSTHOG_ENVIRONMENT missing`, so that a staging's errors never mix silently with
-production's.
+PostHog Error tracking, and their logs to PostHog Logs. The daemon also sends each
+provider failure it catches, besides logging it and filing it in the summary. The
+application's exceptions are identified by the signed-in user's email. The daemon works
+for no signed-in user, and invents none: everything it sends carries its own name,
+`oceens-summaries`, as its `distinct_id`, and what it sends while summarising a survey
+carries that survey's `survey_id`, so that its errors are counted in surveys. With
+`POSTHOG_PROJECT_TOKEN` unset (a laptop, a fresh clone), nothing is sent and the service
+runs as before. Set all three, or none: with `POSTHOG_PROJECT_TOKEN` set but
+`POSTHOG_HOST` or `POSTHOG_ENVIRONMENT` missing, the application and the daemon refuse to
+start (exit code 1) and name the missing setting, e.g. `ValueError: POSTHOG_ENVIRONMENT
+missing`, so that a staging's errors never mix silently with production's.
 
 `SECRET_KEY` signs the session cookies: anyone who knows it can forge an admin session. It
 is **required unless `AUTH_MODE=dev`**: when missing or empty, the application logs a
@@ -560,7 +564,7 @@ OceENS/
 ├── .env                          # Environment variables (⚠️ never committed)
 ├── .gitignore                    # Files and directories ignored by Git
 ├── Template_2025.md              # Reference wording of the survey template
-├── CONTEXT.md                    # Domain glossary and language boundary
+├── GLOSSARY.md                   # Domain glossary and language boundary
 ├── AGENTS.md, CLAUDE.md          # Conventions for coding agents
 ├── tach.toml                     # The package boundary rule, checked by `tach check`
 │
