@@ -10,7 +10,7 @@ Answers can be exported, visualised, and summarised through an LLM. The interfac
 EPF's official visual identity.
 
 The application itself is in French: its pages, its seeded demo content and the survey
-questions are written in French. The documentation is in English — see `CONTEXT.md` for
+questions are written in French. The documentation is in English — see `GLOSSARY.md` for
 where that boundary sits.
 
 ### Technical stack
@@ -541,7 +541,7 @@ OceENS/
 ├── .env                          # Environment variables (⚠️ never committed)
 ├── .gitignore                    # Files and directories ignored by Git
 ├── Template_2025.md              # Reference wording of the survey template
-├── CONTEXT.md                    # Domain glossary and language boundary
+├── GLOSSARY.md                   # Domain glossary and language boundary
 ├── AGENTS.md, CLAUDE.md          # Conventions for coding agents
 ├── tach.toml                     # The package boundary rule, checked by `tach check`
 │
