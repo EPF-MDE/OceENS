@@ -146,6 +146,11 @@ async def lifespan(app: FastAPI):
     logger.info("Fermeture de la connexion...")
 
 
+# Le commit dont l'image a été construite (Dockerfile, `ARG REVISION`).
+# Hors d'une image, "unknown".
+REVISION = os.environ.get("REVISION", "unknown")
+
+
 def create_app():
     """
     Crée et configure l'application FastAPI fusionnée.
@@ -172,6 +177,15 @@ def create_app():
 
         if response.status_code == 404 and request.url.path != "/":
             return RedirectResponse(url="/", status_code=303)
+        return response
+
+    @app.middleware("http")
+    async def send_revision(request: Request, call_next):
+        """Ajouté en dernier, donc le plus externe : dit sur chaque réponse,
+        redirections comprises, de quel commit l'image a été construite.
+        """
+        response = await call_next(request)
+        response.headers["X-Revision"] = REVISION
         return response
 
     # Routeur d'authentification (login/logout/callback Azure Entra ID)
