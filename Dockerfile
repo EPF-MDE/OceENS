@@ -45,4 +45,4 @@ ARG REVISION=unknown
 ENV REVISION=$REVISION
 
 # `oceens` est le point d'entrée installé avec le paquet (uvicorn sur 0.0.0.0:8000).
-CMD ["sh","-c","exit 1"]
+CMD ["oceens"]
