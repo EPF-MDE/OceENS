@@ -202,3 +202,5 @@ jobs:
           posthog-project-token: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
           posthog-host: ${{ vars.POSTHOG_HOST }}
           posthog-environment: ${{ vars.POSTHOG_ENVIRONMENT }}
+          # Production alone calls its LLM through the Course gateway.
+          default-provider-base-url: ${{ secrets.DEFAULT_PROVIDER_BASE_URL }}

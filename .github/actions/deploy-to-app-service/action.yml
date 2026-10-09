@@ -33,6 +33,12 @@ inputs:
   posthog-environment:
     description: POSTHOG_ENVIRONMENT, the environment's name in PostHog.
     required: true
+  default-provider-base-url:
+    description: >-
+      DEFAULT_PROVIDER_BASE_URL, written only when given. Production gives the
+      Course gateway's URL; staging gives nothing, so the app keeps its own.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -62,7 +68,14 @@ runs:
         POSTHOG_PROJECT_TOKEN: ${{ inputs.posthog-project-token }}
         POSTHOG_HOST: ${{ inputs.posthog-host }}
         POSTHOG_ENVIRONMENT: ${{ inputs.posthog-environment }}
+        DEFAULT_PROVIDER_BASE_URL: ${{ inputs.default-provider-base-url }}
       run: |
+        # Only when given: production calls its LLM through the Course gateway,
+        # from its Environment's secret. Staging leaves the app's own setting.
+        provider=()
+        if [ -n "$DEFAULT_PROVIDER_BASE_URL" ]; then
+          provider=("DEFAULT_PROVIDER_BASE_URL=$DEFAULT_PROVIDER_BASE_URL")
+        fi
         az webapp config appsettings set \
           --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --output none \
           --settings \
@@ -74,7 +87,8 @@ runs:
             "DEV_LOGIN_KEY=$DEV_LOGIN_KEY" \
             "POSTHOG_PROJECT_TOKEN=$POSTHOG_PROJECT_TOKEN" \
             "POSTHOG_HOST=$POSTHOG_HOST" \
-            "POSTHOG_ENVIRONMENT=$POSTHOG_ENVIRONMENT"
+            "POSTHOG_ENVIRONMENT=$POSTHOG_ENVIRONMENT" \
+            "${provider[@]}"
 
     # The image is public on GHCR, so the app pulls it without credentials.
     - name: Run the image
